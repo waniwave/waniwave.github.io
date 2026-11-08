@@ -293,3 +293,9 @@ footer {
 .pillars a { border-bottom: 2px solid var(--ink); padding-bottom: .1em; }
 .pillars a:hover, .pillars a:focus-visible { color: var(--red); border-color: var(--red); }
 @media (max-width: 720px) { .pillars { gap: .5rem 1rem; font-size: .9375rem; } }
+
+/* ---- support links (contact) ---- */
+.support { margin: 1rem 0 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem 1.25rem; font-size: .9375rem; }
+.support span { color: var(--mute); }
+.support a { border-bottom: 1px solid var(--line); }
+.support a:hover { border-color: var(--red); }
