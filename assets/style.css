@@ -79,7 +79,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--red); outline-o
   font-weight: 800;
   font-stretch: 62%;
   font-variation-settings: "wdth" 62;
-  font-size: clamp(4.5rem, 17vw, 13.5rem);
+  font-size: clamp(3.5rem, 12vw, 8.5rem);
   line-height: .86;
   letter-spacing: -.015em;
   text-transform: none;
@@ -219,3 +219,77 @@ footer {
   .links { justify-content: flex-start; }
   .row .k { order: 0; }
 }
+
+/* ---- top bar links ---- */
+.bar .home { color: var(--ink); font-family: var(--font-latin); font-weight: 600; }
+.bar .side { margin-left: auto; display: flex; align-items: center; gap: 1.5rem; }
+.bar .side .lang { margin-left: 0; }
+.bar .games-link { font-family: var(--font-latin); color: var(--ink); border-bottom: 1px solid var(--line); }
+.bar .games-link:hover { border-color: var(--red); }
+
+/* ---- games page ---- */
+.page-head { padding-block: clamp(3rem, 8vw, 6rem) clamp(2.5rem, 6vw, 4rem); }
+.page-title {
+  margin: 0;
+  font-family: var(--font-latin);
+  font-weight: 800;
+  font-stretch: 62%;
+  font-variation-settings: "wdth" 62;
+  font-size: clamp(3rem, 9vw, 6rem);
+  line-height: .9;
+}
+.page-lead { margin: 1.25rem 0 0; color: var(--mute); max-width: 36em; }
+.games { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.game {
+  display: grid;
+  grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
+  gap: 1.5rem 2.5rem;
+  align-items: start;
+  padding-block: 2.5rem;
+  border-bottom: 1px solid var(--line);
+}
+.game .thumb { display: block; border: 1px solid var(--line); }
+.game .thumb img { display: block; width: 100%; height: auto; }
+.game .thumb:hover { border-color: var(--red); }
+.game-body { min-width: 0; max-width: 34em; }
+.game-body h2 { margin: 0; font-size: 1.375rem; line-height: 1.4; }
+.game-body p { margin: .5rem 0 0; }
+.game-sub { color: var(--mute); font-size: .875rem; }
+.game-meta { color: var(--mute); font-size: .8125rem; }
+.game-meta span { margin-left: 1em; }
+.play {
+  display: inline-block;
+  margin-top: 1.25rem;
+  padding: .55rem 1.6rem;
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: 700;
+  letter-spacing: .1em;
+}
+.play:hover { background: var(--red); color: #fff; }
+@media (max-width: 720px) {
+  .game { grid-template-columns: minmax(0, 1fr); padding-block: 2rem; }
+}
+.games + footer { border-top: 0; }
+
+/* ---- embedded players (inside the waniwave music row) ---- */
+.players { grid-column: 1 / -1; display: grid; gap: .6rem; margin-top: .9rem; }
+.players iframe { display: block; width: 100%; border: 0; }
+.players .p-sc { height: 20px; }
+.players .p-bc { height: 42px; }
+
+/* ---- hero link row: the main channels ---- */
+.pillars {
+  list-style: none;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem 1.75rem;
+  font-family: var(--font-latin);
+  font-size: clamp(1rem, 1.8vw, 1.125rem);
+  font-weight: 600;
+}
+.pillars a { border-bottom: 2px solid var(--ink); padding-bottom: .1em; }
+.pillars a:hover, .pillars a:focus-visible { color: var(--red); border-color: var(--red); }
+@media (max-width: 720px) { .pillars { gap: .5rem 1rem; font-size: .9375rem; } }
