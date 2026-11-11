@@ -462,6 +462,18 @@ input[type=text]{font:inherit;background:var(--yoru);color:var(--washi);border:1
 .sbrow:disabled{opacity:.4;cursor:default}
 .linkb{border:0;background:none;color:var(--andon);text-decoration:underline;cursor:pointer;padding:0;font:inherit}
 @media (max-width:560px){.sbcols{grid-template-columns:1fr}.sblist{max-height:30vh}}
+.sbres{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;margin-bottom:4px}
+.sbres .res{font-family:var(--f-disp);font-size:22px}
+.sbh{margin:12px 0 4px}
+.dlist.sbl{max-height:none}
+.bosel{border:1px solid var(--line);border-radius:4px;padding:6px 10px;display:flex;flex-wrap:wrap;gap:4px 16px;margin:6px 0}
+.bosel label{display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer}
+.shake{animation:sbshake .3s}
+@keyframes sbshake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.sblanes{display:flex;flex-wrap:wrap;gap:4px 8px;margin:4px 0 2px;font-family:var(--f-dot);font-size:12.5px}
+.sblanes span{border:1px solid var(--line);border-radius:3px;padding:2px 8px}
+.sblanes .p{border-color:#7fe0c0}.sblanes .e{border-color:#ff8a7a}
+.sbrow.dim{opacity:.55}
 </style>
 
 <div id="title">
@@ -2154,7 +2166,10 @@ function artHTML(id){const d=CMAP[id];const a=artOf(id);
   return `<div class="art pic sc-${a.sc} pt${a.pt}"><span class="e1" style="transform:rotate(${a.rot}deg)${a.flip?' scaleX(-1)':''}">${a.e1}</span>${a.e2?`<span class="e2">${a.e2}</span>`:''}<span class="kj">${esc(d.g)}</span></div>`}
 // ----- デッキスロット -----
 function fixDeck(arr){const out=[];(arr||[]).forEach(id=>{if(CMAP[id]&&out.length<10&&out.filter(x=>x===id).length<Math.min(2,own(id)))out.push(id)});return out}
-function ensureSlots(){if(!Array.isArray(G.decks)||G.decks.length!==3){G.decks=[G.deck.slice(),[],[]];G.slot=0}if(G.slot==null)G.slot=0;if(!G.deckNames)G.deckNames=['デッキ1','デッキ2','デッキ3'];if(!G.fav)G.fav={}}
+function curSide(){ensureSlots();return G.sides[G.slot]}
+function sideCount(id){return curSide().filter(x=>x===id).length}
+function fixSide(arr,main){const out=[];(arr||[]).forEach(id=>{if(CMAP[id]&&!CMAP[id].token&&out.length<4&&main.filter(x=>x===id).length+out.filter(x=>x===id).length<Math.min(2,own(id)))out.push(id)});return out}
+function ensureSlots(){if(G&&(!Array.isArray(G.sides)||G.sides.length!==3))G.sides=[[],[],[]];if(!Array.isArray(G.decks)||G.decks.length!==3){G.decks=[G.deck.slice(),[],[]];G.slot=0}if(G.slot==null)G.slot=0;if(!G.deckNames)G.deckNames=['デッキ1','デッキ2','デッキ3'];if(!G.fav)G.fav={}}
 function slotDeck(i){return i===G.slot?G.deck:fixDeck(G.decks[i])}
 function deckTheme(deck){const cnt={};deck.forEach(id=>tagsOf(id).forEach(t=>{if(t!=='ter')cnt[t]=(cnt[t]||0)+1}));const t=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0];return t&&cnt[t]>=3?TAGN[t]:''}
 function slotLabel(i){const d=slotDeck(i);const th=deckTheme(d);return `${G.deckNames[i]}（${d.length}枚${th?'・〈'+th+'〉中心':''}）`}
@@ -2205,7 +2220,8 @@ function bcTransport(code,onConn){const me=Math.random().toString(36).slice(2);c
   ch.onmessage=e=>{const d=e.data;if(!d||d.from===me)return;if(d.bye){(hs.close||[]).forEach(f=>f());return}if(d.s!=null)(hs.data||[]).forEach(f=>f(d.s))};
   setTimeout(()=>{onConn(conn);(hs.open||[]).forEach(f=>f())},50);return{destroy(){try{ch.close()}catch(e){}}}}
 const useBC=()=>/(^|#|&)bc($|&)/.test(location.hash)||window.__NETBC;
-function myHello(){return{t:'hello',v:1,name:(G.netName||'旅のター客').slice(0,16),deck:G.deck.slice(),lv:lvMap()}}
+const NET_V=3;
+function myHello(){return{t:'hello',v:NET_V,bo:NET.bo,name:(G.netName||'旅のター客').slice(0,16),deck:G.deck.slice(),lv:lvMap()}}
 function onlineMenu(){
   ensureSlots();
   const ok=validSlots();
@@ -2214,12 +2230,13 @@ function onlineMenu(){
    <p class="small">友達とインターネットごしに対戦します。片方が「部屋をつくる」で部屋番号を出し、もう片方がその番号で「部屋に入る」。</p>
    <div class="row"><label class="small" for="netName">名前</label><input type="text" id="netName" maxlength="16" value="${esc(G.netName||'旅のター客')}"></div>
    <p class="small">使うデッキ：${esc(slotLabel(G.slot))}</p>
+   <fieldset class="bosel"><legend class="small">部屋をつくるときの形式</legend><label><input type="radio" name="bo" value="3" ${G.netBo!==1?'checked':''}> 2本先取（BO3・サイドボードあり）</label><label><input type="radio" name="bo" value="1" ${G.netBo===1?'checked':''}> 1本勝負（BO1）</label></fieldset>
    <div class="row"><button class="btn primary" id="netHost" type="button">部屋をつくる</button></div>
    <div class="row"><input type="text" id="netCode" maxlength="8" placeholder="部屋番号（5文字）" aria-label="部屋番号" style="text-transform:uppercase"><button class="btn primary" id="netJoin" type="button">部屋に入る</button></div>
    <div class="small" id="netMsg" role="status" style="min-height:2.6em"></div>
    <div class="row"><button class="btn" data-close type="button">閉じる</button></div>`,el=>{
     const nm_=()=>{const v=el.querySelector('#netName').value.trim();G.netName=v||'旅のター客';save()};
-    el.querySelector('#netHost').onclick=()=>{nm_();modalClose=null;netHost()};
+    el.querySelector('#netHost').onclick=()=>{nm_();const bo=+(el.querySelector('input[name=bo]:checked')||{}).value===1?1:3;G.netBo=bo;save();NET.bo=bo;modalClose=null;netHost()};
     el.querySelector('#netJoin').onclick=()=>{nm_();const c=el.querySelector('#netCode').value.trim().toUpperCase();if(!/^[A-Z0-9]{5}$/.test(c)){netStatus('部屋番号は5文字です。',1);return}modalClose=null;netJoin(c,0)};
    }));
 }
@@ -2233,7 +2250,7 @@ function hookConn(c,onOpen){let opened=false;
   c.on('error',e=>console.error(e))}
 function netStatus(t,err){const el=$('#netMsg');if(el){el.textContent=t;el.classList.toggle('err',!!err)}}
 function netStep(n,s){const el=$('#ns'+n);if(el)el.className=s}
-const NET_ERR={ice:'相手は見つかりましたが、回線どうしを直接つなげませんでした。P2Pは回線の組み合わせによって通らないことがあります。どちらかがWi-Fiとスマホ回線を切り替えると、つながることがあります。',noroom:'その番号の部屋が見つかりません。番号が合っているか、相手の画面が「部屋をつくりました」のまま開いているか確かめてください。',server:'仲介サーバーにつながりませんでした。少し時間をおいて、もう一度試してください。',timeout:'時間内につながりませんでした。',lib:'通信の部品を読み込めませんでした。ネットにつながっているか確かめてください。'};
+const NET_ERR={ver:'相手とゲームのバージョンが違います。両方ともページを再読み込み（更新）してから、もう一度つないでください。',ice:'相手は見つかりましたが、回線どうしを直接つなげませんでした。P2Pは回線の組み合わせによって通らないことがあります。どちらかがWi-Fiとスマホ回線を切り替えると、つながることがあります。',noroom:'その番号の部屋が見つかりません。番号が合っているか、相手の画面が「部屋をつくりました」のまま開いているか確かめてください。',server:'仲介サーバーにつながりませんでした。少し時間をおいて、もう一度試してください。',timeout:'時間内につながりませんでした。',lib:'通信の部品を読み込めませんでした。ネットにつながっているか確かめてください。'};
 function netFail(kind){if(NET.started||NET.live)return;clearTimeout(NET.tm);
   if(NET.role==='host'){if(kind==='ice'){netStatus('相手が入ろうとしましたが、回線どうしを直接つなげませんでした。相手にもう一度入ってもらうか、どちらかが回線（Wi-Fi／スマホ回線）を切り替えてみてください。',1);netStep(2,'now');netStep(3,'')}else netStatus(NET_ERR[kind]||NET_ERR.server,1);return}
   if(kind==='timeout'&&NET.found)kind='ice';
@@ -2241,7 +2258,7 @@ function netFail(kind){if(NET.started||NET.live)return;clearTimeout(NET.tm);
   [1,2,3].forEach(n=>{const el=$('#ns'+n);if(el&&el.className==='now')el.className='err'});netStatus(NET_ERR[kind]||NET_ERR.timeout,1);const r=$('#netRetry');if(r)r.hidden=false}
 function netWaitUI(role,code){
   modal(`<h2>${role==='host'?'部屋をつくりました':'部屋に入っています'}</h2>
-   ${role==='host'?`<p>下の番号を相手に伝えてください。相手が入ると、自動で対局が始まります。</p><div class="netcode" id="netBig" aria-live="polite">準備中…</div><div class="row" style="justify-content:center"><button class="btn" id="netCopy" type="button" disabled>番号をコピー</button></div><p class="small"><b>この画面は開いたまま</b>待ってください。閉じたり、別のアプリに切り替えたりすると、部屋がなくなることがあります。</p>`:`<p>部屋番号 <b class="netcode sm">${esc(code)}</b> につないでいます。</p>`}
+   ${role==='host'?`<p class="small">形式：<b>${NET.bo===1?'1本勝負（BO1）':'2本先取（BO3・サイドボードあり）'}</b></p><p>下の番号を相手に伝えてください。相手が入ると、自動で対局が始まります。</p><div class="netcode" id="netBig" aria-live="polite">準備中…</div><div class="row" style="justify-content:center"><button class="btn" id="netCopy" type="button" disabled>番号をコピー</button></div><p class="small"><b>この画面は開いたまま</b>待ってください。閉じたり、別のアプリに切り替えたりすると、部屋がなくなることがあります。</p>`:`<p>部屋番号 <b class="netcode sm">${esc(code)}</b> につないでいます。</p>`}
    <ol class="netsteps"><li id="ns1" class="now">仲介サーバーにつなぐ</li><li id="ns2">${role==='host'?'相手が部屋に入るのを待つ':'部屋を見つける'}</li><li id="ns3">相手と直接つながる</li></ol>
    <div class="small" id="netMsg" role="status" style="min-height:2.6em"></div>
    <div class="row">${role==='guest'?'<button class="btn primary" id="netRetry" type="button" hidden>もう一度つなぐ</button>':''}<button class="btn" id="netCancel" type="button">やめる</button></div>`,el=>{
@@ -2276,9 +2293,9 @@ async function netJoin(code,tries){
 }
 // ===== v12: BO3＋サイドボーディング =====
 const SIDE_MAX=4;
-function newMatch(myDeck,oppDeck){NET.match={n:1,me:0,opp:0,draw:0,base:myDeck.slice(),deck:myDeck.slice(),oppBase:oppDeck.slice(),readyMe:false,readyOpp:false,seen:[],phase:'game'}}
+function newMatch(myDeck,oppDeck,bo){const sd=curSide().slice();NET.match={bo:bo===1?1:3,n:1,me:0,opp:0,draw:0,base:myDeck.slice(),deck:myDeck.slice(),baseSide:sd.slice(),side:sd,oppBase:oppDeck.slice(),readyMe:false,readyOpp:false,seen:[],phase:'game'}}
 function swapsOf(base,deck){const c={};base.forEach(id=>c[id]=(c[id]||0)+1);deck.forEach(id=>{if(c[id])c[id]--});return Object.values(c).reduce((a,b)=>a+b,0)}
-function matchOver(m){return m.me>=2||m.opp>=2||m.n>=3}
+function matchOver(m){return m.bo===1||m.me>=2||m.opp>=2||m.n>=3}
 function onlineGameOver(r,out,sc){
   const b=UI.b,st=b.st,m=NET.match;if(!m)return;
   if(out==='win')m.me++;else if(out==='lose')m.opp++;else m.draw++;
@@ -2288,10 +2305,11 @@ function onlineGameOver(r,out,sc){
   const title=out==='win'?(r.retreat==='e'?'相手がチェックアウト':'勝ち'):out==='lose'?(r.retreat==='p'?'チェックアウト':'負け'):'引き分け';
   const laneTxt=st.lanes.map((l,i)=>`<div class="rlane ${sc.lanes[i].w}" style="animation-delay:${i*0.25}s"><span>${esc(ROOMS[l.room].name)}</span><b>${sc.lanes[i].p}</b><span>－</span><b>${sc.lanes[i].e}</b><span>${sc.lanes[i].w==='p'?'あなた':sc.lanes[i].w==='e'?'相手':'互角'}</span></div>`).join('');
   const mres=m.me>m.opp?'win':m.me<m.opp?'lose':'draw';
-  modal(`<h2 class="res ${out}">第${m.n}戦：${title}</h2><div class="rlanes">${laneTxt}</div>
-   <div class="bo3"><span>マッチ（2本先取）</span><b class="ps">あなた ${m.me}</b><span>－</span><b class="es">${m.opp} 相手</b>${m.draw?`<span class="small">引き分け${m.draw}</span>`:''}</div>
+  if(!over){leaveBattle();save();sideboard({out,title,lanes:st.lanes.map((l,i)=>[ROOMS[l.room].name,sc.lanes[i].p,sc.lanes[i].e,sc.lanes[i].w])});return}
+  modal(`<h2 class="res ${out}">${m.bo===1?'':'第'+m.n+'戦：'}${title}</h2><div class="rlanes">${laneTxt}</div>
+   ${m.bo===1?'':`<div class="bo3"><span>マッチ（2本先取）</span><b class="ps">あなた ${m.me}</b><span>－</span><b class="es">${m.opp} 相手</b>${m.draw?`<span class="small">引き分け${m.draw}</span>`:''}</div>`}
    ${r.dc?'<p class="small">通信が切れたため、マッチはここで終わりです。</p>':''}
-   ${over?`<p><b>マッチ終了：${mres==='win'?'あなたの勝ち！':mres==='lose'?'相手の勝ち':'引き分け'}</b></p>`:`<p class="small">次は第${m.n+1}戦。そのまえに、デッキの札を${SIDE_MAX}枚まで入れ替えられます（サイドボーディング）。</p>`}
+   ${m.bo===1?'':over?`<p><b>マッチ終了：${mres==='win'?'あなたの勝ち！':mres==='lose'?'相手の勝ち':'引き分け'}</b></p>`:`<p class="small">次は第${m.n+1}戦。そのまえに、デッキの札を${SIDE_MAX}枚まで入れ替えられます（サイドボーディング）。</p>`}
    <div class="row"><button class="btn primary" type="button" id="goNext">${over?'宿に戻る':'サイドボーディングへ'}</button></div>`,el=>{
     el.querySelector('#goNext').onclick=()=>{modalClose=null;$('#ov').hidden=true;leaveBattle();if(over)endMatch(r.dc?'dc':mres);else sideboard()};
   },()=>{leaveBattle();if(over)endMatch(r.dc?'dc':mres);else sideboard()});
@@ -2307,29 +2325,26 @@ function endMatch(res){const m=NET.match;const opp=NET.opp?NET.opp.name:'相手'
    ${rewards.length?`<div class="cardrow">${rewards.map(g=>`<div class="rw">${cardOwnHTML(g.id,{cls:'flipin',attr:`data-view="${g.id}" tabindex="0"`})}<span class="small">${g.new?'<b class="newb">NEW!</b>':''}</span></div>`).join('')}</div>`:''}
    <div class="row"><button class="btn primary" data-close type="button">宿に戻る</button></div>`,null,()=>checkCollection());
 }
-function sideboard(){
+function sideboard(info){
   const m=NET.match;if(!m)return;m.phase='side';m.readyMe=false;
-  let deck=m.deck.slice();const base=m.base;
+  let main=m.deck.slice(),side=m.side.slice();
   const draw=()=>{
-    const sw=swapsOf(base,deck);const full=deck.length===10;
-    const rowD=(id,k)=>{const c=CMAP[id];const inBase=base.filter(x=>x===id).length>=deck.slice(0,k+1).filter(x=>x===id).length;return `<button type="button" class="sbrow ${inBase?'':'new'}" data-out="${k}"><span class="tb2">${c.cost}</span><span class="n">${esc(c.short||c.name)}</span><span class="pw">${c.pow}</span><span class="small">${inBase?'抜く':'新しく入れた'}</span></button>`};
-    const pool=COLLECTIBLE.filter(c=>own(c.id)>0).sort((a,b)=>a.cost-b.cost||b.pow-a.pow);
-    const rowP=c=>{const inD=deck.filter(x=>x===c.id).length;const can=deck.length<10&&inD<Math.min(2,own(c.id))&&swapsOf(base,[...deck,c.id])<=SIDE_MAX;return `<button type="button" class="sbrow" data-in="${c.id}" ${can?'':'disabled'}><span class="tb2">${c.cost}</span><span class="n">${esc(c.short||c.name)}</span><span class="pw">${c.pow}</span><span class="small">${inD?`デッキに${inD}枚`:''}</span></button>`};
-    modal(`<h2>サイドボーディング（第${m.n+1}戦のまえ）</h2>
-     <p class="small">デッキの札を<b>${SIDE_MAX}枚まで</b>入れ替えられます。左の「いまのデッキ」で抜いて、右の「控え」から入れてください。</p>
-     <div class="bo3"><span>入れ替え</span><b class="${sw>SIDE_MAX?'es':'ps'}">${sw} / ${SIDE_MAX}枚</b><span>デッキ</span><b>${deck.length} / 10枚</b></div>
+    const full=main.length===10;
+    const r=(id,k,where)=>{const c=CMAP[id];return `<button type="button" class="sbrow ${where==='in'&&full?'dim':''}" data-${where}="${k}" title="${esc(c.name)}"><span class="tb2">${c.cost}</span><span class="n">${esc(c.short||c.name)}</span><span class="pw">${c.pow}</span><span class="small">${where==='out'?'→控え':(full?'':'←デッキ')}</span></button>`};
+    modal(`${info?`<div class="sbres"><b class="res ${info.out}">第${m.n}戦：${info.title}</b><span class="bo3"><span>マッチ（2本先取）</span><b class="ps">あなた ${m.me}</b><span>－</span><b class="es">${m.opp} 相手</b></span></div><div class="sblanes">${info.lanes.map(([n,a,b,w])=>`<span class="${w}">${esc(n)} <b>${a}－${b}</b> ${w==='p'?'あなた':w==='e'?'相手':'互角'}</span>`).join('')}</div>`:''}
+     <h2>サイドボーディング（第${m.n+1}戦のまえ）</h2>
+     ${side.length||main.length<10?`<p class="small">デッキの札を押すと控えへ、控えの札を押すとデッキへ移ります（先にデッキから1枚抜いてから入れます）。デッキが10枚なら次へ進めます。</p>`:`<p class="small">このデッキにはサイドボードがありません。サイドボードはデッキ画面で、デッキごとに4枚まで登録できます。</p>`}
      ${m.seen.length?`<p class="small">前の試合で相手が見せた札：${m.seen.map(id=>`<button type="button" class="linkb" data-view="${id}">${esc(CMAP[id].short||CMAP[id].name)}</button>`).join('、')}</p>`:''}
-     <div class="sbcols"><div><h3>いまのデッキ</h3><div class="sblist">${deck.map(rowD).join('')}</div></div>
-      <div><h3>控え（持っている札）</h3><div class="sblist">${pool.map(rowP).join('')}</div></div></div>
-     <div class="row"><button class="btn" type="button" id="sbReset">元に戻す</button><button class="btn primary" type="button" id="sbOk" ${full&&sw<=SIDE_MAX?'':'disabled'}>${full?'これで第'+(m.n+1)+'戦へ':'あと'+(10-deck.length)+'枚入れてください'}</button></div>
-     <div class="small" id="sbMsg" role="status"></div>`,el=>{
-      el.querySelectorAll('[data-out]').forEach(b=>b.onclick=()=>{const k=+b.dataset.out;const nd=deck.slice();nd.splice(k,1);deck=nd;sfx('flip');redraw()});
-      el.querySelectorAll('[data-in]').forEach(b=>b.onclick=()=>{deck=[...deck,b.dataset.in];sfx('place');redraw()});
-      el.querySelector('#sbReset').onclick=()=>{deck=base.slice();redraw()};
-      el.querySelector('#sbOk').onclick=()=>{m.deck=deck.slice();m.readyMe=true;netSend({t:'side',deck:m.deck});sideWait()};
+     <div class="sbcols"><div><h3>デッキ <b class="${full?'ps':'es'}">${main.length}／10</b></h3><div class="sblist">${main.map((id,k)=>r(id,k,'out')).join('')}</div></div>
+      <div><h3>控え（サイドボード） ${side.length}枚</h3><div class="sblist">${side.map((id,k)=>r(id,k,'in')).join('')||'<div class="small">なし</div>'}</div></div></div>
+     <div class="row"><button class="btn" type="button" id="sbReset">第1戦の形に戻す</button><button class="btn primary" type="button" id="sbOk" ${full?'':'disabled'}>${full?'これで第'+(m.n+1)+'戦へ':'デッキをあと'+(10-main.length)+'枚'}</button></div>`,el=>{
+      el.querySelectorAll('[data-out]').forEach(b=>b.onclick=()=>{const k=+b.dataset.out;side=[...side,main[k]];main=main.filter((_,j)=>j!==k);sfx('flip');redraw()});
+      el.querySelectorAll('[data-in]').forEach(b=>b.onclick=()=>{if(main.length>=10){b.classList.add('shake');setTimeout(()=>b.classList.remove('shake'),300);return}const k=+b.dataset.in;main=[...main,side[k]];side=side.filter((_,j)=>j!==k);sfx('place');redraw()});
+      el.querySelector('#sbReset').onclick=()=>{main=m.base.slice();side=m.baseSide.slice();redraw()};
+      el.querySelector('#sbOk').onclick=()=>{m.deck=main.slice();m.side=side.slice();m.readyMe=true;netSend({t:'side',deck:m.deck});sideWait()};
      },null);
   };
-  let scroll=[0,0];const redraw=()=>{scroll=[...document.querySelectorAll('#modal .sblist')].map(x=>x.scrollTop);draw();[...document.querySelectorAll('#modal .sblist')].forEach((x,i)=>{x.scrollTop=scroll[i]||0})};
+  const redraw=()=>{const sc=[...document.querySelectorAll('#modal .sblist')].map(x=>x.scrollTop);draw();[...document.querySelectorAll('#modal .sblist')].forEach((x,i)=>{x.scrollTop=sc[i]||0})};
   draw();
 }
 function sideWait(){const m=NET.match;if(!m)return;
@@ -2349,12 +2364,13 @@ function validDeck(d){return Array.isArray(d)&&d.length===10&&d.every(id=>CMAP[i
 function onNet(m){
   if(!m||typeof m!=='object')return;
   if(NET.role==='host'){
-    if(m.t==='hello'&&!NET.started){if(!validDeck(m.deck)){netStatus('相手のデッキが読めませんでした。');return}NET.opp={name:String(m.name||'相手').slice(0,16),deck:m.deck,lv:m.lv||{}};netSend(myHello());hostStart();return}
+    if(m.t==='hello'&&!NET.started){if(m.v!==NET_V){netSend({t:'oldver'});netStatus('相手のゲームのバージョンが違います。相手にページを再読み込み（更新）してもらってから、もう一度入ってもらってください。',1);return}if(!validDeck(m.deck)){netStatus('相手のデッキが読めませんでした。');return}NET.opp={name:String(m.name||'相手').slice(0,16),deck:m.deck,lv:m.lv||{}};netSend(myHello());hostStart();return}
     if(m.t==='plays'&&UI.b&&UI.b.o.online){UI.b.netPlays=Array.isArray(m.plays)?m.plays.slice(0,8):[];if(UI.b.waitNet){UI.b.waitNet=false;UI.b.busy=false;resolveTurn()}else{UI.b.cap={head:'相手は手を決めた',body:'あなたが「ターン終了」を押すと、札がめくられる。',lines:[]};renderBattle()}return}
     if(m.t==='side'&&NET.match){if(!validDeck(m.deck)||swapsOf(NET.match.oppBase,m.deck)>SIDE_MAX)return;NET.opp.deck=m.deck.slice();NET.match.readyOpp=true;if(NET.match.readyMe&&!UI.b)nextGame();return}
     if(m.t==='unready'&&NET.match){NET.match.readyOpp=false;return}
     if(m.t==='resign'&&UI.b&&UI.b.o.online&&!UI.b.done){blog('相手がチェックアウトした！');finishBattle({outcome:'win',retreat:'e',fromNet:1});return}
   }else if(NET.role==='guest'){
+    if(m.t==='oldver'||(m.t==='hello'&&m.v!==NET_V)){clearInterval(NET.hi);netStatus(NET_ERR.ver,1);const c=NET.conn;NET.live=false;NET.conn=null;try{c&&c.close()}catch(e){}return}
     if(m.t==='hello'){if(!validDeck(m.deck))return;NET.opp={name:String(m.name||'相手').slice(0,16),deck:m.deck};return}
     if(m.t==='side'){if(validDeck(m.deck)&&NET.opp)NET.opp.deck=m.deck.slice();return}
     if(m.t==='resign'&&UI.b&&UI.b.o.online&&!UI.b.done){blog('相手がチェックアウトした！');finishBattle({outcome:'win',retreat:'e',fromNet:1});return}
@@ -2366,23 +2382,23 @@ function openOnline(st,role){
   const o={online:role,foe:NET.opp.name,card:NET.opp.deck[0]||'eo',eDeck:NET.opp.deck.slice(),maxTurn:st.maxTurn};
   UI.b={st,o,sel:null,log:[],busy:false,fx:null,cap:null,pred:null};
   $('#bLog').innerHTML='';$('#bLog').hidden=true;$('#battle').hidden=false;document.body.style.overflow='hidden';$('#bAge').hidden=true;
-  const mm=NET.match;$('#bFoe').innerHTML=`${cardHTML(o.card)}<div><b>${esc(o.foe)}</b><small>オンライン 第${mm?mm.n:1}戦（2本先取・あなた${mm?mm.me:0}－${mm?mm.opp:0}）</small></div>`;
+  const mm=NET.match;$('#bFoe').innerHTML=`${cardHTML(o.card)}<div><b>${esc(o.foe)}</b><small>${mm&&mm.bo===1?'オンライン 1本勝負':`オンライン 第${mm?mm.n:1}戦（2本先取・あなた${mm?mm.me:0}－${mm?mm.opp:0}）`}</small></div>`;
   blog(`${o.foe}とのオンライン強さ議論が始まった。`);
   UI.b.cap={head:`オンライン対戦：${o.foe}`,body:'お互いに札を置いて「ターン終了」。両方そろうと、一斉にめくられる。',lines:[]};
   bgmMode('battle');sfx('chime');renderBattle();
 }
 function hostStart(){
   const pool=[...new Set(FLOORS.flatMap(f=>f.rooms||[]))].filter(r=>ROOMS[r]&&!ROOMS[r].dead);const rooms=[];while(rooms.length<3&&pool.length)rooms.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
-  if(!NET.match)newMatch(G.deck.slice(),NET.opp.deck.slice());
+  if(!NET.match)newMatch(G.deck.slice(),NET.opp.deck.slice(),NET.bo);
   const st=newBattle({pDeck:NET.match.deck.slice(),eDeck:NET.opp.deck.slice(),rooms,maxTurn:6,pLv:lvMap()});
   const lv=NET.opp.lv||{};[...st.deck.e,...st.hand.e].forEach(c=>{const n=+lv[c.id]||0;if(n>0&&n<=5)c.lv=n});
   const tl=[];startTurn(st,t=>tl.push(t));
   openOnline(st,'host');UI.b.cap.lines=tl.filter(t=>!t.startsWith('――'));renderBattle();
-  netSend({t:'state',init:1,st:packSt(st),lines:tl});
+  netSend({t:'state',init:1,bo:NET.match.bo,st:packSt(st),lines:tl});
 }
 function hostSendState(lines){netSend({t:'state',st:packSt(UI.b.st),lines:lines||[]})}
 async function guestApply(m){
-  if(m.t==='state'&&m.init){if(!NET.match)newMatch(G.deck.slice(),NET.opp.deck.slice());else if(NET.match.phase==='side'){NET.match.n++;NET.match.phase='game';NET.match.readyMe=false}modalClose=null;openOnline(guestSt(m.st),'guest');UI.b.cap.lines=(m.lines||[]).map(flipTxt).filter(t=>!t.startsWith('――'));renderBattle();return}
+  if(m.t==='state'&&m.init){if(!NET.match)newMatch(G.deck.slice(),NET.opp.deck.slice(),m.bo);else if(NET.match.phase==='side'){NET.match.n++;NET.match.phase='game';NET.match.readyMe=false}modalClose=null;openOnline(guestSt(m.st),'guest');UI.b.cap.lines=(m.lines||[]).map(flipTxt).filter(t=>!t.startsWith('――'));renderBattle();return}
   const b=UI.b;if(!b||!b.o.online||b.done)return;
   if(m.t==='step'){const before=snap(b.st);b.st=guestSt(m.st);const lines=(m.lines||[]).map(flipTxt);lines.forEach(blog);await fxPresent(flipTxt(m.head||''),m.body||'',m.src,before,lines,m.always);renderBattle();return}
   if(m.t==='state'){b.st=guestSt(m.st);b.busy=false;b.sel=null;b.pred=null;const st=b.st;const fin=st.turn>=st.maxTurn;const tl=(m.lines||[]).map(flipTxt);tl.forEach(blog);
@@ -3270,7 +3286,8 @@ function renderDeck(){
   const SORTS={cost:byCost,fav:(a,b)=>(G.fav[b.id]?1:0)-(G.fav[a.id]?1:0)||byCost(a,b),pow:(a,b)=>b.pow-a.pow||byCost(a,b),tier:(a,b)=>TIER_ORDER.indexOf(a.tier)-TIER_ORDER.indexOf(b.tier)||byCost(a,b),name:(a,b)=>(a.short||a.name).localeCompare(b.short||b.name,'ja')};
   const ownedList=COLLECTIBLE.filter(c=>own(c.id)>0&&(!f||(f==='__fav'?G.fav[c.id]:has(c.id,f)))).sort(SORTS[so]||byCost);
   const tagsOwned=[...new Set(COLLECTIBLE.filter(c=>own(c.id)).flatMap(c=>tagsOf(c.id)))].filter(t=>t!=='ter');
-  const row=(c,inDeck,k)=>{const full=!inDeck&&(deckCount(c.id)>=Math.min(own(c.id),2)||G.deck.length>=mx);
+  const side=curSide();const sideRow=(id,k)=>{const c=CMAP[id];return `<div class="ditem in sbi" data-show="${id}" tabindex="0"><span></span><span class="tb2" style="background:${TIER[c.tier].c}">T${TIER[c.tier].n}</span><span class="c">${c.cost}</span><span class="n">${esc(c.short||c.name)}<small>${esc(c.fx||'')}　${tagsOf(id).filter(t=>t!=='ter').map(t=>TAGN[t]).join('・')}</small></span><span class="p">${c.pow+lvOf(id)}</span><button type="button" class="dbtn rm" data-srm="${k}" aria-label="サイドボードから外す">−</button></div>`};
+  const row=(c,inDeck,k)=>{const full=!inDeck&&(deckCount(c.id)+sideCount(c.id)>=Math.min(own(c.id),2)||G.deck.length>=mx);
     return `<div class="ditem ${inDeck?'in':''} ${full?'dis':''} ${G.foil[c.id]?'fo':''} ${has(c.id,'gen')?'gen':''} ${UI.deckDetail===c.id?'cur':''}" data-show="${c.id}" tabindex="0"><button type="button" class="favb ${G.fav[c.id]?'on':''}" data-fav="${c.id}" aria-label="お気に入り" aria-pressed="${G.fav[c.id]?'true':'false'}">${G.fav[c.id]?'★':'☆'}</button><span class="tb2" style="background:${TIER[c.tier].c}">T${TIER[c.tier].n}</span><span class="c">${c.cost}</span><span class="n">${esc(c.short||c.name)}${starOf(c.id)?` <i class="st">${'★'.repeat(starOf(c.id))}</i>`:''}<small>${esc(c.fx||'')}　${tagsOf(c.id).filter(t=>t!=='ter').map(t=>TAGN[t]).join('・')}</small></span><span class="p">${c.pow+lvOf(c.id)}</span>${inDeck?`<button type="button" class="dbtn rm" data-rm="${k}" aria-label="デッキから外す">−</button>`:`<button type="button" class="dbtn" data-add="${c.id}" ${full?'disabled':''} aria-label="デッキに入れる">＋</button><span class="own">${deckCount(c.id)}/${Math.min(own(c.id),2)}</span>`}</div>`};
   const combos=FAMILIES.map(fm=>{const u=[...new Set(fm)].filter(id=>G.deck.includes(id));return u.length>=2?u.map(id=>CMAP[id].short||CMAP[id].name).join('＋'):null}).filter(Boolean);
   const adv=curveAdvice(G.deck);const det=UI.deckDetail&&CMAP[UI.deckDetail]?UI.deckDetail:null;
@@ -3281,9 +3298,12 @@ function renderDeck(){
     ${curveHTML(G.deck)}
     <div class="small" style="margin:6px 0">組み合わせ：${combos.length?combos.map(esc).join('　／　'):'なし（同じ〈系統〉の札を揃えよう）'}</div>
     <div class="row" style="margin-bottom:8px"><button class="btn primary" id="dAuto" type="button">おまかせ編成</button><button class="btn" id="dClear" type="button">全部外す</button></div>
-    <div class="dlist">${G.deck.map((id,k)=>row(CMAP[id],true,k)).join('')||'<div class="small">デッキが空です。右の手持ちの札の「＋」で入れてください。</div>'}</div></div>
+    <div class="dlist">${G.deck.map((id,k)=>row(CMAP[id],true,k)).join('')||'<div class="small">デッキが空です。右の手持ちの札の「＋」で入れてください。</div>'}</div>
+    <h3 class="sbh">サイドボード <b class="dcount">${side.length}／4枚</b></h3>
+    <p class="small" style="margin:0 0 6px">BO3のオンライン対戦で、2戦目からデッキの札と入れ替えられる控え。0枚でもかまいません。札を押して、右の「札の効果」の「サイドボードに入れる」で登録します。</p>
+    <div class="dlist sbl">${side.map(sideRow).join('')||'<div class="small">サイドボードは空です。</div>'}</div></div>
    <div class="side2">
-    <div class="panel" id="deckDetail"><h3>札の効果</h3>${det?detailHTML(det)+`<div class="row" style="margin-top:8px"><button class="btn primary" type="button" data-add="${det}" ${deckCount(det)>=Math.min(own(det),2)||G.deck.length>=mx?'disabled':''}>デッキに入れる</button><button class="btn" type="button" data-fav="${det}">${G.fav[det]?'★ お気に入りを外す':'☆ お気に入りにする'}</button></div>`:'<div class="small">札を押すと、ここに効果が出ます。読んでから「＋」で入れよう。</div>'}</div>
+    <div class="panel" id="deckDetail"><h3>札の効果</h3>${det?detailHTML(det)+`<div class="row" style="margin-top:8px"><button class="btn primary" type="button" data-add="${det}" ${deckCount(det)>=Math.min(own(det),2)||G.deck.length>=mx?'disabled':''}>デッキに入れる</button><button class="btn" type="button" data-sadd="${det}" ${side.length>=4||deckCount(det)+sideCount(det)>=Math.min(own(det),2)?'disabled':''}>サイドボードに入れる</button><button class="btn" type="button" data-fav="${det}">${G.fav[det]?'★ お気に入りを外す':'☆ お気に入りにする'}</button></div>`:'<div class="small">札を押すと、ここに効果が出ます。読んでから「＋」で入れよう。</div>'}</div>
     <div class="panel"><h3>手持ちの札</h3>
      <div class="row" style="margin-bottom:6px"><label class="small" for="dFilter">系統で絞る</label><select id="dFilter"><option value="">すべて</option><option value="__fav" ${f==='__fav'?'selected':''}>★お気に入り</option>${tagsOwned.map(t=>`<option value="${t}" ${f===t?'selected':''}>${esc(TAGN[t])}</option>`).join('')}</select><label class="small" for="dSort">並び</label><select id="dSort">${[['cost','コスト順'],['fav','お気に入りが先'],['pow','強さ順'],['tier','Tier順'],['name','名前順']].map(([v,l])=>`<option value="${v}" ${so===v?'selected':''}>${l}</option>`).join('')}</select></div>
      <div class="dlist">${ownedList.map(c=>row(c,false)).join('')||'<div class="small">この系統の札は、まだ持っていない。</div>'}</div></div>
@@ -3303,7 +3323,10 @@ $('#p-deck').addEventListener('click',e=>{const fv=e.target.closest('[data-fav]'
   if(fv){const id=fv.dataset.fav;if(G.fav[id])delete G.fav[id];else G.fav[id]=1;save();renderDeck();return}
   if(sl){const i=+sl.dataset.slot;if(i!==G.slot){useSlot(i);sfx('flip');renderDeck();toast(`${G.deckNames[i]}に切り替えました`,'ev')}return}
   const a=e.target.closest('[data-add]'),r=e.target.closest('[data-rm]'),s=e.target.closest('[data-show]');
-  if(a){const id=a.dataset.add;if(deckCount(id)<Math.min(own(id),2)&&G.deck.length<deckMax()){G.deck.push(id);UI.deckDetail=id;save();sfx('place');renderDeck()}return}
+  const sa=e.target.closest('[data-sadd]'),sr=e.target.closest('[data-srm]');
+  if(sa){const id=sa.dataset.sadd;const sd=curSide();if(sd.length<4&&deckCount(id)+sideCount(id)<Math.min(own(id),2)){sd.push(id);save();sfx('place');renderDeck()}return}
+  if(sr){curSide().splice(+sr.dataset.srm,1);save();sfx('flip');renderDeck();return}
+  if(a){const id=a.dataset.add;if(deckCount(id)+sideCount(id)<Math.min(own(id),2)&&G.deck.length<deckMax()){G.deck.push(id);UI.deckDetail=id;save();sfx('place');renderDeck()}return}
   if(r){G.deck.splice(+r.dataset.rm,1);save();renderDeck();return}
   if(s){UI.deckDetail=s.dataset.show;renderDeck();if(innerWidth<720){const d=$('#deckDetail');if(d&&d.scrollIntoView)d.scrollIntoView({block:'nearest'})}}});
 $('#p-deck').addEventListener('keydown',e=>{if(e.key==='Enter'){const s=e.target.closest('[data-show]');if(s&&!e.target.closest('button')){UI.deckDetail=s.dataset.show;renderDeck()}}});
@@ -3426,7 +3449,7 @@ function boot(fresh){
   const d=newGame();Object.keys(d).forEach(k=>{if(G[k]===undefined)G[k]=d[k]});
   if(!G.seen||G.seen.length!==FLOORS.length)G.seen=d.seen;
   Object.keys(G.owned).forEach(id=>{if(!CMAP[id])delete G.owned[id]});G.deck=G.deck.filter(id=>CMAP[id]);{const d2=[];G.deck.forEach(id=>{if(d2.length<10&&d2.filter(x=>x===id).length<Math.min(2,own(id)))d2.push(id)});G.deck=d2}
-  ensureSlots();G.decks=G.decks.map((x,i)=>i===G.slot?G.deck.slice():fixDeck(x));
+  ensureSlots();G.decks=G.decks.map((x,i)=>i===G.slot?G.deck.slice():fixDeck(x));G.sides=G.sides.map((s,i)=>fixSide(s,G.decks[i]));
   $('#title').hidden=true;markSeen();setTab('explore');checkCollection();
   if(fresh||!G.flags.intro){G.flags.intro=1;save();say(['（夕方5時。あなたは白い旅館「ター宿」の玄関に立っている）','（東に、小さな郵便受けがある）','（壁には「ターム強さ議論スレまとめ（改訂版 v1.2）」が額に入れて飾られている）','（ここは、タームたちの宿。タームは概念であり、宿泊客でもある）','（足元から声がした。「はじめまして、土です」……声は北のほうからだ）','（何もない場所で C キーか「行動」を押すと、叫んだり祈ったり、いろいろできる）'])}
 }
