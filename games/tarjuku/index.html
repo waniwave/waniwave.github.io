@@ -1,4 +1,4 @@
-<!doctype html><html lang="ja"><head><meta charset=utf8><meta property="og:type" content="website"><meta property="og:title" content="ター宿"><meta property="og:description" content="タームたちが泊まる宿を歩き、札を集め、組み合わせで強さを議論する。探索とカードバトルのゲーム。"><meta property="og:url" content="https://waniwave.com/games/tarjuku/"><meta property="og:image" content="https://waniwave.com/games/tarjuku/thumb.jpg"><meta name="twitter:card" content="summary_large_image"><link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html lang="ja"><head><meta charset=utf8><meta name="robots" content="noindex, nofollow"><meta property="og:type" content="website"><meta property="og:title" content="ター宿"><meta property="og:description" content="タームたちが泊まる宿を歩き、札を集め、組み合わせで強さを議論する。探索とカードバトルのゲーム。"><meta property="og:url" content="https://waniwave.com/games/tarjuku/"><meta property="og:image" content="https://waniwave.com/games/tarjuku/thumb.jpg"><meta name="twitter:card" content="summary_large_image"><link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>ター宿</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -438,6 +438,14 @@ input[type=text]{font:inherit;background:var(--yoru);color:var(--washi);border:1
 .favb{border:0;background:none;color:var(--mute);font-size:16px;line-height:1;cursor:pointer;padding:0;width:22px}
 .favb.on{color:#ffcf4a}
 .ditem.gen .n{color:var(--mute)}
+.netcode{font-family:var(--f-disp);font-size:44px;letter-spacing:.18em;text-align:center;color:var(--andon);padding:8px 0;user-select:all}
+.netcode.sm{font-size:20px;letter-spacing:.12em;padding:0;display:inline}
+.netsteps{margin:10px 0;padding-left:1.6em;display:grid;gap:4px;color:var(--mute)}
+.netsteps li.now{color:var(--washi);font-weight:700}.netsteps li.now::after{content:" …";animation:netblink 1s steps(2) infinite}
+.netsteps li.done{color:#7fd6a0}.netsteps li.done::after{content:" ✓"}
+.netsteps li.err{color:#ff8a7a}.netsteps li.err::after{content:" ✗"}
+#netMsg.err{color:#ff8a7a}
+@keyframes netblink{50%{opacity:.2}}
 </style>
 
 <div id="title">
@@ -2114,7 +2122,6 @@ const NET={peer:null,conn:null,role:null,code:'',q:Promise.resolve(),opp:null,li
 const PEER_SRC='https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
 function loadPeer(){return new Promise((res,rej)=>{if(window.Peer)return res();const s=document.createElement('script');s.src=PEER_SRC;s.onload=()=>window.Peer?res():rej(new Error('noPeer'));s.onerror=()=>rej(new Error('load'));document.head.appendChild(s)})}
 function netSend(m){try{if(NET.conn)NET.conn.send(JSON.stringify(m))}catch(e){console.error(e)}}
-function netClose(){NET.live=false;NET.started=false;try{NET.conn&&NET.conn.close()}catch(e){}try{NET.peer&&NET.peer.destroy()}catch(e){}NET.conn=null;NET.peer=null;NET.role=null;NET.opp=null;NET.q=Promise.resolve()}
 function newCode(){const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<5;i++)s+=a[Math.floor(Math.random()*a.length)];return s}
 // 同じブラウザの別タブどうしでつなぐ（動作確認用）：URLの末尾に #bc
 function bcTransport(code,onConn){const me=Math.random().toString(36).slice(2);const ch=new BroadcastChannel('tarjuku-'+code);const hs={};
@@ -2122,11 +2129,6 @@ function bcTransport(code,onConn){const me=Math.random().toString(36).slice(2);c
   ch.onmessage=e=>{const d=e.data;if(!d||d.from===me)return;if(d.bye){(hs.close||[]).forEach(f=>f());return}if(d.s!=null)(hs.data||[]).forEach(f=>f(d.s))};
   setTimeout(()=>{onConn(conn);(hs.open||[]).forEach(f=>f())},50);return{destroy(){try{ch.close()}catch(e){}}}}
 const useBC=()=>/(^|#|&)bc($|&)/.test(location.hash)||window.__NETBC;
-function wireConn(conn){NET.conn=conn;NET.live=true;
-  conn.on('data',raw=>{let m;try{m=typeof raw==='string'?JSON.parse(raw):raw}catch(e){return}onNet(m)});
-  conn.on('close',()=>{const was=NET.live;NET.live=false;if(was&&UI.b&&UI.b.o.online&&!UI.b.done){blog('通信が切れた。');finishBattle({outcome:'draw',fromNet:1,dc:1})}else if(was&&!NET.started){netStatus('相手との接続が切れました。')}});
-  if(conn.on)conn.on('error',e=>console.error(e));}
-function netStatus(t){const el=$('#netMsg');if(el)el.textContent=t}
 function myHello(){return{t:'hello',v:1,name:(G.netName||'旅のター客').slice(0,16),deck:G.deck.slice(),lv:lvMap()}}
 function onlineMenu(){
   ensureSlots();
@@ -2139,33 +2141,62 @@ function onlineMenu(){
    <div class="row"><button class="btn primary" id="netHost" type="button">部屋をつくる</button></div>
    <div class="row"><input type="text" id="netCode" maxlength="8" placeholder="部屋番号（5文字）" aria-label="部屋番号" style="text-transform:uppercase"><button class="btn primary" id="netJoin" type="button">部屋に入る</button></div>
    <div class="small" id="netMsg" role="status" style="min-height:2.6em"></div>
-   <p class="small" style="color:var(--mute)">※ ゲームを自分のウェブサイトに置いた版で遊べます。claude.ai上のページでは通信が止められているため、つながりません。</p>
    <div class="row"><button class="btn" data-close type="button">閉じる</button></div>`,el=>{
     const nm_=()=>{const v=el.querySelector('#netName').value.trim();G.netName=v||'旅のター客';save()};
-    el.querySelector('#netHost').onclick=()=>{nm_();netHost(el)};
-    el.querySelector('#netJoin').onclick=()=>{nm_();const c=el.querySelector('#netCode').value.trim().toUpperCase();if(!/^[A-Z0-9]{5}$/.test(c)){netStatus('部屋番号は5文字です。');return}netJoin(c)};
-   },()=>{if(!NET.started)netClose()}));
+    el.querySelector('#netHost').onclick=()=>{nm_();modalClose=null;netHost()};
+    el.querySelector('#netJoin').onclick=()=>{nm_();const c=el.querySelector('#netCode').value.trim().toUpperCase();if(!/^[A-Z0-9]{5}$/.test(c)){netStatus('部屋番号は5文字です。',1);return}modalClose=null;netJoin(c,0)};
+   }));
 }
-async function netHost(el){
-  netClose();NET.role='host';NET.code=newCode();netStatus('部屋を用意しています……');
-  el.querySelector('#netHost').disabled=true;el.querySelector('#netJoin').disabled=true;
-  if(useBC()){NET.peer=bcTransport(NET.code,c=>wireConn(c));netStatus(`部屋番号：${NET.code}　（相手が入るのを待っています）`);return}
-  try{await loadPeer()}catch(e){netStatus('通信の部品を読み込めませんでした。ネットにつながっているか確かめてください。');return}
-  const tm=setTimeout(()=>{if(!NET.peer||!NET.peer.open)netStatus('つながりませんでした。claude.ai上のページでは使えません。ウェブサイトに置いた版で試してください。')},10000);
-  try{NET.peer=new Peer('tarjuku-'+NET.code)}catch(e){netStatus('通信を始められませんでした。');return}
-  NET.peer.on('open',()=>{clearTimeout(tm);netStatus(`部屋番号：${NET.code}　（相手にこの番号を伝えて、待っていてください）`)});
-  NET.peer.on('connection',c=>{if(NET.conn){try{c.close()}catch(e){}return}c.on('open',()=>wireConn(c))});
-  NET.peer.on('error',e=>{clearTimeout(tm);if(e.type==='unavailable-id'){netStatus('番号がかぶりました。もう一度「部屋をつくる」を押してください。');}else netStatus('通信エラー：'+(e.type||e.message||'不明'));el.querySelector('#netHost').disabled=false;el.querySelector('#netJoin').disabled=false});
+function netClose(){NET.live=false;NET.started=false;clearTimeout(NET.tm);clearInterval(NET.hi);try{NET.conn&&NET.conn.close()}catch(e){}try{NET.peer&&NET.peer.destroy()}catch(e){}NET.conn=null;NET.peer=null;NET.role=null;NET.opp=null;NET.q=Promise.resolve()}
+function peerOpts(){return window.__PEEROPTS||{debug:1,config:{iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun.cloudflare.com:3478']},{urls:['turn:eu-0.turn.peerjs.com:3478','turn:us-0.turn.peerjs.com:3478'],username:'peerjs',credential:'peerjsp'}],sdpSemantics:'unified-plan'}}}
+function hookConn(c,onOpen){let opened=false;
+  c.on('data',raw=>{let m;try{m=typeof raw==='string'?JSON.parse(raw):raw}catch(e){return}onNet(m)});
+  c.on('open',()=>{opened=true;NET.conn=c;NET.live=true;netStep(2,'done');netStep(3,'done');if(onOpen)onOpen()});
+  c.on('close',()=>{if(NET.conn!==c)return;const was=NET.live;NET.live=false;NET.conn=null;if(was&&UI.b&&UI.b.o.online&&!UI.b.done){blog('通信が切れた。');finishBattle({outcome:'draw',fromNet:1,dc:1})}else if(was&&!NET.started)netStatus('相手との接続が切れました。')});
+  c.on('iceStateChanged',s=>{if(opened)return;if(s==='checking'){NET.found=true;netStep(2,'done');netStep(3,'now')}if(s==='failed')netFail('ice')});
+  c.on('error',e=>console.error(e))}
+function netStatus(t,err){const el=$('#netMsg');if(el){el.textContent=t;el.classList.toggle('err',!!err)}}
+function netStep(n,s){const el=$('#ns'+n);if(el)el.className=s}
+const NET_ERR={ice:'相手は見つかりましたが、回線どうしを直接つなげませんでした。P2Pは回線の組み合わせによって通らないことがあります。どちらかがWi-Fiとスマホ回線を切り替えると、つながることがあります。',noroom:'その番号の部屋が見つかりません。番号が合っているか、相手の画面が「部屋をつくりました」のまま開いているか確かめてください。',server:'仲介サーバーにつながりませんでした。少し時間をおいて、もう一度試してください。',timeout:'時間内につながりませんでした。',lib:'通信の部品を読み込めませんでした。ネットにつながっているか確かめてください。'};
+function netFail(kind){if(NET.started||NET.live)return;clearTimeout(NET.tm);
+  if(NET.role==='host'){if(kind==='ice'){netStatus('相手が入ろうとしましたが、回線どうしを直接つなげませんでした。相手にもう一度入ってもらうか、どちらかが回線（Wi-Fi／スマホ回線）を切り替えてみてください。',1);netStep(2,'now');netStep(3,'')}else netStatus(NET_ERR[kind]||NET_ERR.server,1);return}
+  if(kind==='timeout'&&NET.found)kind='ice';
+  if(kind!=='noroom'&&kind!=='lib'&&(NET.tries||0)<1){NET.tries=(NET.tries||0)+1;const code=NET.code,t=NET.tries;netStatus('うまくつながらないので、もう一度試しています……');setTimeout(()=>{if(NET.role==='guest'&&NET.code===code&&!NET.live)netJoin(code,t)},800);return}
+  [1,2,3].forEach(n=>{const el=$('#ns'+n);if(el&&el.className==='now')el.className='err'});netStatus(NET_ERR[kind]||NET_ERR.timeout,1);const r=$('#netRetry');if(r)r.hidden=false}
+function netWaitUI(role,code){
+  modal(`<h2>${role==='host'?'部屋をつくりました':'部屋に入っています'}</h2>
+   ${role==='host'?`<p>下の番号を相手に伝えてください。相手が入ると、自動で対局が始まります。</p><div class="netcode" id="netBig" aria-live="polite">準備中…</div><div class="row" style="justify-content:center"><button class="btn" id="netCopy" type="button" disabled>番号をコピー</button></div><p class="small"><b>この画面は開いたまま</b>待ってください。閉じたり、別のアプリに切り替えたりすると、部屋がなくなることがあります。</p>`:`<p>部屋番号 <b class="netcode sm">${esc(code)}</b> につないでいます。</p>`}
+   <ol class="netsteps"><li id="ns1" class="now">仲介サーバーにつなぐ</li><li id="ns2">${role==='host'?'相手が部屋に入るのを待つ':'部屋を見つける'}</li><li id="ns3">相手と直接つながる</li></ol>
+   <div class="small" id="netMsg" role="status" style="min-height:2.6em"></div>
+   <div class="row">${role==='guest'?'<button class="btn primary" id="netRetry" type="button" hidden>もう一度つなぐ</button>':''}<button class="btn" id="netCancel" type="button">やめる</button></div>`,el=>{
+    el.querySelector('#netCancel').onclick=()=>{netClose();modalClose=null;$('#ov').hidden=true};
+    const r=el.querySelector('#netRetry');if(r)r.onclick=()=>netJoin(code,0);
+    const cp=el.querySelector('#netCopy');if(cp)cp.onclick=()=>{const done=()=>{cp.textContent='コピーした'};try{navigator.clipboard.writeText(NET.code).then(done,()=>{})}catch(e){}};
+   });
 }
-async function netJoin(code){
-  netClose();NET.role='guest';NET.code=code;netStatus('部屋をさがしています……');
-  const hello=()=>{netSend(myHello());netStatus('つながりました。対局を準備しています……')};
-  if(useBC()){NET.peer=bcTransport(code,c=>{wireConn(c);c.on('open',hello)});return}
-  try{await loadPeer()}catch(e){netStatus('通信の部品を読み込めませんでした。');return}
-  const tm=setTimeout(()=>{if(!NET.conn)netStatus('つながりませんでした。番号が正しいか、相手が部屋で待っているか確かめてください。（claude.ai上のページでは使えません）')},12000);
-  try{NET.peer=new Peer()}catch(e){netStatus('通信を始められませんでした。');return}
-  NET.peer.on('open',()=>{const c=NET.peer.connect('tarjuku-'+code,{reliable:true});c.on('open',()=>{clearTimeout(tm);wireConn(c);hello()})});
-  NET.peer.on('error',e=>{clearTimeout(tm);netStatus(e.type==='peer-unavailable'?'その番号の部屋は見つかりませんでした。':'通信エラー：'+(e.type||e.message||'不明'))});
+async function netHost(){
+  netClose();NET.role='host';NET.code=newCode();NET.tries=0;NET.found=false;netWaitUI('host',NET.code);
+  const ready=()=>{netStep(1,'done');netStep(2,'now');const b=$('#netBig');if(b)b.textContent=NET.code;const c=$('#netCopy');if(c)c.disabled=false;netStatus('相手が入るのを待っています……')};
+  if(useBC()){NET.peer=bcTransport(NET.code,c=>hookConn(c));ready();return}
+  try{await loadPeer()}catch(e){netStep(1,'err');netStatus(NET_ERR.lib,1);return}
+  if(NET.role!=='host')return;
+  NET.tm=setTimeout(()=>{if(NET.peer&&!NET.peer.open){netStep(1,'err');netStatus(NET_ERR.server,1)}},12000);
+  let p;try{p=NET.peer=new Peer('tarjuku-'+NET.code,peerOpts())}catch(e){netStep(1,'err');netStatus(NET_ERR.server,1);return}
+  p.on('open',()=>{clearTimeout(NET.tm);ready()});
+  p.on('connection',c=>{if(NET.conn&&NET.live){try{c.close()}catch(e){}return}netStep(2,'done');netStep(3,'now');netStatus('相手が来ました。つないでいます……');hookConn(c)});
+  p.on('disconnected',()=>{if(NET.peer!==p||p.destroyed||NET.started)return;netStatus('仲介サーバーとの接続が切れました。つなぎ直しています……');setTimeout(()=>{try{if(NET.peer===p&&!p.destroyed)p.reconnect()}catch(e){}},1200)});
+  p.on('error',e=>{if(NET.peer!==p)return;clearTimeout(NET.tm);if(e.type==='unavailable-id'){netHost();return}if(e.type==='peer-unavailable')return;if(!p.open&&!NET.live){netStep(1,'err');netStatus(NET_ERR.server+'（'+(e.type||'error')+'）',1)}});
+}
+function startHello(){netStatus('つながりました。対局を準備しています……');const send=()=>{if(NET.started||!NET.live){clearInterval(NET.hi);return}netSend(myHello())};send();clearInterval(NET.hi);NET.hi=setInterval(send,1500)}
+async function netJoin(code,tries){
+  netClose();NET.role='guest';NET.code=code;NET.tries=tries||0;NET.found=false;netWaitUI('guest',code);if(NET.tries)netStatus('もう一度試しています……');
+  if(useBC()){NET.peer=bcTransport(code,c=>hookConn(c,startHello));netStep(1,'done');return}
+  try{await loadPeer()}catch(e){netFail('lib');return}
+  if(NET.role!=='guest'||NET.code!==code)return;
+  NET.tm=setTimeout(()=>netFail(NET.peer&&NET.peer.open?'timeout':'server'),15000);
+  let p;try{p=NET.peer=new Peer(peerOpts())}catch(e){netFail('server');return}
+  p.on('open',()=>{netStep(1,'done');netStep(2,'now');const c=p.connect('tarjuku-'+code,{reliable:true});hookConn(c,startHello)});
+  p.on('error',e=>{if(NET.peer!==p||NET.live)return;netFail(e.type==='peer-unavailable'?'noroom':p.open?'timeout':'server')});
 }
 // 視点の入れ替え（ホスト＝p／ゲスト＝e の正本を、ゲスト目線にする）
 function flipObj(o){if(Array.isArray(o))return o.map(flipObj);if(o&&typeof o==='object'){const r={};for(const k in o){const nk=k==='p'?'e':k==='e'?'p':k;r[nk]=flipObj(o[k])}return r}if(o==='p')return 'e';if(o==='e')return 'p';return o}
