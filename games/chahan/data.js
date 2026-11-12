@@ -344,7 +344,7 @@ function romEvents(id, d) {
     c: { t: d.s2.endC, end: true }, f: { t: d.s2.endF, end: true } } };
   E['r' + id + '3'] = { loc: 'pier', rom: true, label: d.label, sub: d.s3.sub, cond: S => romOpen(S, id, 3), nodes: {
     start: { t: d.s3.t, c: [
-      { t: d.s3.lover, sub: S => Object.keys(S.rom).some(k => k !== id && member(S, k) && (S.rom[k].bond === 'lover' || S.rom[k].path === 'cand') && !(ROM[k].poly && ROM[id].poly)) ? '恋人になる。ほかの誰かとの関係が変わるかもしれない' : '恋人になる', to: 'lv', cond: S => rom(S, id).path === 'cand' },
+      { t: d.s3.lover, sub: S => Object.keys(S.rom).some(k => k !== id && member(S, k) && (S.rom[k].bond === 'lover' || S.rom[k].path === 'cand') && !(ROM[k].poly && ROM[id].poly)) ? '恋人になる。ほかの誰かとの関係が変わるかもしれない' : '恋人になる', to: 'lv', cond: S => rom(S, id).path === 'cand' || rom(S, id).path === 'friend' },
       { t: d.s3.partner, sub: '相棒になる', to: 'pt', fx: S => { const R = rom(S, id); R.st = 3; R.bond = 'partner'; R.path = 'done'; checkShuraba(S); memo(S, id, '相棒になった日'); } },
       { t: d.s3.wait, sub: '今は答えを出さない', to: 'wt' }] },
     lv: { fx: S => { S._react = takeLover(S, id); memo(S, id, '恋人になった日'); }, t: [], dyn: S => d.s3.endL.concat(S._react || [], [`${nm(id)}と恋人になった。`]), end: true },
@@ -1285,7 +1285,7 @@ const CH6 = {
     e: { fx: S => { S.flags.cleared = 1; S.flags.endSeen = 1; }, t: ['(エンディングへ)'], ending: true } } },
 };
 
-/* ---------- デート(相棒・恋人、または打ち解けた仲間と出かける) ---------- */
+/* ---------- デート(仲間なら誰でも誘える。街が動くまでは1人1回) ---------- */
 const DATESPOT = {
   minato: ['止まった観覧車', '観覧車の一番上のゴンドラに、二人で座った。ネオヨコハマの夜景が、足元にこぼれていた。'],
   hk: ['湯けむり横丁の足湯', '足湯に並んで座った。湯けむりの向こうで、山の端に月が出ていた。'],
@@ -1307,10 +1307,10 @@ const LIKES = {
   satou: ['gate7', '「……甘い。いや、しょっぱい。分かる。全部分かる」'], nanashi: ['ks', 'ナナシのセンサーが、星に合わせてゆっくり瞬いた。'],
 };
 const DATE = Object.fromEntries(Object.entries(DATESPOT).map(([loc, [spot, scene]]) => ['date_' + loc, { loc, rom: true, label: `${spot}へ誘う`, sub: '仲間と二人で出かける。仲が深まる', cond: S => S.roster.some(u => u.id !== 'hero' && dateOk(S, u.id)), nodes: {
-  start: { t: [`${spot}へ、誰を誘う?`], cf: S => S.roster.filter(u => u.id !== 'hero' && dateOk(S, u.id)).map(u => ({ t: u.name, sub: rom(S, u.id).bond === 'lover' ? '恋人' : rom(S, u.id).bond === 'partner' ? '相棒' : '打ち解けた仲間', to: 'go', fx: S2 => { S2._date = u.id; S2.dateW = S2.dateW || {}; S2.dateW[u.id] = S2.wanted; const fav = LIKES[u.id] && LIKES[u.id][0] === loc; rel(S2, u.id, fav ? 2 : 1); S2._fav = fav; memo(S2, u.id, `${spot}へ二人で出かけた${fav ? '(お気に入りの場所だった)' : ''}`); } })).concat([{ t: 'やめておく', sub: '', to: 'no' }]) },
+  start: { t: [`${spot}へ、誰を誘う?`], cf: S => S.roster.filter(u => u.id !== 'hero' && dateOk(S, u.id)).map(u => ({ t: u.name, sub: rom(S, u.id).bond === 'lover' ? '恋人' : rom(S, u.id).bond === 'partner' ? '相棒' : `仲 ${S.rel[u.id] || 0}`, to: 'go', fx: S2 => { S2._date = u.id; S2.dateW = S2.dateW || {}; S2.dateW[u.id] = S2.wanted; const fav = LIKES[u.id] && LIKES[u.id][0] === loc; rel(S2, u.id, fav ? 2 : 1); S2._fav = fav; memo(S2, u.id, `${spot}へ二人で出かけた${fav ? '(お気に入りの場所だった)' : ''}`); } })).concat([{ t: 'やめておく', sub: '', to: 'no' }]) },
   no: { t: ['今日は、一人で歩くことにした。'], end: true, noDone: true },
   go: { t: [], dyn: S => { const id = S._date, n = nm(id), R = rom(S, id); return [scene.replace('二人', `${n}と二人`)].concat(S._fav ? [[n, LIKES[id][1].replace(/^「|」$/g, '')], `${n}は、ここが好きらしい。いつもより、ずっと仲が深まった。`] : [R.bond === 'lover' ? `${n}は、何も言わずに、少しだけ肩を寄せてきた。` : R.bond === 'partner' ? `${n}とは、言葉が要らなかった。` : `${n}は、少し照れくさそうだった。`, `${n}との仲が深まった。`]); }, end: true, noDone: true } } }]));
-const dateOk = (S, id) => { const R = rom(S, id); return (R.bond || R.st >= 2) && (S.dateW || {})[id] !== S.wanted && !S.left[id]; };
+const dateOk = (S, id) => !!ROM[id] && member(S, id) && (S.dateW || {})[id] !== S.wanted && !S.left[id];
 
 /* ---------- サブクエスト(地域をまたぐもの) ---------- */
 const SUB2 = {
