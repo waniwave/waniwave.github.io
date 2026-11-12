@@ -118,6 +118,7 @@ const AFF = {
 const RECIPE = { 'junk+shock': 'thunder', 'adrenal+shock': 'ocsys', 'adrenal+junk': 'brawl', 'cloak+snipe': 'reaper', 'armor+medic': 'medarmor', 'netrun+shock': 'thunder', 'armor+knight': 'fortress', 'knuckle+adrenal': 'brawl', 'leech+medic': 'vampdoc', 'mirror+armor': 'fortress', 'glass+hungry': 'lastsupper', 'saw+weld': 'brawl', 'steam+shock': 'thunder', 'coupon+netrun': 'ocsys', 'frost+shock': 'thunder', 'decoy+smoke': 'reaper', 'hashi+cleaver': 'brawl', 'anthem+steep': 'vampdoc', 'charm+tongue': 'lastsupper' };
 const recipeOf = (a, b) => a === b ? a : RECIPE[[a, b].sort().join('+')] || null;
 function synthPreview(A, B) {
+  if (isEvent(A) || isEvent(B)) return null;
   if (!A || !B || A.rar >= 4 || B.rar >= 4) return null;
   const type = recipeOf(A.type, B.type);
   if (!type) return null;
@@ -547,7 +548,10 @@ function gainSeep(u, m, base) {
 
 /* ---------- 固着 ---------- */
 const FIXMAX = 2;
-const canFix = (u, pi) => { const p = u.ports[pi]; return !!(p && p.inst && p.inst.rar >= 0 && seep(u, p.mem) >= 100 && (u.fixed || []).length < FIXMAX && !(u.fixed || []).some(i => i.type === p.mem)); };
+/* 物語で使うメモリ(消えない、固着・分解・売却・合成・廃棄できない) */
+const EVENTMEM = ['chahan'];
+const isEvent = i => !!(i && EVENTMEM.includes(i.type));
+const canFix = (u, pi) => { const p = u.ports[pi]; return !!(p && p.inst && !isEvent(p.inst) && p.inst.rar >= 0 && seep(u, p.mem) >= 100 && (u.fixed || []).length < FIXMAX && !(u.fixed || []).some(i => i.type === p.mem)); };
 function fixMem(u, pi) {
   if (!canFix(u, pi)) return false;
   const p = u.ports[pi];
@@ -1099,6 +1103,6 @@ function autoAct(u, mode, used) {
   }
   return A.attack(u, t);
 }
-const API = { mastery, RARMUL, autoPlan, skillKind, innateOf, hasInnate, fetchChance, MECH, BRAND, BRANDS, setBonus, setText, lvText, ocNeed, takeMem, giveBack, RECIPE, recipeOf, synthPreview, synthFill, FIXMAX, canFix, fixMem, memTypes, LVMAX, xpNeed, gainXp, WEAPON, profRank, profNext, snapshot, INTEL, RAR, AFX, ITEM, afxText, mkInst, instName, mkUnit, recompute, obsLevel, autoObsLevel, G, MEM, SK, A, BRIBE, startBattle, resolve, order, all, foes, enemies, players, unit, effAtk, effSpd, hasMem, seep, skillsOf, gainSeep, ripChance, hackChance, threatChance, hitChance };
+const API = { isEvent, EVENTMEM, mastery, RARMUL, autoPlan, skillKind, innateOf, hasInnate, fetchChance, MECH, BRAND, BRANDS, setBonus, setText, lvText, ocNeed, takeMem, giveBack, RECIPE, recipeOf, synthPreview, synthFill, FIXMAX, canFix, fixMem, memTypes, LVMAX, xpNeed, gainXp, WEAPON, profRank, profNext, snapshot, INTEL, RAR, AFX, ITEM, afxText, mkInst, instName, mkUnit, recompute, obsLevel, autoObsLevel, G, MEM, SK, A, BRIBE, startBattle, resolve, order, all, foes, enemies, players, unit, effAtk, effSpd, hasMem, seep, skillsOf, gainSeep, ripChance, hackChance, threatChance, hitChance };
 if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.CH = API;
 })(typeof window !== 'undefined' ? window : globalThis);

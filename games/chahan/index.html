@@ -4,10 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>プロトコルチャーハン</title>
-<meta property="og:type" content="website"><meta property="og:title" content="プロトコルチャーハン">
-<meta property="og:description" content="ヨコハマ・ポートランド・ディヴィジョン。ジャンク漁りのチャンカーが拾ったのは、地図から消えた四つ星中華の、最後の一皿だった。">
-<meta property="og:url" content="https://waniwave.com/games/chahan/"><meta property="og:image" content="https://waniwave.com/games/chahan/thumb.jpg">
-<meta name="twitter:card" content="summary_large_image"><link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+1+Code:wght@400;600&display=swap" rel="stylesheet">
 <style>
@@ -106,6 +102,7 @@ header .res b{color:var(--gold);font-family:var(--display);font-weight:400;font-
 #ctl .seg button{border-radius:0;padding:3px 8px;font-size:12px}
 #ctl .seg button.on{background:var(--gold);color:#1a1205;border-color:var(--gold)}
 #ctl .nx{display:flex;gap:6px}
+.rb.ev{background:#ff5c9e;color:#fff;border-color:#ff5c9e}
 .gly{filter:drop-shadow(0 0 4px currentColor);animation:breathe 3.6s ease-in-out infinite;color:#56dfe8}.card.enemy .gly{color:#ff5c9e;animation-delay:1.2s}.card.dead .gly{animation:none}@keyframes breathe{50%{transform:translateY(-2px)}}
 .card.enemy.boss{border-top-width:4px;box-shadow:0 0 22px rgba(255,59,141,.25)}
 .loveep{margin:18px 0 8px;padding-top:12px;border-top:1px solid rgba(255,59,141,.35)}.loveep h3{color:#ff8ec0;margin:0 0 8px;font-weight:normal;letter-spacing:.1em}.loveh{margin-top:28px;color:#ff8ec0}
@@ -348,6 +345,7 @@ button .l{letter-spacing:.02em}
     <li><b>メモリ</b>:敵のメモリを引っこ抜いて奪う。奪ったメモリは同じ「メモリ」から自分に挿せる。ポートを撃って壊しておけば、技を封じたうえで確実に奪える。</li>
     <li><b>ハック</b>:敵のオーグメントに侵入して、照準を狂わせる、熱を上げる、行動を書き換える、ドローンを乗っ取る。</li>
     <li><b>AUTO</b>:ボス以外の戦闘では、画面右上の「AUTO ▶」で自動で戦える。「勝率重視」「メモリ入手重視」「浸透度上げ」から傾向を選べ、いつでも手動に戻せる。</li>
+    <li><b>大事なもの</b>:プロトコルチャーハン・クラックスピードは物語のメモリ。固着・分解・売却・合成はできず、倉庫にも送られない。戦闘中に奪われても、戦闘が終われば必ず元のポートに戻る。</li>
     <li><b>手持ちの上限</b>:持ち歩けるメモリは12本。戦闘で奪って入りきらない分は、自動でPCバンの倉庫へ転送される。PCバンは各地にある。</li>
     <li><b>レアリティ</b>:メモリには量産品から一点物まで5段階あり、高いほど追加効果が多い。敵が挿しているうちは分からず、引っこ抜いた瞬間に判明する。</li>
     <li><b>連携</b>:敵の行動を挟まずに別の味方が同じ敵を続けて攻撃すると、威力が上がっていく。</li>
@@ -785,7 +783,7 @@ function save(){if(S)WD.dexScan(S);try{localStorage.setItem(SAVEKEY,JSON.stringi
 function loadSave(){try{const t=localStorage.getItem(SAVEKEY);return t?JSON.parse(t):null;}catch(e){return null;}}
 function bind(){G.mallMod=S.mallMod||'none';G.mallBossDone=S.mallBoss||{};G.fin={f1:!!S.flags.f1,f2:!!S.flags.f2,f3:!!S.flags.f3};G.bonds=WD.bonds(S);G.wanted=S.wanted;G.baseWanted=S.wanted;G.mallFloor=S.mallFloor||1;G.bag=S.bag;G.seep=S.seep;G.items=S.items;G.credits=S.credits;}
 function newGame(){S=WD.newSave();bind();W={scr:'event'};openEvent('prologue');}
-function cont(){const t=loadSave();if(!t)return;S=WD.migrate(t);bind();W={scr:'map'};render();}
+function cont(){const t=loadSave();if(!t)return;S=WD.migrate(t);ensureEventMem();bind();W={scr:'map'};render();}
 const evLoc=e=>e.locf?e.locf(S):(e.loc||S.loc);
 function toMap(){const rg=LOCS[S.loc].region;W=rg?{scr:'region',rg}:{scr:'map'};save();render();}
 function goRegion(rg){W={scr:'region',rg};render();}
@@ -825,21 +823,29 @@ function contCheck(){goNode(EV[W.ev].nodes[W.node].check[W.checkRes.tier]);}
 function endEvent(){const ev=EV[W.ev],node=ev.nodes[W.node];if(!ev.repeat&&!node.noDone)S.done[W.ev]=1;delete S._react;W={scr:'district'};bind();save();if(!autoEv())render();}
 function startEnc(){const b=EV[W.ev].nodes[W.node].battle;W.pre=JSON.stringify(S);W.bt=b;W.btEnc=b.encf?b.encf(S):b.enc;launch();}
 function launch(){bind();stopPb();ui={queue:[],stack:[]};CH.startBattle(ENC[W.btEnc],WD.party(S));W.scr='battle';render();window.scrollTo(0,0);}
+/* 物語のメモリが、どこにも無くなっていたら手持ちに戻す(古いセーブの修復も兼ねる) */
+function ensureEventMem(){if(!S||!S.roster)return;const h=WD.member(S,'hero');if(!h||!S.flags.pro)return;
+  const has=t=>S.roster.some(u=>u.ports.some(p=>p.inst&&p.inst.type===t)||(u.fixed||[]).some(i=>i.type===t))||S.bag.some(i=>i.type===t)||S.storage.some(i=>i.type===t);
+  if(!has('chahan')){const p=h.ports[1];const inst=CH.mkInst('chahan',4,[{k:'spd',v:2},{k:'atk',v:3},{k:'seep',v:20},{k:'hp',v:15}],true);if(p&&!p.inst){p.mem='chahan';p.inst=inst;CH.recompute(h);}else S.bag.push(inst);S._evRestored=1;}
+  // 倉庫に入ってしまったものは手持ちに戻す
+  S.storage.filter(i=>CH.isEvent(i)).forEach(i=>{S.storage.splice(S.storage.indexOf(i),1);S.bag.push(i);});}
 function restParty(){S.roster.forEach(u=>{CH.recompute(u);u.hp=u.maxhp;u.heat=0;u.st={};u.stun=0;u.alive=true;u.side='ally';});}
-function battleWin(){S.tips.b1done=1;S.credits=G.credits;S.bag.filter(i=>i._from).forEach(i=>{const u=WD.member(S,i._from.uid),p=u&&u.ports[i._from.pi];delete i._from;if(p&&!p.mem){p.mem=i.type;p.inst=i;S.bag.splice(S.bag.indexOf(i),1);CH.recompute(u);}});S.roster.forEach(u=>u.ports.forEach(p=>{if(p.inst)delete p.inst._from;}));S.party.forEach(id=>{if(id==='hero')return;S.relWins[id]=(S.relWins[id]||0)+1;if(S.relWins[id]%5===0)S.rel[id]=(S.rel[id]||0)+1;});S.roster.forEach(u=>{if(!S.party.includes(u.id))CH.gainXp(u,Math.floor((G.xpGain||0)/2));});if(G.battle.onEnd)G.battle.onEnd(S,G);G.sent=overflow();dogFind();restParty();W.scr='loot';render();}
+function battleWin(){S.tips.b1done=1;S.credits=G.credits;(G.units||[]).forEach(e=>{if(e.side0==='enemy'&&(e.taken||[]).length){e.taken.forEach(i=>{if(!S.bag.includes(i))S.bag.push(i);});e.taken=[];}});
+  S.bag.filter(i=>i._from).forEach(i=>{const u=WD.member(S,i._from.uid),p=u&&u.ports[i._from.pi];delete i._from;if(!p)return;if(p.inst&&p.inst!==i){if(!CH.isEvent(i))return;S.bag.push(p.inst);}p.mem=i.type;p.inst=i;S.bag.splice(S.bag.indexOf(i),1);CH.recompute(u);});
+  ensureEventMem();S.roster.forEach(u=>u.ports.forEach(p=>{if(p.inst)delete p.inst._from;}));S.party.forEach(id=>{if(id==='hero')return;S.relWins[id]=(S.relWins[id]||0)+1;if(S.relWins[id]%5===0)S.rel[id]=(S.rel[id]||0)+1;});S.roster.forEach(u=>{if(!S.party.includes(u.id))CH.gainXp(u,Math.floor((G.xpGain||0)/2));});if(G.battle.onEnd)G.battle.onEnd(S,G);G.sent=overflow();dogFind();restParty();W.scr='loot';render();}
 /* シューマイが戦闘のあとに何かをくわえてくる */
 function dogFind(){G.dogFind=null;if(!S.party.includes('shumai')||Math.random()>=0.3)return;const r=Math.random();if(r<0.35){S.items.gel++;G.dogFind='修復ジェル';}else if(r<0.6){S.items.coolant++;G.dogFind='冷却スプレー';}else if(r<0.9){const c=20+Math.floor(Math.random()*60);S.credits+=c;G.dogFind=c+'cr';}else{S.parts+=2;G.dogFind='部品2個';}}
 /* 手持ちに入りきらないメモリは、新しく奪ったものから順にPCバンの倉庫へ転送する */
-function overflow(){const sent=[];while(S.bag.length>WD.CARRY){let k=-1;for(let j=S.bag.length-1;j>=0;j--)if(G.loot.includes(S.bag[j])){k=j;break;}if(k<0)k=S.bag.length-1;const it=S.bag.splice(k,1)[0];S.storage.push(it);sent.push(it);}return sent;}
+function overflow(){const sent=[];while(S.bag.length>WD.CARRY){let k=-1;for(let j=S.bag.length-1;j>=0;j--)if(G.loot.includes(S.bag[j])&&!CH.isEvent(S.bag[j])){k=j;break;}if(k<0)for(let j=S.bag.length-1;j>=0;j--)if(!CH.isEvent(S.bag[j])){k=j;break;}if(k<0)break;const it=S.bag.splice(k,1)[0];S.storage.push(it);sent.push(it);}return sent;}
 function battleRetry(){S=JSON.parse(W.pre);launch();}
 function battleFlee(){S=JSON.parse(W.pre);bind();goNode(W.bt.lose);}
 function lootDone(){if(S.bag.length>WD.CARRY)return;goNode(W.bt.win);}
 function againNode(){const ev=EV[W.ev];if(!ev||!ev.repeat)return null;const st=ev.nodes.start;return st.battle?'start':st.again||null;}
 function lootAgain(){if(S.bag.length>WD.CARRY)return;const nx=againNode();if(!nx)return;const wn=EV[W.ev].nodes[W.bt.win];if(wn&&wn.fx)wn.fx(S);if(S._key){W.node=W.bt.win;W.scr='event';W.cfc=null;save();render();return;}save();W.node=nx;W.cfc=null;startEnc();}
-function dropInst(i){S.bag.splice(i,1);render();}
+function dropInst(i){if(CH.isEvent(S.bag[i]))return;S.bag.splice(i,1);render();}
 
 function instCard(inst,btns){
-  return `<div class="inst r${inst.rar}"${tipAttr(CH.instName(inst)+'\n'+instLine(inst)+'\n'+skillLines(inst.type,null))}><div><b class="nm2">${esc(CH.instName(inst))}</b><span class="rb">${CH.RAR[inst.rar].n}</span><small>${inst.afx.length?inst.afx.map(CH.afxText).map(esc).join('、'):'追加効果なし'}</small></div><div class="ib">${btns||''}</div></div>`;
+  return `<div class="inst r${inst.rar}"${tipAttr(CH.instName(inst)+'\n'+instLine(inst)+'\n'+skillLines(inst.type,null))}><div><b class="nm2">${esc(CH.instName(inst))}</b><span class="rb">${CH.RAR[inst.rar].n}</span>${CH.isEvent(inst)?'<span class="rb ev">大事なもの</span>':''}<small>${inst.afx.length?inst.afx.map(CH.afxText).map(esc).join('、'):'追加効果なし'}</small></div><div class="ib">${btns||''}</div></div>`;
 }
 const btn=(label,sub,fn,cls,dis)=>`<button class="${cls||''}" ${dis?'disabled':''} onclick="${fn}"><span class="l">${label}</span>${sub?`<small>${esc(sub)}</small>`:''}</button>`;
 const sbtn=(label,fn,dis)=>`<button class="rowbtn" ${dis?'disabled':''} onclick="${fn}">${label}</button>`;
@@ -956,11 +962,11 @@ function scrLoot(el){
 function vanTab(t){W.tab=t;W.sel=null;W.fixAsk=null;W.syn=[];W.synAfx=null;W.synMade=null;render();}
 function vanToggle(id){const i=S.party.indexOf(id);if(i>=0){if(id!=='hero')S.party.splice(i,1);}else if(S.party.length<WD.PARTY_MAX)S.party.push(id);save();render();}
 function vanSel(uid,pi){W.sel={uid,pi};render();}
-function stash(inst){(S.bag.length<WD.CARRY?S.bag:S.storage).push(inst);}
+function stash(inst){(S.bag.length<WD.CARRY||CH.isEvent(inst)?S.bag:S.storage).push(inst);}
 function vanIns(src,i){const u=WD.member(S,W.sel.uid),p=u.ports[W.sel.pi],inst=S[src].splice(i,1)[0],old=p.inst;p.mem=inst.type;p.inst=inst;if(old)stash(old);CH.recompute(u);u.hp=u.maxhp;W.sel=null;save();render();}
 function vanOut(){const u=WD.member(S,W.sel.uid),p=u.ports[W.sel.pi];if(p.inst)stash(p.inst);p.mem=null;p.inst=null;CH.recompute(u);u.hp=u.maxhp;W.sel=null;save();render();}
-function vanMove(src,i){const dst=src==='bag'?'storage':'bag';if(dst==='bag'&&S.bag.length>=WD.CARRY)return;S[dst].push(S[src].splice(i,1)[0]);save();render();}
-function vanBreak(src,i){const inst=S[src][i];if(inst.rar>=4)return;S.parts+=CH.RAR[inst.rar].parts;S[src].splice(i,1);save();render();}
+function vanMove(src,i){const dst=src==='bag'?'storage':'bag';if(dst==='storage'&&CH.isEvent(S[src][i]))return;if(dst==='bag'&&S.bag.length>=WD.CARRY)return;S[dst].push(S[src].splice(i,1)[0]);save();render();}
+function vanBreak(src,i){const inst=S[src][i];if(!inst||inst.rar>=4||CH.isEvent(inst))return;S.parts+=CH.RAR[inst.rar].parts;S[src].splice(i,1);save();render();}
 function memTab(members,srcs){
   if(W.sel){
     const u=WD.member(S,W.sel.uid),p=u.ports[W.sel.pi],n=srcs.reduce((a,x)=>a+S[x].length,0);
@@ -1130,7 +1136,7 @@ function scrVan(el){
   }else if(W.tab==='synth'){
     h+=synthTab();
   }else{
-    const lst=(src,mv)=>S[src].length?S[src].map((i,k)=>instCard(i,sbtn(mv,`vanMove('${src}',${k})`,src==='storage'&&S.bag.length>=WD.CARRY)+sbtn(`分解 +${CH.RAR[i.rar].parts}`,`vanBreak('${src}',${k})`,i.rar>=4))).join(''):'<p style="margin:0;color:var(--dim)">空。</p>';
+    const lst=(src,mv)=>S[src].length?S[src].map((i,k)=>instCard(i,sbtn(mv,`vanMove('${src}',${k})`,src==='storage'&&S.bag.length>=WD.CARRY||src==='bag'&&CH.isEvent(i))+sbtn(`分解 +${CH.RAR[i.rar].parts}`,`vanBreak('${src}',${k})`,i.rar>=4))).join(''):'<p style="margin:0;color:var(--dim)">空。</p>';
     h+=`<div class="panel"><h3>手持ち ${S.bag.length}/${WD.CARRY}本(戦闘中に挿せるのはここにあるものだけ)</h3><div class="list">${lst('bag','倉庫へ')}</div></div>
       <div class="panel"><h3>倉庫 ${S.storage.length}本</h3><div class="list">${lst('storage','手持ちへ')}</div></div>
       <p style="margin:0;color:var(--dim)">分解で得た部品: ${S.parts}個。部品は「合成」で使う。一点物は分解できない。</p>`;
@@ -1141,7 +1147,7 @@ function scrVan(el){
 /* ---- 万屋 ---- */
 const price=id=>Math.round(WD.PRICE[id]*(S.flags.jiroFav?0.8:1));
 function buy(id){const p=price(id);if(S.credits<p)return;S.credits-=p;S.items[id]++;save();render();}
-function sell(i){const inst=S.bag[i];if(inst.rar>=4)return;S.credits+=CH.RAR[inst.rar].sell;S.bag.splice(i,1);save();render();}
+function sell(i){const inst=S.bag[i];if(!inst||inst.rar>=4||CH.isEvent(inst))return;S.credits+=CH.RAR[inst.rar].sell;S.bag.splice(i,1);save();render();}
 function scrShop(el){
   const desc={gel:'味方1人のHPを70回復',coolant:'熱-50。高熱の相手は脆化',emp:'敵全体の防壁とポート耐久を下げ、ドローンを止める'};
   el.innerHTML=`<h2>万屋ジロー</h2><div class="panel"><h3>道具を買う</h3><div class="opts">${Object.keys(WD.PRICE).map(id=>btn(`${CH.ITEM[id]} ${price(id)}cr`,`${desc[id]} / 所持${S.items[id]}${S.flags.jiroFav?' / 二割引き':''}`,`buy('${id}')`,'',S.credits<price(id))).join('')}</div></div>
@@ -1151,7 +1157,7 @@ function scrShop(el){
 /* ---- セーブデータ ---- */
 function expCode(){return S?btoa(unescape(encodeURIComponent(JSON.stringify(S)))):'';}
 function copyCode(){const t=$('exp');t.select();try{navigator.clipboard.writeText(t.value).then(()=>{$('datamsg').textContent='コピーした。';},()=>{$('datamsg').textContent='コピーできなかった。枠の中を選択して手動でコピーしてほしい。';});}catch(e){$('datamsg').textContent='コピーできなかった。枠の中を選択して手動でコピーしてほしい。';}}
-function impCode(){try{const t=JSON.parse(decodeURIComponent(escape(atob($('imp').value.trim()))));if(!t||!t.roster)throw 0;S=WD.migrate(t);bind();save();W={scr:'map'};render();}catch(e){$('datamsg').textContent='読み込めなかった。コードが途中で切れていないか確かめてほしい。';}}
+function impCode(){try{const t=JSON.parse(decodeURIComponent(escape(atob($('imp').value.trim()))));if(!t||!t.roster)throw 0;S=WD.migrate(t);ensureEventMem();bind();save();W={scr:'map'};render();}catch(e){$('datamsg').textContent='読み込めなかった。コードが途中で切れていないか確かめてほしい。';}}
 function scrData(el){
   el.innerHTML=`<h2>セーブデータ</h2><p class="lead">進行は地区の画面に戻るたび、このブラウザに自動で保存される。別の端末に移すときや、念のための控えには、下のコードを使う。</p>
     ${S?`<div class="panel"><h3>書き出し</h3><textarea id="exp" readonly>${expCode()}</textarea><div class="foot">${sbtn('コピー','copyCode()')}</div></div>`:''}
