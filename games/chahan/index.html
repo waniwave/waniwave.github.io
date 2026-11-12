@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>プロトコルチャーハン</title>
+<meta property="og:type" content="website"><meta property="og:title" content="プロトコルチャーハン">
+<meta property="og:description" content="ヨコハマ・ポートランド・ディヴィジョン。ジャンク漁りのチャンカーが拾ったのは、地図から消えた四つ星中華の、最後の一皿だった。">
+<meta property="og:url" content="https://waniwave.com/games/chahan/"><meta property="og:image" content="https://waniwave.com/games/chahan/thumb.jpg">
+<meta name="twitter:card" content="summary_large_image"><link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+1+Code:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* layout: 上から 敵 → 実況ステージ → 味方 → コマンド の一本道。ログは最下部に畳む。単一のネオン夜景テーマ */
+  color-scheme: dark;
+  --bg:#141024; --panel:#1e1836; --panel2:#2a2148; --line:#3d3266;
+  --ink:#ece6fa; --dim:#978dba;
+  --cyan:#56dfe8; --mag:#ff5c9e; --gold:#f6bd4a; --red:#ff6b6b; --green:#7be08a;
+  --display:'DotGothic16','M PLUS 1 Code',monospace;
+  --body:'M PLUS 1 Code','Hiragino Sans','Yu Gothic UI',sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:#0b0815}
+body{min-height:100vh}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55}
+body{padding:12px 16px 40px;background:
+  linear-gradient(180deg,rgba(255,92,158,.07),transparent 220px),
+  repeating-linear-gradient(0deg,transparent 0 3px,rgba(255,255,255,.012) 3px 4px),var(--bg)}
+main{max-width:1360px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
+.col{display:flex;flex-direction:column;gap:10px;min-width:0}
+aside{position:sticky;top:10px;background:#0e0b1a;border:1px solid var(--line);border-radius:6px;padding:10px}
+aside h2{font-size:13px;color:var(--dim);margin:0 0 6px}
+@media (max-width:1000px){.wrap{grid-template-columns:minmax(0,1fr)}aside{position:static}#log{max-height:240px}}
+h1,h2,.d{font-family:var(--display);font-weight:400;letter-spacing:.04em}
+header{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:8px}
+h1{font-size:18px;margin:0;color:var(--gold)}
+header .sub{color:var(--dim)}
+#menubtn{margin-left:auto;align-self:center;border-color:var(--cyan);color:var(--cyan)}
+#menubtn:not([hidden])+.res{margin-left:0}
+header .res{margin-left:auto;display:flex;gap:8px;align-items:baseline;font-variant-numeric:tabular-nums;font-size:13px;color:var(--dim)}
+header .res b{color:var(--gold);font-family:var(--display);font-weight:400;font-size:24px;line-height:1}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:7px;min-width:0;transition:transform .15s,box-shadow .15s}
+.card.enemy{border-top:3px solid var(--mag)}
+.card.ally{border-bottom:3px solid var(--cyan)}
+.card.hij{border-top-color:var(--green)}
+.card.dead{opacity:.3;filter:grayscale(1)}
+.card.cur{box-shadow:0 0 0 2px var(--gold)}
+.card.acting{box-shadow:0 0 0 2px var(--ink),0 0 22px rgba(236,230,250,.35);transform:translateY(-4px)}
+.card.ally.acting{transform:translateY(-6px)}
+.card.enemy.acting{transform:translateY(6px)}
+.card.pickable{cursor:pointer;box-shadow:0 0 0 2px var(--cyan)}
+.card.pickable:hover{background:#261f44}
+.card.hitfx{animation:shake .4s}
+.card.healfx{animation:glow .6s}
+@keyframes shake{0%,100%{translate:0}20%{translate:-7px 0}40%{translate:6px 0}60%{translate:-4px 0}80%{translate:3px 0}}
+@keyframes glow{0%{box-shadow:0 0 0 3px var(--green)}100%{box-shadow:0 0 0 0 transparent}}
+.float{position:absolute;left:50%;top:6px;translate:-50% 0;font-family:var(--display);font-size:34px;line-height:1;pointer-events:none;text-shadow:0 2px 0 #000,0 0 12px currentColor;animation:rise 1.1s ease-out forwards;z-index:3;white-space:nowrap}
+.float.dmg{color:var(--red)} .float.edmg{color:var(--gold)} .float.heal{color:var(--green)} .float.miss{color:var(--dim);font-size:22px} .float.note{color:var(--cyan);font-size:18px;top:44px}
+@keyframes rise{0%{opacity:0;transform:translateY(14px) scale(.7)}15%{opacity:1;transform:translateY(0) scale(1.15)}30%{transform:scale(1)}100%{opacity:.0;transform:translateY(-26px)}}
+.card.keepfloat .float{animation:rise 1.1s ease-out forwards}
+.top{display:flex;gap:10px;align-items:center}
+.top svg{flex:none}
+.info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.nm{font-family:var(--display);font-size:16px;line-height:1.2;overflow-wrap:anywhere}
+.role{color:var(--dim);font-size:11px}
+.hpline{display:flex;align-items:center;gap:8px}
+.bar{flex:1;height:12px;background:#0d0a18;border-radius:2px;overflow:hidden;border:1px solid #000}
+.bar i{display:block;height:100%;background:var(--green);transition:width .35s}
+.bar.lowhp i{background:var(--red)} .bar.midhp i{background:var(--gold)}
+.hpn{font-family:var(--display);font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hpn small{color:var(--dim);font-size:11px}
+.heat{display:flex;align-items:center;gap:3px;font-size:11px;color:var(--dim)}
+.heat i{width:9px;height:8px;background:#0d0a18;border:1px solid #000}
+.heat i.on{background:var(--gold)} .heat i.hot{background:var(--red)}
+.heat b{margin-left:4px;font-weight:400;font-variant-numeric:tabular-nums} .heat.over b{color:var(--red)}
+.tags{display:flex;flex-wrap:wrap;gap:4px}
+.tag{font-size:11px;padding:0 6px;border-radius:9px;background:var(--panel2);color:var(--cyan);border:1px solid currentColor}
+.tag.bad{color:var(--red)} .tag.good{color:var(--green)}
+.usbs{display:flex;flex-direction:column;gap:4px}
+.usb{display:flex;align-items:stretch;font-size:12px;min-width:0}
+.usb::before{content:"";flex:none;width:9px;margin:4px 0;background:linear-gradient(90deg,#8d86a8,#c9c3de);border-radius:1px 0 0 1px}
+.usb span{padding:2px 7px;background:#0f0c1c;border:1px solid var(--gold);min-width:0}
+.usb .n{flex:1;border-radius:0;border-right:0;overflow-wrap:anywhere}
+.usb .v{border-radius:0 3px 3px 0;color:var(--gold);white-space:nowrap;font-variant-numeric:tabular-nums}
+.usb.empty span{border-color:var(--line);border-style:dashed;color:var(--dim)} .usb.empty::before{opacity:.3}
+.usb.broken span{border-color:var(--red);color:var(--red)}
+.intent{font-size:12px;padding:5px 8px;background:#0f0c1c;border-left:3px solid var(--mag);border-radius:0 3px 3px 0}
+.intent.danger{border-left-color:var(--red);color:var(--red);background:rgba(255,107,107,.08)}
+.intent b{color:var(--dim);font-weight:400;font-size:11px;display:block}
+.queued{font-size:12px;color:var(--gold);padding:4px 8px;border:1px dashed var(--gold);border-radius:3px}
+/* 実況ステージ */
+#stage{background:#0e0b1a;border:1px solid var(--line);border-radius:6px;padding:10px 14px;min-height:118px;display:flex;gap:12px;align-items:stretch;flex-wrap:wrap}
+#stage.live{border-color:var(--ink);cursor:pointer}
+#say{flex:1 1 320px;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px}
+#say .main{font-family:var(--display);font-size:20px;line-height:1.35}
+#say .main.act{color:var(--cyan)} #say .main.eact{color:var(--mag)} #say .main.head{color:var(--gold)} #say .main.crash{color:var(--gold)}
+#say .subl{font-size:14px;color:var(--dim)}
+#say .subl.now{color:var(--ink);font-size:16px}
+#say .subl.now.hurt{color:var(--red)} #say .subl.now.seep,#say .subl.now.crash,#say .subl.now.combo{color:var(--gold)} #say .subl.now.heal,#say .subl.now.buff{color:var(--green)} #say .subl.now.down{color:var(--mag)}
+#ctl{display:flex;flex-direction:column;gap:6px;justify-content:center;align-items:flex-end;font-size:12px;color:var(--dim)}
+#ctl .seg{display:flex;gap:0}
+#ctl .seg button{border-radius:0;padding:3px 8px;font-size:12px}
+#ctl .seg button.on{background:var(--gold);color:#1a1205;border-color:var(--gold)}
+#ctl .nx{display:flex;gap:6px}
+.gly{filter:drop-shadow(0 0 4px currentColor);animation:breathe 3.6s ease-in-out infinite;color:#56dfe8}.card.enemy .gly{color:#ff5c9e;animation-delay:1.2s}.card.dead .gly{animation:none}@keyframes breathe{50%{transform:translateY(-2px)}}
+.card.enemy.boss{border-top-width:4px;box-shadow:0 0 22px rgba(255,59,141,.25)}
+.loveep{margin:18px 0 8px;padding-top:12px;border-top:1px solid rgba(255,59,141,.35)}.loveep h3{color:#ff8ec0;margin:0 0 8px;font-weight:normal;letter-spacing:.1em}.loveh{margin-top:28px;color:#ff8ec0}
+#taaov{position:fixed;inset:0;z-index:200;background:#0b0815}#taaov iframe{width:100%;height:100%;border:0;display:block}
+.chat{margin:0 0 4px;font-size:14px;color:var(--dim);border-left:2px solid var(--cyan);padding-left:10px}.chat b{color:var(--cyan);font-weight:normal;margin-right:2px}
+.memo{margin-top:4px;font-size:12px;color:var(--dim)}.memo summary{cursor:pointer;color:var(--gold)}.memo ul{margin:4px 0 0;padding-left:18px}
+#ctl .autobox{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}#ctl .autobox .go{border-color:var(--gold);color:var(--gold)}#ctl .autonote{font-size:11px}
+.strip{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--dim)}
+.chip{font-size:12px;padding:1px 8px;border:1px solid var(--line);border-radius:2px;background:var(--panel);color:var(--ink)}
+.chip.a{border-color:var(--cyan)} .chip.e{border-color:var(--mag)} .chip.used{opacity:.4;text-decoration:line-through} .chip.now{background:var(--ink);color:var(--bg)}
+.chip small{color:var(--dim)}
+/* コマンド */
+#cmd{background:var(--panel2);border:1px solid var(--gold);border-radius:6px;padding:12px}
+#cmd h2{color:var(--gold);font-size:16px;margin:0 0 8px}
+.grp{font-size:11px;color:var(--dim);margin:8px 0 4px}
+.grp:first-of-type{margin-top:0}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px}
+.opts.root{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+@media (max-width:560px){.opts.root{grid-template-columns:repeat(2,minmax(0,1fr))}}
+button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:7px 10px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:1px;min-width:0}
+button:hover:not(:disabled){border-color:var(--cyan);background:#261f44}
+button:focus-visible{outline:2px solid var(--cyan);outline-offset:1px}
+button:disabled{opacity:.4;cursor:not-allowed}
+button .l{font-family:var(--display);font-size:16px}
+button small{color:var(--dim);font-size:11px}
+button.go{border-color:var(--gold);color:var(--gold)}
+button.sp{border-left:3px solid var(--mag)}
+button.inline{flex-direction:row;display:inline-flex;color:var(--dim)}
+.plan{margin:0 0 8px;padding-left:18px}
+details{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px}
+summary{cursor:pointer;font-family:var(--display);color:var(--dim)}
+details ul{margin:8px 0 2px;padding-left:18px;max-width:65ch}
+details li{margin-bottom:4px}
+#log{height:calc(100vh - 130px);min-height:240px;max-height:820px;overflow-y:auto;font-size:13px}
+#log .intel{color:var(--cyan)}
+#log div{white-space:pre-wrap}
+.turn{color:var(--dim);margin-top:6px}.head{color:var(--gold)}
+#log .act{color:var(--cyan);margin-top:3px}#log .eact{color:var(--mag);margin-top:3px}
+#log .hurt{color:var(--red)}#log .miss{color:var(--dim)}#log .heal,#log .buff{color:var(--green)}
+#log .crash,#log .seep{color:var(--gold)}#log .combo{color:var(--cyan)}#log .down{color:var(--mag)}
+.result{font-family:var(--display);font-size:20px;color:var(--gold);margin:0 0 6px}
+#tip{position:fixed;z-index:20;max-width:320px;background:#07050f;border:1px solid var(--cyan);border-radius:4px;padding:8px 10px;font-size:12px;line-height:1.55;white-space:pre-line;pointer-events:none;box-shadow:0 6px 24px rgba(0,0,0,.6)}
+[data-tip]{cursor:help}
+.card.pickable [data-tip]{cursor:pointer}
+.intelbox{font-size:11px;color:var(--cyan);border:1px dashed var(--cyan);border-radius:3px;padding:4px 7px;display:flex;flex-direction:column;gap:2px}
+.intelbox b{font-weight:400;color:var(--dim)}
+#say .subl.now.intel{color:var(--cyan)}
+.fxo{position:absolute;inset:0;pointer-events:none;z-index:2;overflow:hidden;border-radius:6px}
+.fxo i{position:absolute;display:block}
+.fx-slash i{left:-10%;top:50%;width:120%;height:5px;background:linear-gradient(90deg,transparent,#fff 30%,#fff 70%,transparent);rotate:-32deg;box-shadow:0 0 14px #fff;animation:slash .32s ease-out forwards}
+.fx-slash i+i{rotate:28deg;animation-delay:.09s;opacity:0}
+@keyframes slash{0%{clip-path:inset(0 100% 0 0);opacity:1}60%{clip-path:inset(0 0 0 0);opacity:1}100%{clip-path:inset(0 0 0 100%);opacity:0}}
+.fx-shot i{width:26px;height:26px;border-radius:50%;border:3px solid #fff;background:radial-gradient(#fff,transparent 60%);animation:shot .3s ease-out forwards;opacity:0}
+.fx-shot i:nth-child(1){left:22%;top:28%}.fx-shot i:nth-child(2){left:55%;top:48%;animation-delay:.08s}.fx-shot i:nth-child(3){left:36%;top:62%;animation-delay:.16s}
+@keyframes shot{0%{scale:.2;opacity:1}100%{scale:1.5;opacity:0}}
+.fx-elec{background:repeating-linear-gradient(100deg,transparent 0 14px,rgba(86,223,232,.55) 14px 16px,transparent 16px 31px);animation:elec .45s steps(5) forwards}
+@keyframes elec{0%{opacity:1;background-position:0 0}25%{opacity:.2;background-position:9px 0}50%{opacity:1;background-position:-7px 0}75%{opacity:.3;background-position:13px 0}100%{opacity:0}}
+.fx-fire{background:radial-gradient(circle at 50% 100%,rgba(255,170,60,.85),rgba(255,80,60,.5) 40%,transparent 70%);animation:fire .55s ease-out forwards}
+@keyframes fire{0%{opacity:0;transform:translateY(40%)}30%{opacity:1}100%{opacity:0;transform:translateY(-10%)}}
+.fx-blunt i{left:50%;top:45%;width:10px;height:10px;margin:-5px;border-radius:50%;box-shadow:0 0 0 4px #fff,0 0 0 16px rgba(255,255,255,.35);animation:blunt .35s ease-out forwards}
+@keyframes blunt{0%{scale:.3;opacity:1}100%{scale:5;opacity:0}}
+.fx-beam i{left:0;top:38%;width:100%;height:22px;background:linear-gradient(180deg,transparent,var(--gold),#fff,var(--gold),transparent);box-shadow:0 0 24px var(--gold);animation:beam .5s ease-out forwards}
+@keyframes beam{0%{scale:1 .1;opacity:1}30%{scale:1 1.3}100%{scale:1 0;opacity:0}}
+main.quake{animation:quake .32s}
+main.quake2{animation:quake2 .42s}
+@keyframes quake{0%,100%{translate:0}25%{translate:-4px 2px}50%{translate:4px -2px}75%{translate:-2px 1px}}
+@keyframes quake2{0%,100%{translate:0}15%{translate:-10px 5px}30%{translate:9px -6px}45%{translate:-7px 4px}60%{translate:6px -3px}80%{translate:-3px 2px}}
+.r0 .n,.r0 b.nm2{color:var(--ink)} .r1 .n,.r1 b.nm2,#log .rar1,#say .rar1{color:var(--green)} .r2 .n,.r2 b.nm2,#log .rar2,#say .rar2{color:var(--cyan)} .r3 .n,.r3 b.nm2,#log .rar3,#say .rar3{color:var(--mag)} .r4 .n,.r4 b.nm2,#log .rar4,#say .rar4{color:var(--gold)}
+.usb.fixed::before{background:var(--gold)}
+.usb.r1 span{border-color:var(--green)} .usb.r2 span{border-color:var(--cyan)} .usb.r3 span{border-color:var(--mag)} .usb.r0 span{border-color:var(--line)}
+#world{display:flex;flex-direction:column;gap:14px;max-width:920px}
+#world h2{font-size:20px;color:var(--gold);margin:0}
+#world h3{font-family:var(--display);font-weight:400;font-size:14px;color:var(--dim);margin:6px 0 0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.tipbox{border:1px solid var(--gold);background:rgba(246,189,74,.08);border-radius:6px;padding:10px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.tipbox b{font-family:var(--display);font-weight:400;color:var(--gold)}
+.tipbox p{margin:0;flex:1 1 320px;max-width:70ch}
+.sk{font-size:12px;color:var(--dim)} .sk.on{color:var(--ink)}
+.lead{font-size:16px;max-width:60ch;margin:0}
+.lines{display:flex;flex-direction:column;gap:10px;max-width:62ch;font-size:15px;line-height:1.8}
+.lines p{margin:0}
+.lines .say{padding-left:12px;border-left:3px solid var(--cyan)}
+.lines .say b{display:block;font-family:var(--display);font-weight:400;font-size:13px;color:var(--cyan)}
+.lines .note{color:var(--gold)}
+.tagm{font-family:var(--body);font-size:11px;color:#1a1205;background:var(--gold);border-radius:2px;padding:0 6px;margin-left:8px;vertical-align:2px}
+.tagr{font-family:var(--body);font-size:11px;color:var(--dim);border:1px solid var(--line);border-radius:2px;padding:0 6px;margin-left:8px;vertical-align:2px}
+.res-tier{font-family:var(--display);font-size:22px}
+.res-tier.fail{color:var(--red)} .res-tier.ok{color:var(--green)} .res-tier.great{color:var(--gold)}
+.tabs{display:flex;gap:0;flex-wrap:wrap}
+.tabs button{border-radius:0;flex-direction:row}
+.tabs button.on{background:var(--gold);color:#1a1205;border-color:var(--gold)}
+.inst{display:flex;gap:10px;align-items:center;justify-content:space-between;background:#0f0c1c;border:1px solid var(--line);border-radius:4px;padding:6px 10px;flex-wrap:wrap}
+.inst .nm2{font-family:var(--display);font-weight:400;font-size:15px}
+.inst small{display:block;color:var(--dim);font-size:12px}
+.inst .rb{font-size:11px;border:1px solid currentColor;border-radius:9px;padding:0 6px;margin-left:6px}
+.inst .ib{display:flex;gap:6px;flex-wrap:wrap}
+.inst .ib button,.rowbtn{flex-direction:row;padding:3px 10px;font-size:12px}
+.list{display:flex;flex-direction:column;gap:6px}
+.mrow{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.mrow .who{font-family:var(--display);font-size:16px}
+.mrow small{color:var(--dim)}
+textarea{width:100%;min-height:90px;background:#0f0c1c;color:var(--ink);border:1px solid var(--line);border-radius:4px;font:12px/1.4 var(--body);padding:8px}
+.foot{display:flex;gap:8px;flex-wrap:wrap}
+header .res b.w{color:var(--mag)}
+
+/* ---- 雰囲気の層 ---- */
+.scene .far0{fill:#140f26;stroke:#241b40;stroke-width:1}.scene .far1{fill:#0f0b1e}
+.scene .win{fill:#f6bd4a;opacity:.55;animation:twinkle 6s ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:.55}45%{opacity:.55}50%{opacity:.08}55%{opacity:.55}}
+.scene .star{fill:#cfd8ff;animation:star 4s ease-in-out infinite}@keyframes star{50%{opacity:.25}}
+.scene .bub{fill:none;stroke:#56dfe8;stroke-width:.8;opacity:.6;animation:bub 6s linear infinite}@keyframes bub{from{transform:translateY(0);opacity:0}15%{opacity:.6}to{transform:translateY(-210px);opacity:0}}
+.scene .neon rect{fill:rgba(255,59,141,.08);stroke:var(--mag);stroke-width:1.2;filter:drop-shadow(0 0 4px var(--mag))}
+.scene .neon text{font-family:var(--display);font-size:16px;fill:#ffd0e6;filter:drop-shadow(0 0 5px var(--mag))}
+.scene .neon{animation:neon 5.5s infinite}.scene .neon.n2{animation-delay:2.1s}
+.scene .neon.n2 rect{stroke:var(--cyan);fill:rgba(86,223,232,.08);filter:drop-shadow(0 0 4px var(--cyan))}.scene .neon.n2 text{fill:#d6fbff;filter:drop-shadow(0 0 5px var(--cyan))}
+@keyframes neon{0%,100%{opacity:1}61%{opacity:1}62%{opacity:.2}63%{opacity:1}65%{opacity:.35}66%{opacity:1}}
+.scene .fog{fill:#56dfe8;opacity:.05;animation:fog 18s ease-in-out infinite alternate}@keyframes fog{to{transform:translateX(160px)}}
+.scene .rainl line{stroke:#7a8cc0;stroke-width:1;opacity:.35;animation:rainl 1.2s linear infinite}@keyframes rainl{to{transform:translate(-30px,240px)}}
+.ln.acc{filter:drop-shadow(0 0 2px rgba(246,189,74,.7))}.ln.mag{filter:drop-shadow(0 0 2px rgba(255,59,141,.7))}
+@media (prefers-reduced-motion:reduce){.scene .win,.scene .star,.scene .bub,.scene .neon,.scene .fog,.scene .rainl line{animation:none}}
+body.calm .scene .rainl,body.calm .scene .bub{display:none}body.calm .scene .neon,body.calm .scene .win,body.calm .scene .fog{animation:none}
+/* ---- 線画 ---- */
+.cmap,.scene{display:block;width:100%;height:auto;background:#0b0916;border:1px solid var(--line);border-radius:6px}
+.scene.strip{height:160px}
+.ln{fill:none;stroke:var(--cyan);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:0;animation:draw 1.3s ease-out both}
+.ln.mid{stroke:#5b9fb0;stroke-width:1.2}.ln.dim{stroke:#3d3266;stroke-width:1}.ln.acc{stroke:var(--gold)}.ln.mag{stroke:var(--mag)}
+.ln.coast{stroke:var(--cyan);stroke-width:1.4;opacity:.7}
+.ln.road{stroke:#3d3266;stroke-dasharray:none;animation:none;stroke-width:1.2}.ln.road.on{stroke:#5b9fb0;stroke-width:1.6}
+.still .ln{animation:none}
+@keyframes draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+.land{fill:#17122b}
+.tx{font-family:var(--body);font-size:11px;fill:var(--dim)}
+.tx.hud{font-size:10px;letter-spacing:.12em;fill:#6f66a0}.tx.hud.w{fill:var(--mag)}
+.tx.out{font-size:11px;fill:#5a5285}
+.node .dot{fill:#2a2148;stroke:#5a5285;stroke-width:1.2}
+.node .nlabel{font-family:var(--display);font-size:14px;fill:#5a5285}
+.node .nlv{font-family:var(--body);font-size:10px;fill:var(--green)}.node .nlv.bad{fill:var(--red)}
+.gmark circle{fill:none;stroke:var(--cyan);stroke-width:2;stroke-dasharray:4 4;animation:spin 5s linear infinite;transform-box:fill-box;transform-origin:center}.gmark text{font-family:var(--body);font-size:11px;fill:var(--cyan);font-weight:600}
+.tx.tlabel{font-family:var(--display);font-size:16px;fill:var(--mag)}
+.ttl{font-family:var(--display);font-size:46px;fill:var(--gold);letter-spacing:.06em}.tsub{font-family:var(--body);font-size:13px;fill:var(--cyan);letter-spacing:.3em}
+.node.open,.node.here{cursor:pointer}
+.node.open .dot{fill:var(--cyan);stroke:none}.node.open .nlabel{fill:var(--ink)}
+.node.open .halo{fill:var(--cyan);opacity:.12;animation:halo 2.4s ease-in-out infinite}
+.node.here .dot{fill:var(--gold);stroke:none}.node.here .nlabel{fill:var(--gold)}
+.node.here .halo{fill:var(--gold);opacity:.15}
+.node .ring{fill:none;stroke:var(--gold);stroke-width:1.2;stroke-dasharray:3 3;animation:spin 6s linear infinite;transform-box:fill-box;transform-origin:center}
+.node.open:hover .nlabel,.node.open:focus .nlabel{fill:var(--cyan)}
+.node:focus{outline:none}
+@keyframes halo{50%{opacity:.28}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.scan{fill:var(--cyan);opacity:.07;animation:scan 7s linear infinite}
+@keyframes scan{from{transform:translateY(0)}to{transform:translateY(480px)}}
+#stage{position:relative;overflow:hidden}
+#stage>.scene{position:absolute;inset:0;width:100%;height:100%;border:0;opacity:.28;pointer-events:none;z-index:0}
+#stage>#say,#stage>#ctl{position:relative;z-index:1}
+.lvtag,.tagg,.tagm,.tagr{white-space:nowrap;display:inline-block}
+.lvtag{font-family:var(--body);font-size:11px;border-radius:2px;padding:0 6px;margin-left:8px;vertical-align:2px;border:1px solid currentColor}
+.lvtag.ok{color:var(--green)}.lvtag.warn{color:var(--gold)}.lvtag.bad{color:var(--red)}
+.tagg{font-family:var(--body);font-size:11px;color:#1a1205;background:var(--cyan);border-radius:2px;padding:0 6px;margin-left:8px;vertical-align:2px}
+.chip.k-物語{border-color:var(--cyan);color:var(--cyan)}.chip.k-仲間{border-color:var(--mag);color:var(--mag)}.chip.k-稼ぎ{border-color:var(--red);color:var(--red)}.chip.k-店{border-color:var(--gold);color:var(--gold)}
+.card.rare{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 18px rgba(246,189,74,.35)}
+.dexgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}
+.dexc{background:#0f0c1c;border:1px solid var(--line);border-radius:4px;padding:6px 8px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.dexc b{font-family:var(--display);font-weight:400;font-size:13px;color:var(--dim)}.dexc small{color:var(--dim);font-size:11px}
+.dexc.r0{border-color:#5a5285}.dexc.r1{border-color:var(--green)}.dexc.r2{border-color:var(--cyan)}.dexc.r3{border-color:var(--mag)}.dexc.r4{border-color:var(--gold)}
+.dexc.r0 b{color:var(--ink)}.dexc.r1 b{color:var(--green)}.dexc.r2 b{color:var(--cyan)}.dexc.r3 b{color:var(--mag)}.dexc.r4 b{color:var(--gold)}
+.title{display:flex;flex-direction:column;gap:16px;align-items:stretch;max-width:860px;margin:0 auto}
+.title svg{width:100%;height:auto;display:block}
+.tmenu{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}
+.tfoot{color:var(--dim);margin:0;text-align:center;font-size:13px}
+body.titlemode header{display:none}
+.title .titleart{border:0;background:transparent}.car{animation:car 10s linear infinite}.carb{fill:#2a2148;stroke:#56dfe8;stroke-width:1}.carl{fill:#ff5c9e;filter:drop-shadow(0 0 4px #ff5c9e)}@keyframes car{from{transform:translateX(0)}to{transform:translateX(980px)}}
+.tglow{animation:tglow 3.2s ease-in-out infinite}
+@keyframes tglow{0%,100%{opacity:1}48%{opacity:1}50%{opacity:.55}52%{opacity:1}}
+.steam{animation:steam 3s ease-in-out infinite}
+@keyframes steam{0%{transform:translateY(6px);opacity:0}30%{opacity:.8}100%{transform:translateY(-16px);opacity:0}}
+.ending{display:flex;flex-direction:column;gap:14px;max-width:860px;margin:0 auto}
+.ending h2{font-size:26px;color:var(--gold);margin:0;text-align:center}
+.ending .lines{margin:0 auto}
+.credits{text-align:center;color:var(--dim);border-top:1px solid var(--line);padding-top:12px}
+.credits p{margin:4px 0}
+/* ---- ネオン強化 ---- */
+#rain{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:.5}
+main{position:relative;z-index:1}
+body{background:
+  radial-gradient(1200px 500px at 15% -10%,rgba(255,92,158,.16),transparent 60%),
+  radial-gradient(900px 500px at 95% 0%,rgba(86,223,232,.12),transparent 60%),
+  linear-gradient(180deg,#120e22 0%,#0d0a19 60%,#0a0814 100%) fixed}
+h1{text-shadow:0 0 12px rgba(246,189,74,.55)}
+#world h2,#cmd h2,.result{text-shadow:0 0 10px rgba(246,189,74,.45)}
+header{border-bottom:1px solid transparent;border-image:linear-gradient(90deg,var(--mag),var(--cyan) 60%,transparent) 1}
+.panel,#cmd,.card,aside,#stage{background:linear-gradient(180deg,rgba(42,33,72,.92),rgba(24,19,44,.92));border-color:#463b78;box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 6px 20px rgba(0,0,0,.35)}
+button{background:linear-gradient(180deg,#251e42,#1b1632);border-color:#463b78;transition:border-color .15s,box-shadow .15s,transform .1s}
+button:hover:not(:disabled){border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan),0 0 16px rgba(86,223,232,.35);background:linear-gradient(180deg,#2c2450,#1f1a3a)}
+button:active:not(:disabled){transform:translateY(1px)}
+button.go{border-color:var(--gold);box-shadow:0 0 12px rgba(246,189,74,.22)}
+button.go:hover:not(:disabled){box-shadow:0 0 0 1px var(--gold),0 0 18px rgba(246,189,74,.45)}
+button .l{letter-spacing:.02em}
+.lines{font-size:16px}
+.lines .say{background:linear-gradient(90deg,rgba(86,223,232,.08),transparent 70%);padding:6px 12px;border-radius:0 4px 4px 0}
+.bar{height:13px;border-color:#000;box-shadow:inset 0 1px 3px rgba(0,0,0,.6)}
+.bar i{box-shadow:0 0 8px rgba(123,224,138,.6)}
+.bar.lowhp i{box-shadow:0 0 10px rgba(255,107,107,.8)}
+.card.enemy{border-top-width:3px}
+.card.acting{box-shadow:0 0 0 2px var(--ink),0 0 28px rgba(86,223,232,.45)}
+.inst{background:linear-gradient(90deg,#120e22,#0f0c1c)}
+.tipbox{box-shadow:0 0 14px rgba(246,189,74,.18)}
+.chip{background:#17122b}
+#say .main{text-shadow:0 0 10px currentColor}
+@media (prefers-reduced-motion:reduce){#rain{display:none}}
+@media (prefers-reduced-motion:reduce){.tglow,.steam{animation:none}}
+@media (prefers-reduced-motion:reduce){.ln,.scan,.node .halo,.node .ring{animation:none}}
+@media (prefers-reduced-motion:reduce){main.quake,main.quake2{animation:none}.fxo{display:none}.card,.bar i{transition:none}.card.hitfx,.card.healfx{animation:none}}
+</style>
+</head>
+<body>
+<canvas id="rain" aria-hidden="true"></canvas>
+<main>
+<header>
+  <h1>プロトコルチャーハン</h1>
+  <span class="sub" id="bname"></span>
+  <button id="menubtn" class="rowbtn" onclick="openMenu()" hidden>メニュー</button>
+  <div class="res" id="res"></div>
+</header>
+<div id="world"></div>
+<div id="battle" hidden><div class="wrap"><div class="col">
+<div id="btip"></div>
+<div class="row" id="enemies"></div>
+<div id="stage"><div id="say"></div><div id="ctl"></div></div>
+<div class="strip" id="order"></div>
+<div class="row" id="party"></div>
+<section id="cmd"></section>
+<div class="strip" id="field"></div>
+<details id="help">
+  <summary>遊び方</summary>
+  <ul>
+    <li>行動を選んで「実行」。行動は速い順に1つずつ再生される。敵の次の行動は常に見えている。</li>
+    <li>対象を選ぶ場面では、光っているカードを直接クリックしてもいい。</li>
+    <li><b>熱</b>:技を使うと上がる。70以上で威力1.3倍、100でクラッシュして次の行動を失う。敵も同じ。防御で冷える。</li>
+    <li><b>メモリ</b>:敵のメモリを引っこ抜いて奪う。奪ったメモリは同じ「メモリ」から自分に挿せる。ポートを撃って壊しておけば、技を封じたうえで確実に奪える。</li>
+    <li><b>ハック</b>:敵のオーグメントに侵入して、照準を狂わせる、熱を上げる、行動を書き換える、ドローンを乗っ取る。</li>
+    <li><b>AUTO</b>:ボス以外の戦闘では、画面右上の「AUTO ▶」で自動で戦える。「勝率重視」「メモリ入手重視」「浸透度上げ」から傾向を選べ、いつでも手動に戻せる。</li>
+    <li><b>手持ちの上限</b>:持ち歩けるメモリは12本。戦闘で奪って入りきらない分は、自動でPCバンの倉庫へ転送される。PCバンは各地にある。</li>
+    <li><b>レアリティ</b>:メモリには量産品から一点物まで5段階あり、高いほど追加効果が多い。敵が挿しているうちは分からず、引っこ抜いた瞬間に判明する。</li>
+    <li><b>連携</b>:敵の行動を挟まずに別の味方が同じ敵を続けて攻撃すると、威力が上がっていく。</li>
+    <li><b>浸透度</b>:メモリの技を使うか、挿したまま勝つと上がり、新しい技を覚える。同じ種類のメモリなら、個体を替えても浸透度は引き継ぐ。</li>
+    <li><b>熟練</b>:技の効き目(威力・回復量)は、そのメモリのレアリティと浸透度で伸びる。最低なら0.8倍、最高レアリティで浸透度100%なら約2倍。ボスに勝つには、メモリを育てる必要がある。技の一覧に「熟練×」で表示される。</li>
+    <li><b>観察</b>:一部の仲間だけが持つ固有技。「技」から使う。その敵に有効な戦術と能力値が分かり、解析済の敵にはハックと引っこ抜きが通りやすくなる。観察を覚えられるメモリも、どこかに1本だけある。</li>
+    <li><b>メモリ図鑑</b>:メニューの「メモリ図鑑」で、集めた種類が見られる。稼ぎ場にはときどき金色のポートを持つ「★レア個体」が現れ、禁制品や一点物を挿している。</li>
+    <li><b>固着と合成</b>:浸透度が100%になったメモリは「固着」できる。固着したメモリは二度と抜けないが、ポートを使わなくなる(1人2本まで)。PCバンでは、メモリ2本と部品から新しいメモリを合成できる。</li>
+    <li><b>レベルと習熟</b>:戦闘に勝つと経験値が入り、レベルが上がると能力値が伸びる(最大50)。自分の武器で攻撃を当てるほど習熟が上がり、命中率と通常攻撃の威力が伸びる。</li>
+    <li>濡れた相手に電撃は2倍+スタン。熱70以上の相手を冷却スプレーで急冷すると「脆化」。</li>
+    <li>状態、メモリ、熱、敵の次の行動は、マウスを乗せる(スマホはタップ)と詳細が出る。</li>
+  </ul>
+</details>
+</div>
+<aside><h2>戦闘ログ</h2><div id="log" aria-live="off"></div></aside></div></div>
+</main>
+<div id="tip" role="tooltip" hidden></div>
+<script src="engine.js"></script>
+<script src="data.js"></script>
+<script src="scene.js"></script>
+<script src="music.js"></script>
+<script>
+'use strict';
+const {G,MEM,SK,A}=CH;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let ui={queue:[],stack:[]};
+let curOpts=[],pickMap={};
+let pb=null,timer=null,mode='slow';
+try{mode=localStorage.getItem('chahan-speed')||'slow';}catch(e){}
+
+const ST={wet:['濡れ','bad','電撃のダメージが2倍になり、スタンの危険がある。炎は半減'],jam:['照準撹乱','bad','攻撃の命中率-50%'],brittle:['脆化','bad','防御が大きく下がり、被ダメージ1.2倍'],boost:['攻撃↑','good','攻撃1.5倍'],high:['ぶっ飛び','good','速度2倍・攻撃1.5倍'],barrier:['味覚遮断','good','被ダメージ半減。メモリ「味覚遮断フィールド」のポートを壊すか引っこ抜くと消える'],taunt:['挑発され中','bad','挑発してきた相手を狙う'],hidden:['潜伏','good','このターンは狙われない'],ambush:['死角','good','次の攻撃が1.5倍'],kcover:['かばう','good','味方への単体攻撃を引き受ける。被ダメージ-30%'],fort:['名乗り','good','被ダメージ-30%'],carcover:['廃車の陰','good','被ダメージ半減'],oc:['過給','good','速度1.6倍'],plate:['装甲展開','good','被ダメージ-40%'],mirror:['鏡面反射','good','このターン、単体攻撃を1回跳ね返す'],guard:['防御','good','このターン被ダメージ半減。熱が余分に下がる']};
+const tipAttr=t=>t?` data-tip="${esc(t)}"`:'';
+function glyph(u,v){
+  const c=v.side==='ally'?(v.auto?'#7be08a':'#56dfe8'):'#ff5c9e';
+  const S={
+    hero:`<polygon points="28,5 46,22 40,50 16,50 10,22" /><path d="M18 22h20M22 30l6 6 6-6" />`,
+    kill:`<polygon points="28,3 38,26 28,53 18,26" /><path d="M28 12v30M20 26h16" />`,
+    aur:`<path d="M12 8h32v22l-16 22-16-22z" /><path d="M28 8v44M12 22h32" />`,
+    thug:`<polygon points="28,8 48,48 8,48" /><path d="M20 36h16" />`,
+    bouncer:`<rect x="9" y="10" width="38" height="38" /><circle cx="28" cy="29" r="11" /><path d="M39 29h12" />`,
+    hitman:`<polygon points="28,4 52,28 28,52 4,28" /><path d="M14 28h28M28 14v28" />`,
+    drone:`<polygon points="16,12 40,12 52,28 40,44 16,44 4,28" /><circle cx="28" cy="28" r="7" /><path d="M4 12h12M40 12h12" />`,
+    som:`<path d="M16 6h24q0 20-12 24q-12-4-12-24z" /><path d="M28 30v16M18 48h20M20 14h16" />`,
+    hong:`<circle cx="28" cy="28" r="20" /><path d="M28 16v24M16 28h24" /><path d="M40 10l8-4" />`,
+    pedal:`<circle cx="15" cy="38" r="10" /><circle cx="41" cy="38" r="10" /><path d="M15 38l10-18h12l4 18M25 20l-4-6" />`,
+    wan:`<path d="M6 26h44q-4 20-22 20T6 26z" /><path d="M50 26l4-6M18 18q4-6 0-10M28 18q4-6 0-10" />`,
+    xiao:`<path d="M10 32h36v12H10z" /><path d="M14 32q14-24 28 0" /><path d="M28 12v-6M20 22h16" />`,
+    zero:`<circle cx="28" cy="28" r="18" /><circle cx="28" cy="28" r="8" /><path d="M10 10l36 36" />`,
+    gantetsu:`<rect x="10" y="10" width="30" height="16" /><path d="M25 26v24M40 18h8" />`,
+    chef:`<path d="M6 30h44q-4 16-22 16T6 30z" /><path d="M18 26q-6-10 4-18q-2 8 6 10q2-8 8-10q4 10-4 18" />`,
+    lin:`<rect x="8" y="10" width="40" height="36" /><path d="M8 22h40M8 34h40" /><circle cx="18" cy="16" r="3"/><circle cx="34" cy="28" r="3"/><circle cx="24" cy="40" r="3"/>`,
+    tsukimi:`<rect x="10" y="8" width="36" height="40" /><path d="M16 20l5 5 9-10M16 36h24M16 42h16" />`,
+    glassjaw:`<path d="M12 22h28v20H16q-4 0-4-4z" /><path d="M40 26h6v12h-6M18 22v-8h6v8M26 22v-10h6v10M34 22v-8h6" />`,
+    hijiki:`<path d="M28 8v40M16 18h24M10 36q18 22 36 0" /><circle cx="28" cy="8" r="4" />`,
+    whiteglove:`<path d="M16 50V22q0-4 4-4v-10h4v12h2V6h4v14h2V8h4v14h2v-8h4v24q0 12-12 12z" />`,
+    yumori:`<path d="M8 48l6-22 14-10 14 10 6 22z" /><path d="M20 12q-4-6 0-10M28 10q-4-6 0-10M36 12q-4-6 0-10" /><circle cx="22" cy="32" r="2"/><circle cx="34" cy="32" r="2"/>`,
+    mutsuko:`<path d="M8 40l30-22 6 8-30 22z" /><path d="M24 38l-6 12M28 36l6 14" /><path d="M44 6a8 8 0 1 0 6 14a10 10 0 0 1-6-14z" />`,
+    tenin:`<path d="M10 20h36l-4 30H14z" /><path d="M20 20q0-12 8-12t8 12" /><path d="M22 34h12" />`,
+    satou:`<path d="M14 14q14-6 28 0v14q-14 22-28 0z" /><path d="M28 18v14" /><path d="M20 44q8 6 16 0" />`,
+    nanashi:`<circle cx="28" cy="28" r="10" /><path d="M8 14h12M36 14h12M14 14l8 8M42 14l-8 8" /><circle cx="28" cy="28" r="3" />`,
+    shumai:`<path d="M14 18l-6-10 12 6M42 18l6-10-12 6" /><path d="M12 20q16-10 32 0q4 18-16 28q-20-10-16-28z" /><circle cx="22" cy="28" r="2"/><circle cx="34" cy="28" r="2"/><path d="M26 36h4" />`,
+    agent:`<path d="M14 50V26q0-14 14-14t14 14v24" /><path d="M16 26h24v6H16z" /><path d="M28 38v12" />`,
+    runner:`<rect x="10" y="10" width="36" height="36" /><path d="M10 22h10v-6M46 34H36v6M22 46V36h12" /><circle cx="28" cy="28" r="4" />`,
+    turret:`<path d="M10 48h36l-6-16H16z" /><circle cx="28" cy="26" r="9" /><path d="M34 22l16-8" />`,
+    titan:`<rect x="14" y="6" width="28" height="22" /><path d="M14 28l-6 22M42 28l6 22M22 28v22M34 28v22M20 16h16" />`,
+    smith:`<rect x="10" y="20" width="36" height="28" /><path d="M16 20V8h8v12M28 34h0M18 32h20M18 40h20" /><circle cx="40" cy="12" r="4" />`,
+    golem:`<path d="M10 50l4-30 14-12 14 12 4 30z" /><path d="M20 30h16M24 38h8" />`,
+    captain:`<path d="M8 22h40l-6-10H14z" /><circle cx="28" cy="34" r="12" /><path d="M22 32h4M30 32h4M24 40h8" />`,
+    bodyguard:`<rect x="12" y="8" width="32" height="40" rx="4" /><path d="M12 22h32M20 30h16" />`,
+    gastro:`<path d="M6 40h44" /><path d="M10 40q0-22 18-22t18 22" /><path d="M28 18v-6" /><circle cx="28" cy="10" r="2" />`,
+    chair:`<path d="M14 6v44M14 26h28v24M14 26V6h28v20" /><path d="M20 14h16" />`,
+    final:`<path d="M8 40l4-28 10 12 6-16 6 16 10-12 4 28z" /><path d="M8 46h40" />`,
+    champ:`<path d="M10 22h30v22H16q-6 0-6-6z" /><path d="M40 26h8v14h-8M18 22v-10M26 22v-12M34 22v-10" />`,
+    exec:`<path d="M14 50V24q0-14 14-14t14 14v26" /><path d="M28 24l-4 6 4 18 4-18z" />`};
+  const p=S[u.id]||S[u.kind]||S.thug;
+  return `<svg class="gly" width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"><g fill="${c}" fill-opacity=".16" stroke="${c}" stroke-width="2" stroke-linejoin="round">${p}</g><rect x="25" y="${u.kind==='bouncer'?26:25}" width="6" height="6" fill="#f6bd4a"/></svg>`;
+}
+function tags(u,v){
+  let h='';
+  if(v.stun>0)h+=`<span class="tag bad"${tipAttr('次の行動ができない。この間は引っこ抜きとハックが通りやすい')}>行動不能</span>`;
+  if(v.heat>=70)h+=`<span class="tag bad"${tipAttr('熱70以上: 与えるダメージ1.3倍。100に達するとクラッシュ。この状態で冷却スプレーを浴びると脆化する')}>高熱 威力1.3倍</span>`;
+  Object.keys(v.st).forEach(k=>{if(!ST[k])return;const timed=typeof v.st[k]==='number'&&!['guard','hidden','kcover'].includes(k);
+    h+=`<span class="tag ${ST[k][1]}"${tipAttr(ST[k][2]+(timed?`\n残り${v.st[k]}ターン`:'\nこのターンのみ'))}>${ST[k][0]}${timed?' '+v.st[k]:''}</span>`;});
+  if(u.side0==='enemy'&&v.seen>0){const hs=(CH.INTEL[u.kind]||[]).slice(0,v.seen).flat();
+    h+=`<span class="tag"${tipAttr('観察で分かったこと\n'+hs.map(x=>'◆ '+x).join('\n')+'\n\nハックと引っこ抜きの成功率+10%')}>解析済 Lv${v.seen}</span>`;}
+  return h?`<div class="tags">${h}</div>`:'';
+}
+const instLine=i=>`${CH.BRAND[i.type]?'['+CH.BRANDS[CH.BRAND[i.type]].n+'] ':''}${CH.RAR[i.rar].n}${i.afx.length?' / '+i.afx.map(CH.afxText).join('、'):' / 追加効果なし'}${MEM[i.type].peaky?' / 癖: '+MEM[i.type].peaky:''}`;
+function skillLines(type,sp){
+  return MEM[type].skills.map(([id,need])=>`${sp==null?'・':sp>=need?'●':'○'} ${SK[id].name}${sp==null||sp>=need?'':`(浸透度${need}%で習得)`}\n　${SK[id].passive?'':`熱+${SK[id].heat} / `}${SK[id].desc}`).join('\n');
+}
+function memTip(u,v,p,V,inst){
+  const m=MEM[p.mem];
+  if(u.side0!=='enemy'){
+    const sp=V.seep[u.id+':'+p.mem]||0;
+    return `${m.name}\n${inst?instLine(inst)+'\n':''}浸透度 ${sp}%\n`+skillLines(p.mem,sp);
+  }
+  return `${m.name}\nレアリティは引っこ抜くまで分からない\nこの敵が使える技:\n`+m.skills.filter(x=>!SK[x[0]].passive).map(([id])=>`・${SK[id].name}: ${SK[id].desc}`).join('\n')+
+    (p.broken?'\n\nポートが露出している。技は封じられ、確実に引っこ抜ける':`\n\nポート耐久 ${p.dur}/${p.maxdur}。0にすると露出して技が封じられ、確実に引っこ抜ける`)+'\n奪えば自分に挿して使える';
+}
+function ports(u,v,V){
+  if(!v.ports.length)return '';
+  return '<div class="usbs">'+v.ports.map((p,i)=>{
+    if(!p.mem)return `<div class="usb empty"${tipAttr(u.side0==='enemy'?'メモリを抜かれたポート':'空きポート。奪ったメモリを「メモリ」から挿せる')}><span class="n">空きポート</span><span class="v">-</span></div>`;
+    const inst=u.side0!=='enemy'&&u.ports[i]&&u.ports[i].mem===p.mem?u.ports[i].inst:null;
+    const r=u.side0!=='enemy'?`浸透${V.seep[u.id+':'+p.mem]||0}%`:(p.broken?'露出':`耐久${p.dur}`);
+    return `<div class="usb${p.broken?' broken':''}${inst?' r'+inst.rar:''}"${tipAttr(memTip(u,v,p,V,inst))}><span class="n">${esc(MEM[p.mem].name)}</span><span class="v">${r}</span></div>`;
+  }).join('')+'</div>';
+}
+function fixedRows(u){
+  if(!(u.fixed||[]).length)return '';
+  return '<div class="usbs">'+u.fixed.map(i=>`<div class="usb fixed r${i.rar}"${tipAttr(`${CH.instName(i)}(固着)\n${instLine(i)}\nポートを使わず、抜かれることもない\n`+skillLines(i.type,100))}><span class="n">◆ ${esc(CH.instName(i))}</span><span class="v">固着</span></div>`).join('')+'</div>';
+}
+function heatBar(v){
+  let h='';for(let i=0;i<10;i++)h+=`<i class="${v.heat>i*10?(i>=7?'hot':'on'):''}"></i>`;
+  return `<div class="heat${v.heat>=70?' over':''}"${tipAttr(`熱 ${v.heat}/100\n技やハックで上がり、毎ターン-10。防御でさらに-15\n70以上: 与えるダメージ1.3倍\n100: クラッシュして次の行動を失う`)}>熱 ${h}<b>${v.heat}</b></div>`;
+}
+function card(u,V,o){
+  const v=V.units[u.id];
+  const hpP=Math.max(0,v.hp/v.maxhp*100);
+  let extra='',cls=u.side0==='enemy'?('enemy'+(v.auto?' hij':'')+(u.boss?' boss':'')):'ally',fl='';
+  if(u.side0==='enemy'&&v.alive){
+    if(v.auto)extra=`<div class="intent"><b>乗っ取り済</b>味方として自動で撃つ</div>`;
+    else if(v.stun>0||!v.intent)extra=`<div class="intent"><b>次の行動</b>行動不能</div>`;
+    else extra=`<div class="intent${v.intent.danger?' danger':''}"${tipAttr(v.intent.tip)}><b>次の行動${v.intent.danger?' ⚠':''}</b>${esc(v.intent.label)}</div>`;
+  }
+  const q=!pb&&ui.queue.find(c=>c.actor===u);
+  if(q)extra+=`<div class="queued">▶ ${esc(q.label)}</div>`;
+  if(u.rare)cls+=' rare';
+  if(!v.alive)cls+=' dead';
+  if(o.cur===u.id)cls+=' cur';
+  if(o.acting===u.id)cls+=' acting';
+  const fx=o.fx&&o.fx.tid===u.id?o.fx:null;
+  if(fx){
+    if(fx.dmg!=null){cls+=' hitfx';const n=fx.k==='slash'?2:fx.k==='shot'?3:1;fl=`<span class="fxo fx-${fx.k||'blunt'}">${'<i></i>'.repeat(fx.k==='elec'||fx.k==='fire'?0:n)}</span><span class="float ${u.side0==='enemy'&&!v.auto?'edmg':'dmg'}">-${fx.dmg}</span>`;}
+    else if(fx.heal!=null){cls+=' healfx';fl=`<span class="float heal">+${fx.heal}</span>`;}
+    else if(fx.miss)fl='<span class="float miss">MISS</span>';
+    else if(fx.note)fl=`<span class="float note">${esc(fx.note)}</span>`;
+    else if(fx.down)cls+=' hitfx';
+  }
+  const pk=pickMap[u.id];
+  if(pk!=null)cls+=' pickable';
+  return `<div class="card ${cls}"${pk!=null?` onclick="pick(${pk})" role="button" tabindex="0"`:''}>${fl}
+    <div class="top"${tipAttr(u.side0!=='enemy'?`${u.name}\n攻撃${u.atk} 防御${u.def} 技術${u.tec} 速度${u.spd}\n${u.wname}(${CH.WEAPON[u.fxk]}) 習熟${CH.profRank(u)}: 命中+${CH.profRank(u)*2}%、通常攻撃の威力+${CH.profRank(u)*3}%${u.obs?`\n固有技: 観察(観察力${u.obs})`:''}`:(v.seen?`${u.name}\n攻撃${u.atk} 防御${u.def} 速度${u.spd} 防壁${v.fw}`:`${u.name}\n能力値は観察すると分かる`))}>${glyph(u,v)}<div class="info"><div class="nm">${esc(u.name)}</div>
+      <div class="role">${u.role?`Lv${CH.lvText(u)} ${esc(u.role)}`:`防壁${v.fw}`}</div>
+      <div class="hpline"><div class="bar${hpP<35?' lowhp':hpP<60?' midhp':''}"><i style="width:${hpP}%"></i></div><span class="hpn">${v.hp}<small>/${v.maxhp}</small></span></div>
+      ${heatBar(v)}</div></div>
+    ${tags(u,v)}${ports(u,v,V)}${u.side0!=='enemy'?fixedRows(u):''}${extra}</div>`;
+}
+
+/* ---- コマンドメニュー ---- */
+const needers=()=>CH.players().filter(u=>u.stun<=0);
+const curActor=()=>needers()[ui.queue.length]||null;
+const pend=(k,v)=>ui.queue.filter(c=>c.meta&&c.meta[k]===v).length;
+const act=(cmd,meta)=>{cmd.meta=meta||{};return cmd;};
+function pickEnemy(title,fn,filter){
+  return {title,opts:CH.enemies().filter(filter||(()=>true)).map(e=>({l:e.name,d:`HP ${e.hp}/${e.maxhp} 熱${e.heat}`,uid:e.id,...fn(e)}))};
+}
+function rootMenu(u){
+  const freeObjs=G.objs.filter(o=>!o.used&&!pend('obj',o.id));
+  const bagFree=G.bag.filter((m,i)=>!pend('bag',i));
+  return {title:`${u.name} の行動`,root:true,opts:[
+    {l:'攻撃',d:'本体かポートを狙う',go:()=>pickEnemy('誰を攻撃する?',e=>({go:()=>partMenu(u,e)}))},
+    {l:'技',d:u.lvsk?'牙と鼻の技。レベルで覚える':'メモリの技。熱が上がる',go:()=>skillMenu(u)},
+    {l:'防御',d:'被ダメ半減・熱-25',act:()=>act(A.guard(u))},
+    {l:'道具',d:`ジェル${G.items.gel} 冷却${G.items.coolant} EMP${G.items.emp}`,go:()=>itemMenu(u)},
+    {l:'メモリ',d:!u.ports.length?'敵のメモリを引っこ抜く(自分には挿せない)':bagFree.length?`引っこ抜く / 挿す(手持ち${bagFree.length})`:'敵のメモリを引っこ抜く',sp:1,go:()=>memMenu(u)},
+    {l:'ハック',d:u.dog?'犬にはできない':`敵に侵入する(技術${u.tec})`,sp:1,dis:!!u.dog,go:()=>pickEnemy('誰に侵入する?',e=>({d:`防壁${e.fw}${e.seen?' / 解析済+10%':''}`,go:()=>hackMenu(u,e)}))},
+    {l:'戦場',d:freeObjs.length?freeObjs.map(o=>o.name).join('・'):'もう何も無い',sp:1,dis:!freeObjs.length,go:()=>fieldMenu(u)},
+    {l:u.dog?'唸る':'会話',d:u.dog?'挑発・脅迫(言葉は使えない)':'挑発・脅迫・買収・説得',sp:1,go:()=>pickEnemy('誰に話しかける?',e=>({go:()=>talkMenu(u,e)}))},
+  ]};
+}
+function partMenu(u,e){
+  const o=[{l:'本体',d:`命中${CH.hitChance(u,95)}%`,act:()=>act(A.attack(u,e))}];
+  e.ports.forEach((p,i)=>{if(p.mem&&!p.broken)o.push({l:`ポート: ${MEM[p.mem].name}`,d:`命中${CH.hitChance(u,60)}% / 耐久${p.dur}。壊せば技を封じて確実に奪える`,act:()=>act(A.attack(u,e,i))});});
+  return {title:`${e.name} のどこを狙う?`,opts:o};
+}
+function portOpts(fn,incBroken){
+  const o=[];
+  CH.enemies().forEach(e=>e.ports.forEach((p,i)=>{if(p.mem&&(incBroken||!p.broken))o.push(fn(e,p,i));}));
+  return o;
+}
+function skillMenu(u){
+  const o=[];
+  if((u.innate||[]).includes('observe'))o.push({l:'観察',d:`固有技 / 熱+0 / 敵1体の弱点・有効な戦術・能力値を見抜く(観察力${u.obs})。他の行動より先に動く`,go:()=>pickEnemy('誰を観察する?',e=>({d:(e.seen||0)>=u.obs?`解析Lv${e.seen}。これ以上は分からない`:`解析Lv${e.seen||0} → Lv${u.obs}。解析済の敵はハック・引っこ抜き+10%`,act:()=>act(A.observe(u,e))}))});
+  (u.lvsk||[]).forEach(([id,lv])=>{const s=SK[id];
+    if(u.lv<lv){o.push({l:'???',d:`レベル${lv}で覚える`,dis:true});return;}
+    if(s.passive){o.push({l:`${s.name}(発動中)`,d:`固有 / ${s.desc}`,dis:true});return;}
+    const base={l:s.name,d:`固有 / 熱+${s.heat} / ${s.desc}`};
+    if(s.tgt==='ally')base.go=()=>({title:`${s.name}: 誰を?`,opts:CH.players().filter(t=>id!=='guard'||t!==u).map(t=>({l:t.name,d:`HP ${t.hp}/${t.maxhp} 熱${t.heat}`,uid:t.id,act:()=>act(A.skill(u,id,null,t))}))});
+    else if(s.tgt==='port')base.go=()=>{const po=portOpts((e,pp,i)=>({l:`${e.name}: ${MEM[pp.mem].name}`,d:`成功率${CH.fetchChance(u,e,i)}%${pp.broken?'(露出)':''} / 失敗しても反撃されない`,act:()=>act(A.skill(u,id,null,e,i))}),true);return {title:`${s.name}: どのメモリを?`,opts:po.length?po:[{l:'くわえられるメモリが無い',dis:true}]};};
+    else base.act=()=>act(A.skill(u,id,null));
+    o.push(base);});
+  CH.memTypes(u).forEach(mem=>{const p={mem};
+    MEM[p.mem].skills.forEach(([id,need])=>{
+      const s=SK[id];
+      if(s.passive&&CH.seep(u,p.mem)>=need){o.push({l:`${s.name}(発動中)`,d:s.desc,dis:true});return;}
+      if(CH.seep(u,p.mem)<need){o.push({l:'???',d:`「${MEM[p.mem].name}」浸透度${need}%で解放`,dis:true});return;}
+      if(id==='observe'){o.push({l:s.name,d:`熱+0 / ${s.desc}`,go:()=>pickEnemy('誰を観察する?',e=>({d:(e.seen||0)>=CH.obsLevel(u)?`解析Lv${e.seen}。これ以上は分からない`:`解析Lv${e.seen||0} → Lv${CH.obsLevel(u)}。解析済の敵はハック・引っこ抜き+10%`,act:()=>act(A.skill(u,id,p.mem,e))}))});return;}
+      const base={l:s.name,d:`熱+${s.heat} / 熟練×${CH.mastery(u,p.mem).toFixed(2)} / ${s.desc}`};
+      if(s.tgt==='enemy')base.go=()=>pickEnemy(`${s.name}: 誰に?`,e=>({act:()=>act(A.skill(u,id,p.mem,e))}));
+      else if(s.tgt==='ally')base.go=()=>({title:`${s.name}: 誰に?`,opts:CH.players().map(t=>({l:t.name,d:`HP ${t.hp}/${t.maxhp} 熱${t.heat}`,uid:t.id,act:()=>act(A.skill(u,id,p.mem,t))}))});
+      else if(s.tgt==='port')base.go=()=>{const po=portOpts((e,pp,i)=>({l:`${e.name}: ${MEM[pp.mem].name}`,d:`耐久${pp.dur}`,act:()=>act(A.skill(u,id,p.mem,e,i))}));return {title:`${s.name}: どのポートを?`,opts:po.length?po:[{l:'狙えるポートが無い',dis:true}]};};
+      else base.act=()=>act(A.skill(u,id,p.mem));
+      o.push(base);
+    });});
+  return {title:`${u.name} の技(現在の熱 ${u.heat})`,opts:o.length?o:[{l:'使える技が無い',d:'メモリを挿すと技が使える',dis:true}]};
+}
+function itemMenu(u){
+  const left=id=>G.items[id]-pend('item',id);
+  return {title:'道具',opts:[
+    {l:`修復ジェル ×${left('gel')}`,d:'味方1人のHPを70回復',dis:left('gel')<=0,go:()=>({title:'誰に?',opts:CH.players().map(t=>({l:t.name,d:`HP ${t.hp}/${t.maxhp}`,uid:t.id,act:()=>act(A.item(u,'gel',t),{item:'gel'})}))})},
+    {l:`冷却スプレー ×${left('coolant')}`,d:'熱-50。熱70以上の相手は急冷で「脆化」(敵にも味方にも使える)',dis:left('coolant')<=0,go:()=>({title:'誰に?',opts:CH.all().map(t=>({l:t.name,d:`熱 ${t.heat}${t.heat>=70?' → 脆化する':''}`,uid:t.id,act:()=>act(A.item(u,'coolant',t),{item:'coolant'})}))})},
+    {l:`EMPグレネード ×${left('emp')}`,d:'敵全体の防壁-20、ポート耐久-25、ドローン機能停止',dis:left('emp')<=0,act:()=>act(A.item(u,'emp'),{item:'emp'})},
+  ]};
+}
+function memMenu(u){
+  const o=portOpts((e,p,i)=>({l:`引っこ抜く: ${MEM[p.mem].name}`,d:`${e.name} / 成功率${CH.ripChance(u,e,i)}%${p.broken?'(露出)':''}${e.seen?' / 解析済':''} / 失敗すると反撃。熱+10`,act:()=>act(A.rip(u,e,i))}),true);
+  if(u.ports.length)G.bag.forEach((inst,bi)=>{if(pend('bag',bi))return;
+    o.push({l:`挿す: ${CH.instName(inst)}`,d:`${instLine(inst)} / 技: ${MEM[inst.type].skills.map(x=>SK[x[0]].name).join('・')}`,go:()=>({title:'どのポートに挿す?',opts:u.ports.map((p,pi)=>({l:p.mem?`${MEM[p.mem].name} と差し替え`:'空きポートに挿す',d:p.mem?'抜いたメモリは手元に残る':'',act:()=>act(A.swap(u,bi,pi),{bag:bi})}))})});});
+  return {title:`${u.name}: メモリを奪う / 挿す`,opts:o.length?o:[{l:'奪えるメモリも、挿せるメモリも無い',dis:true}]};
+}
+function fieldMenu(u){
+  return {title:'戦場の何を使う?',opts:G.objs.filter(o=>!o.used&&!pend('obj',o.id)).map(o=>{
+    const b={l:`${o.name}を${o.act}`,d:o.desc};
+    if(o.tgt==='enemy')b.go=()=>pickEnemy('誰に?',e=>({act:()=>act(A.obj(u,o.id,e),{obj:o.id})}));
+    else b.act=()=>act(A.obj(u,o.id),{obj:o.id});
+    return b;})};
+}
+function hackMenu(u,e){
+  const o=[];
+  const pc=k=>`成功率${CH.hackChance(u,e,k)}%`;
+  if(e.kind==='drone')o.push({l:'乗っ取り',d:`${pc('hijack')} / 味方として戦わせる`,act:()=>act(A.hack(u,e,'hijack'))});
+  o.push({l:'照準撹乱',d:`${pc('jam')} / 2ターン命中-50%`,act:()=>act(A.hack(u,e,'jam'))});
+  o.push({l:'過熱誘導',d:`${pc('heat')} / 熱+40。100でクラッシュ`,act:()=>act(A.hack(u,e,'heat'))});
+  o.push({l:'予告書き換え',d:`${pc('rewrite')} / このターンの行動を潰す(相手より先に動く必要あり)`,act:()=>act(A.hack(u,e,'rewrite'))});
+  return {title:`${e.name} に何を仕掛ける?(ハックは自分の熱+15。成功するたび相手の防壁+10)`,opts:o};
+}
+function talkMenu(u,e){
+  if(e.kind==='drone'&&!u.dog)return {title:e.name,opts:[{l:'反応がない',d:'機械に言葉は通じない。ハックなら通じる',dis:true}]};
+  if(u.dog){const o=[{l:'吠えかかる',d:`${e.boss?'成功率60%':'必ず成功'} / 2ターン自分を狙わせ、相手の熱+15`,act:()=>act(A.talk(u,e,'taunt'))}];if(!e.boss&&e.kind!=='drone')o.push({l:'牙をむく',d:`成功率${CH.threatChance(e)}% / 脅迫と同じ。逃げ出す`,act:()=>act(A.talk(u,e,'threat'))});return {title:`${e.name} に…`,opts:o};}
+  const o=[{l:'挑発',d:`${e.boss?'成功率60%':'必ず成功'} / 2ターン自分を狙わせ、相手の熱+15`,act:()=>act(A.talk(u,e,'taunt'))}];
+  if(e.boss)o.push({l:'説得',d:e.hp<=e.maxhp*0.3?'追い詰められて、様子が変わった…':'今は聞く耳を持たなそうだ',act:()=>act(A.talk(u,e,'persuade'))});
+  else{
+    o.push({l:'脅迫',d:`成功率${CH.threatChance(e)}% / 弱らせるか仲間を倒すほど効く。逃げ出す`,act:()=>act(A.talk(u,e,'threat'))});
+    const cr=G.credits-pend('bribe',1)*CH.BRIBE;
+    o.push({l:`買収 (${CH.BRIBE}cr)`,d:`所持${cr}cr / 確実に帰ってもらう`,dis:cr<CH.BRIBE,act:()=>act(A.talk(u,e,'bribe'),{bribe:1})});
+  }
+  return {title:`${e.name} に…`,opts:o};
+}
+
+function pick(i){
+  const o=curOpts[i]; if(!o||o.dis||pb)return;
+  if(o.go){ui.stack.push(o.go);} else if(o.act){ui.queue.push(o.act());ui.stack=[];}
+  render();
+}
+function back(){
+  if(ui.stack.length)ui.stack.pop(); else if(ui.queue.length)ui.queue.pop();
+  render();
+}
+
+/* ---- 効果音(合成) と画面振動 ---- */
+let AC=null,noiseBuf=null,soundOn=true;
+try{soundOn=localStorage.getItem('chahan-sound')!=='off';}catch(e){}
+function initAudio(){
+  try{
+    if(!AC){AC=new (window.AudioContext||window.webkitAudioContext)();
+      noiseBuf=AC.createBuffer(1,Math.floor(AC.sampleRate*0.7),AC.sampleRate);
+      const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;}
+    if(AC.state==='suspended')AC.resume();
+  }catch(e){AC=null;}
+}
+function tone(type,f0,f1,dur,vol,delay){
+  const t=AC.currentTime+(delay||0),o=AC.createOscillator(),g=AC.createGain();
+  o.type=type;o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur);
+  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+dur+0.03);
+}
+function noise(dur,vol,ft,f0,f1,delay){
+  const t=AC.currentTime+(delay||0),s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();
+  s.buffer=noiseBuf;f.type=ft;f.frequency.setValueAtTime(f0,t);f.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur);
+  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  s.connect(f);f.connect(g);g.connect(AC.destination);s.start(t);s.stop(t+dur+0.03);
+}
+function sfx(k){
+  if(!AC||!soundOn)return;
+  try{switch(k){
+    case 'slash':noise(.16,.35,'bandpass',5200,1400);tone('sawtooth',900,200,.09,.06);break;
+    case 'shot':noise(.09,.5,'highpass',1800,600);tone('sine',170,45,.16,.4);break;
+    case 'elec':for(let i=0;i<5;i++)tone('square',300+Math.random()*1400,200+Math.random()*900,.05,.09,i*.05);noise(.25,.12,'highpass',4000,2500);break;
+    case 'fire':noise(.5,.4,'lowpass',1400,180);tone('sine',90,40,.35,.3);break;
+    case 'blunt':tone('sine',150,38,.2,.55);noise(.07,.25,'lowpass',900,200);break;
+    case 'beam':tone('sawtooth',220,1900,.32,.14);tone('square',1900,300,.2,.07,.3);break;
+    case 'miss':noise(.14,.14,'bandpass',2600,5200);break;
+    case 'heal':tone('sine',520,560,.12,.14);tone('sine',780,840,.2,.14,.1);break;
+    case 'buff':tone('triangle',420,640,.14,.12);break;
+    case 'down':tone('sawtooth',320,45,.5,.2);noise(.3,.18,'lowpass',700,90);break;
+    case 'crash':tone('square',110,70,.3,.16);tone('square',117,74,.3,.16);break;
+    case 'seep':[523,659,784,1047].forEach((f,i)=>tone('square',f,f,.11,.08,i*.08));break;
+    case 'intel':tone('sine',1200,1250,.06,.1);tone('sine',1600,1650,.08,.1,.07);break;
+  }}catch(e){}
+}
+function feel(e){
+  const fx=e.fx||{};
+  if(fx.dmg!=null){
+    sfx(fx.k||'blunt');
+    const big=fx.dmg>=40,m=document.querySelector('main');
+    m.classList.remove('quake','quake2');void m.offsetWidth;m.classList.add(big?'quake2':'quake');
+  }else if(fx.miss)sfx('miss');
+  else if(fx.heal!=null)sfx('heal');
+  else if(fx.down)sfx('down');
+  else if(e.c==='crash')sfx('crash');
+  else if(e.c==='seep'||e.c.startsWith('rar'))sfx('seep');
+  else if(e.c==='intel')sfx('intel');
+  else if(e.c==='buff')sfx('buff');
+}
+function toggleSound(){soundOn=!soundOn;try{localStorage.setItem('chahan-sound',soundOn?'on':'off');}catch(e){}if(soundOn){initAudio();sfx('buff');}render();}
+
+/* ---- 再生 ---- */
+const isHead=e=>!e.t.startsWith('　');
+function execute(){
+  initAudio();
+  const start=G.log.length,q=ui.queue;ui={queue:[],stack:[]};
+  CH.resolve(q);
+  pb={i:start,end:G.log.length,lines:[],cur:null,wait:false};
+  step();
+}
+function stopPb(){clearTimeout(timer);pb=null;}
+/* ---- AUTO戦闘(ボス戦では使えない) ---- */
+const AUTOMODES=[['win','勝率重視','回復と熱の管理を優先し、弱った敵から確実に倒す'],['mem','メモリ入手重視','ポートを撃って壊し、確実に引っこ抜く。戦闘は長引く'],['seep','浸透度上げ','浸透度の低いメモリの技から順に使う']];
+const isBossBattle=()=>G.units&&G.units.some(u=>u.boss&&u.side0==='enemy');
+const autoOn=()=>!!(OPT.autoOn&&!isBossBattle()&&!G.outcome);
+let autoTimer=null;
+function setAuto(on,m){OPT.autoOn=on;if(m)OPT.autoMode=m;try{localStorage.setItem('chahan-opt',JSON.stringify(OPT));}catch(e){}if(!on){clearTimeout(autoTimer);autoTimer=null;}else if(!pb){ui={queue:[],stack:[]};}render();}
+function autoTurn(){autoTimer=null;if(!autoOn()||pb||G.outcome||W.scr!=='battle')return;ui={queue:CH.autoPlan(OPT.autoMode||'win'),stack:[]};execute();}
+function step(){
+  clearTimeout(timer);
+  if(!pb)return;
+  if(pb.i>=pb.end){pb=null;render();return;}
+  const e=G.log[pb.i++];
+  if(isHead(e))pb.lines=[];
+  pb.lines.push(e);pb.cur=e;pb.wait=false;
+  const nx=pb.i<pb.end?G.log[pb.i]:null;
+  const boundary=!nx||isHead(nx);
+  if(e.c==='turn'){step();return;}
+  feel(e);
+  if(mode==='click'&&boundary&&!autoOn()){pb.wait=true;render();return;}
+  render();
+  const f=autoOn()?0.25:mode==='fast'?0.4:1;
+  timer=setTimeout(step,(boundary?1300:750)*f);
+}
+function advance(){if(pb)step();}
+function skip(){stopPb();render();}
+function setMode(m){mode=m;try{localStorage.setItem('chahan-speed',m);}catch(e){}if(pb&&!pb.wait){clearTimeout(timer);timer=setTimeout(step,300);}render();}
+document.addEventListener('keydown',e=>{if(pb&&(e.key===' '||e.key==='Enter')){e.preventDefault();advance();}});
+
+function renderStage(){
+  const st=$('stage'),say=$('say'),ctl=$('ctl');
+  if(!st.querySelector('.scene')||st.dataset.sc!==G.battle.scene){st.querySelectorAll('.scene').forEach(x=>x.remove());st.insertAdjacentHTML('afterbegin',SC.scene(G.battle.scene,{slice:1,hud:false}));st.dataset.sc=G.battle.scene;}
+  st.className=pb?'live':'';
+  st.onclick=pb?(ev=>{if(!ev.target.closest('button'))advance();}):null;
+  const snd=`<button class="inline" style="padding:3px 8px;font-size:12px" onclick="toggleSound()">効果音 ${soundOn?'ON':'OFF'}</button>`;
+  const seg=`<div class="seg">${[['slow','ゆっくり'],['fast','はやい'],['click','クリック送り']].map(([k,l])=>`<button class="${mode===k?'on':''}" onclick="setMode('${k}')">${l}</button>`).join('')}</div>`;
+  if(pb){
+    const [h,...rest]=pb.lines;
+    say.innerHTML=`<div class="main ${h.c}">${esc(h.t)}</div>`+rest.map((x,i)=>`<div class="subl ${i===rest.length-1?'now '+x.c:''}">${esc(x.t.trim())}</div>`).join('');
+    ctl.innerHTML=`${seg}<div class="nx"><button class="go inline" onclick="advance()">${pb.wait?'次へ ▶':'送る ▶'}</button><button class="inline" onclick="skip()">結果まで飛ばす</button></div><span>Space / クリックでも送れる</span>${snd}${autoCtl()}`;
+  }else{
+    let main,sub='';
+    if(G.outcome){main=G.outcome==='win'?(G.special?'刺客は銃を下ろした':'勝利'):'全滅…';}
+    else if(G.turn===1&&!ui.queue.length){main=G.battle.name;sub=G.battle.intro;}
+    else{main=`ターン ${G.turn}`;sub='敵の「次の行動」を見て、3人の行動を決める。';}
+    say.innerHTML=`<div class="main head">${esc(main)}</div>${sub?`<div class="subl now">${esc(sub)}</div>`:''}`;
+    ctl.innerHTML=`<span>再生速度</span>${seg}${snd}${autoCtl()}`;
+  }
+}
+function autoCtl(){
+  if(isBossBattle())return '<span class="autonote">ボス戦ではAUTOは使えない</span>';
+  return `<div class="autobox"><span>AUTO</span><div class="seg">${AUTOMODES.map(([k,l,d])=>`<button class="${(OPT.autoMode||'win')===k?'on':''}"${tipAttr(l+'\n'+d)} onclick="setAuto(${OPT.autoOn?'true':'false'},'${k}')">${l}</button>`).join('')}</div><button class="inline${OPT.autoOn?' go':''}" onclick="setAuto(${!OPT.autoOn})">${OPT.autoOn?'AUTO中 ■ 止める':'AUTO ▶'}</button></div>`;
+}
+function renderCmd(m){
+  const el=$('cmd');
+  if(pb){el.style.display='none';return;}
+  el.style.display='';
+  if(G.outcome){
+    let h=`<p class="result">${G.outcome==='win'?(G.special?'説得成功':'勝利'):'全滅'}</p><div class="opts">`;
+    if(G.outcome==='win')h+='<button class="go" onclick="battleWin()"><span class="l">先へ進む</span><small>戦利品を確認する</small></button>';
+    else h+='<button class="go" onclick="battleRetry()"><span class="l">戦闘の最初からやり直す</span><small>戦闘前の状態に戻る</small></button><button onclick="battleFlee()"><span class="l">退く</span><small>戦闘前の状態に戻って、その場を離れる</small></button>';
+    el.innerHTML=h+'</div>';return;
+  }
+  if(autoOn()){
+    const md=AUTOMODES.find(x=>x[0]===(OPT.autoMode||'win'));
+    el.innerHTML=`<h2>AUTO戦闘中: ${md[1]}</h2><p style="margin:0;color:var(--dim)">${md[2]}。いつでも手動に戻せる。</p><div class="opts"><button onclick="setAuto(false)"><span class="l">手動に戻す</span><small>このターンから自分で選ぶ</small></button></div>`;
+    if(!autoTimer)autoTimer=setTimeout(autoTurn,350);
+    return;
+  }
+  if(!m){
+    el.innerHTML=`<h2>この内容で実行する?</h2><ol class="plan">${ui.queue.map(c=>`<li>${esc(c.actor.name)}: ${esc(c.label)}</li>`).join('')||'<li>全員行動不能</li>'}</ol>
+      <div class="opts"><button class="go" onclick="execute()"><span class="l">実行</span><small>行動を1つずつ再生する</small></button></div>
+      ${ui.queue.length?'<button class="inline" style="margin-top:8px" onclick="back()">← 選び直す</button>':''}`;
+    return;
+  }
+  const btn=(o,i)=>`<button class="${o.sp?'sp':''}" ${o.dis?'disabled':''} onclick="pick(${i})"><span class="l">${esc(o.l)}</span>${o.d?`<small>${esc(o.d)}</small>`:''}</button>`;
+  let body;
+  if(m.root)body=`<div class="grp">基本</div><div class="opts root">${m.opts.slice(0,4).map((o,i)=>btn(o,i)).join('')}</div><div class="grp">仕掛ける</div><div class="opts root">${m.opts.slice(4).map((o,i)=>btn(o,i+4)).join('')}</div>`;
+  else body=`<div class="opts">${m.opts.map(btn).join('')}</div>`;
+  el.innerHTML=`<h2>${esc(m.title)}</h2>${body}${ui.stack.length||ui.queue.length?'<button class="inline" style="margin-top:8px" onclick="back()">← 戻る</button>':''}`;
+}
+function renderBattle(){
+  const V=pb&&pb.cur&&pb.cur.snap?pb.cur.snap:CH.snapshot();
+  $('bname').textContent=`${G.battle.name} / ターン ${V.turn}`;
+  $('res').innerHTML=`<span>手配度</span><b>${S.wanted}</b><span>所持金</span><b>${V.credits}</b><span>cr</span>`;
+  let m=null;const u=(!pb&&!G.outcome)?curActor():null;
+  curOpts=[];pickMap={};
+  if(u){m=ui.stack.length?ui.stack[ui.stack.length-1]():rootMenu(u);curOpts=m.opts;m.opts.forEach((o,i)=>{if(o.uid&&!o.dis)pickMap[o.uid]=i;});}
+  const o={cur:u&&u.id,acting:pb&&pb.cur?pb.cur.aid:null,fx:pb&&pb.cur?pb.cur.fx:null};
+  $('enemies').innerHTML=G.units.filter(x=>x.side0==='enemy').map(x=>card(x,V,o)).join('');
+  $('party').innerHTML=G.party.map(x=>card(x,V,o)).join('');
+  $('field').innerHTML='<span>戦場のモノ</span>'+G.objs.map((x,i)=>`<span class="chip${V.objs[i]?' used':''}">${esc(x.name)} <small>${esc(x.act)}</small></span>`).join('');
+  const ord=G.units.filter(x=>V.units[x.id].alive).sort((a,c)=>{const s=x=>x.spd*(V.units[x.id].st.high?2:1);return s(c)-s(a)||(V.units[a.id].side==='ally'?-1:1);});
+  $('order').innerHTML='<span>行動順</span>'+ord.map((x,i)=>`<span class="chip ${V.units[x.id].side==='ally'?'a':'e'}${o.acting===x.id?' now':''}">${i+1}. ${esc(x.name)}</span>`).join('')+'<span>防御・潜伏・かばうは最優先</span>';
+  renderStage();
+  renderCmd(m);
+  const lg=$('log'),upto=pb?pb.i:G.log.length;
+  lg.innerHTML=G.log.slice(0,upto).map(x=>`<div class="${x.c}">${esc(x.t)}</div>`).join('');
+  lg.scrollTop=lg.scrollHeight;
+}
+
+/* ================= 本編 ================= */
+const {EV,LOCS,ENC,STAT}=WD;
+let S=null,W={scr:'title'};
+const SAVEKEY='chahan-save-v1';
+function save(){if(S)WD.dexScan(S);try{localStorage.setItem(SAVEKEY,JSON.stringify(S));}catch(e){}}
+function loadSave(){try{const t=localStorage.getItem(SAVEKEY);return t?JSON.parse(t):null;}catch(e){return null;}}
+function bind(){G.mallMod=S.mallMod||'none';G.mallBossDone=S.mallBoss||{};G.fin={f1:!!S.flags.f1,f2:!!S.flags.f2,f3:!!S.flags.f3};G.bonds=WD.bonds(S);G.wanted=S.wanted;G.baseWanted=S.wanted;G.mallFloor=S.mallFloor||1;G.bag=S.bag;G.seep=S.seep;G.items=S.items;G.credits=S.credits;}
+function newGame(){S=WD.newSave();bind();W={scr:'event'};openEvent('prologue');}
+function cont(){const t=loadSave();if(!t)return;S=WD.migrate(t);bind();W={scr:'map'};render();}
+const evLoc=e=>e.locf?e.locf(S):(e.loc||S.loc);
+function toMap(){const rg=LOCS[S.loc].region;W=rg?{scr:'region',rg}:{scr:'map'};save();render();}
+function goRegion(rg){W={scr:'region',rg};render();}
+function autoEv(){const id=Object.keys(EV).find(k=>{const e=EV[k];return e.auto&&(e.anywhere||evLoc(e)===S.loc)&&k!=='prologue'&&(!S.done[k]||e.nodes.start.noDone)&&(!e.cond||e.cond(S));});if(id){openEvent(id);return true;}return false;}
+function goLoc(id){S.loc=id;W={scr:'district'};save();if(!autoEv())render();}
+function openEvent(id){W.ev=id;goNode('start');}
+function goNode(n){const node=EV[W.ev].nodes[n];W.node=n;W.checkRes=null;W.cfc=null;W.scr='event';W.vary=null;if(node.fx)node.fx(S);const vl=(WD.VARY[W.ev]||{})[n];if(vl){const v=WD.pickVary(vl,S);W.vary=typeof v.t==='function'?v.t(S):v.t;if(v.fx)v.fx(S);}bind();render();window.scrollTo(0,0);}
+function choose(i){const c=curChoices()[i];if(c.dis&&c.dis(S))return;if(c.fx)c.fx(S);if(c.taa){openTaa();return;}goNode(c.to);}
+/* ---- ター宿(特異点の向こう側)。別ページを全画面で重ねて遊ぶ ---- */
+function openTaa(){
+  const ev=W.ev;if(ev&&!EV[ev].repeat)S.done[ev]=1;
+  W={scr:'taa'};save();
+  let ov=$('taaov');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='taaov';
+  const roster=S.roster.filter(u=>u.id!=='hero'&&!S.left[u.id]).map(u=>u.id).join(',');
+  ov.innerHTML=`<iframe title="ター宿" src="taa.html?roster=${encodeURIComponent(roster)}"></iframe>`;
+  document.body.appendChild(ov);render();
+}
+function taaReturn(d){
+  const ov=$('taaov');if(ov)ov.remove();
+  const T=S.taa=S.taa||{wins:0,v13:false,maap:false};const lines=['油そばの丼の底から、体が押し戻された。','寸胴型のロボットが、空になった丼を下げていった。湯気は、まだ立っている。'];
+  const nw=Math.max(0,(d.wins||0)-T.wins);
+  if(nw>0){const cr=nw*80;S.credits+=cr;lines.push(`ポケットに、見覚えのない硬貨が増えていた。宿で勝った${nw}局ぶん、${cr}crになった。`);}
+  if(d.v13&&!T.v13){WD.give(S,CH.mkInst('tarkaku',4,[{k:'atk',v:6},{k:'tec',v:6},{k:'seep',v:40},{k:'cool',v:-15}],true));lines.push('手の中に、角ばったUSBメモリが一本あった。一点物の「ター角コード」を手に入れた。');}
+  if(d.maap&&!T.maap){WD.give(S,CH.mkInst('innmap',4,[{k:'hp',v:30},{k:'def',v:4},{k:'seep',v:40},{k:'cool',v:-20}],true));lines.push('上着の内ポケットに、宿の館内図が折りたたまれていた。一点物の「女将の館内図」を手に入れた。');}
+  const cs=d.cards||[];T.got=T.got||{};let ng=0;
+  [['chiko',cs.includes('chiko'),'チコ◯ータ',[['atk',4],['pow',18],['spd',3],['seep',50]]],['namanama',cs.includes('namanama'),'生生ハーム',[['hp',25],['tec',6],['cool',-20],['def',4]]],['umehara',cs.includes('umehara'),'ウメ◯ラ',[['atk',4],['pow',18],['hp',25],['spd',3]]],['eoeo',cs.includes('eo')&&cs.includes('oe'),'EOとOE',[['atk',4],['spd',3],['pow',18],['cool',-15]]],['teishoku',cs.includes('teishoku'),'定食',[['hp',25],['tec',6],['def',4],['seep',50]]],['soutou',cs.includes('soutourou'),'相当老',[['tec',6],['def',4],['hp',25],['cool',-20]]]]
+    .forEach(([k,ok,n,af])=>{if(ok&&!T.got[k]){T.got[k]=1;ng++;WD.give(S,CH.mkInst(k,4,af.map(x=>({k:x[0],v:x[1]})),true));lines.push(`宿で手に入れた札と同じ名前のメモリが、ポケットに一本増えていた。一点物の「${n}」を手に入れた。`);}});
+  if(nw===0&&!ng&&!(d.v13&&!T.v13)&&!(d.maap&&!T.maap))lines.push('向こうで何があったのかは、手配度のどこにも記録されていない。');
+  T.wins=Math.max(T.wins,d.wins||0);T.v13=T.v13||!!d.v13;T.maap=T.maap||!!d.maap;
+  S._taaRet=lines;S.loc='gate7';W={scr:'event',ev:'taaret'};goNode('start');save();render();
+}
+window.addEventListener('message',e=>{if(e.data&&e.data.type==='taa-exit'&&S&&W.scr==='taa')taaReturn(e.data);});
+function curChoices(){const n=EV[W.ev].nodes[W.node];if(n.cf){if(!W.cfc)W.cfc=n.cf(S);return W.cfc;}return (n.c||[]).filter(c=>!c.cond||c.cond(S));}
+function doCheck(uid){const ck=EV[W.ev].nodes[W.node].check,v=WD.member(S,uid).ex[ck.stat];W.checkRes={uid,v,tier:v>=ck.hi?'great':v>=ck.lo?'ok':'fail'};render();}
+function contCheck(){goNode(EV[W.ev].nodes[W.node].check[W.checkRes.tier]);}
+function endEvent(){const ev=EV[W.ev],node=ev.nodes[W.node];if(!ev.repeat&&!node.noDone)S.done[W.ev]=1;delete S._react;W={scr:'district'};bind();save();if(!autoEv())render();}
+function startEnc(){const b=EV[W.ev].nodes[W.node].battle;W.pre=JSON.stringify(S);W.bt=b;W.btEnc=b.encf?b.encf(S):b.enc;launch();}
+function launch(){bind();stopPb();ui={queue:[],stack:[]};CH.startBattle(ENC[W.btEnc],WD.party(S));W.scr='battle';render();window.scrollTo(0,0);}
+function restParty(){S.roster.forEach(u=>{CH.recompute(u);u.hp=u.maxhp;u.heat=0;u.st={};u.stun=0;u.alive=true;u.side='ally';});}
+function battleWin(){S.tips.b1done=1;S.credits=G.credits;S.bag.filter(i=>i._from).forEach(i=>{const u=WD.member(S,i._from.uid),p=u&&u.ports[i._from.pi];delete i._from;if(p&&!p.mem){p.mem=i.type;p.inst=i;S.bag.splice(S.bag.indexOf(i),1);CH.recompute(u);}});S.roster.forEach(u=>u.ports.forEach(p=>{if(p.inst)delete p.inst._from;}));S.party.forEach(id=>{if(id==='hero')return;S.relWins[id]=(S.relWins[id]||0)+1;if(S.relWins[id]%5===0)S.rel[id]=(S.rel[id]||0)+1;});S.roster.forEach(u=>{if(!S.party.includes(u.id))CH.gainXp(u,Math.floor((G.xpGain||0)/2));});if(G.battle.onEnd)G.battle.onEnd(S,G);G.sent=overflow();dogFind();restParty();W.scr='loot';render();}
+/* シューマイが戦闘のあとに何かをくわえてくる */
+function dogFind(){G.dogFind=null;if(!S.party.includes('shumai')||Math.random()>=0.3)return;const r=Math.random();if(r<0.35){S.items.gel++;G.dogFind='修復ジェル';}else if(r<0.6){S.items.coolant++;G.dogFind='冷却スプレー';}else if(r<0.9){const c=20+Math.floor(Math.random()*60);S.credits+=c;G.dogFind=c+'cr';}else{S.parts+=2;G.dogFind='部品2個';}}
+/* 手持ちに入りきらないメモリは、新しく奪ったものから順にPCバンの倉庫へ転送する */
+function overflow(){const sent=[];while(S.bag.length>WD.CARRY){let k=-1;for(let j=S.bag.length-1;j>=0;j--)if(G.loot.includes(S.bag[j])){k=j;break;}if(k<0)k=S.bag.length-1;const it=S.bag.splice(k,1)[0];S.storage.push(it);sent.push(it);}return sent;}
+function battleRetry(){S=JSON.parse(W.pre);launch();}
+function battleFlee(){S=JSON.parse(W.pre);bind();goNode(W.bt.lose);}
+function lootDone(){if(S.bag.length>WD.CARRY)return;goNode(W.bt.win);}
+function againNode(){const ev=EV[W.ev];if(!ev||!ev.repeat)return null;const st=ev.nodes.start;return st.battle?'start':st.again||null;}
+function lootAgain(){if(S.bag.length>WD.CARRY)return;const nx=againNode();if(!nx)return;const wn=EV[W.ev].nodes[W.bt.win];if(wn&&wn.fx)wn.fx(S);if(S._key){W.node=W.bt.win;W.scr='event';W.cfc=null;save();render();return;}save();W.node=nx;W.cfc=null;startEnc();}
+function dropInst(i){S.bag.splice(i,1);render();}
+
+function instCard(inst,btns){
+  return `<div class="inst r${inst.rar}"${tipAttr(CH.instName(inst)+'\n'+instLine(inst)+'\n'+skillLines(inst.type,null))}><div><b class="nm2">${esc(CH.instName(inst))}</b><span class="rb">${CH.RAR[inst.rar].n}</span><small>${inst.afx.length?inst.afx.map(CH.afxText).map(esc).join('、'):'追加効果なし'}</small></div><div class="ib">${btns||''}</div></div>`;
+}
+const btn=(label,sub,fn,cls,dis)=>`<button class="${cls||''}" ${dis?'disabled':''} onclick="${fn}"><span class="l">${label}</span>${sub?`<small>${esc(sub)}</small>`:''}</button>`;
+const sbtn=(label,fn,dis)=>`<button class="rowbtn" ${dis?'disabled':''} onclick="${fn}">${label}</button>`;
+
+let OPT={guide:true,bgm:true,bgmVol:0.6};try{OPT=Object.assign(OPT,JSON.parse(localStorage.getItem('chahan-opt')||'{}'));}catch(e){}
+function setOpt(k,v){OPT[k]=v;try{localStorage.setItem('chahan-opt',JSON.stringify(OPT));}catch(e){}if(k==='bgm')BGM.setEnabled(v);if(k==='bgmVol')BGM.setVol(v);render();}
+function startAudio(){initAudio();if(AC){BGM.init(AC);BGM.setVol(OPT.bgmVol);BGM.setEnabled(OPT.bgm);}}
+document.addEventListener('pointerdown',startAudio,{once:true});document.addEventListener('keydown',startAudio,{once:true});
+function bgmTrack(){
+  if(!S||W.scr==='title'||W.scr==='opt'&&W.back==='title')return 'title';
+  if(W.scr==='ending')return 'ending';
+  if(W.scr==='battle')return !G.units?'battle':G.units.some(u=>u.side0==='enemy'&&u.name==='マンカン会長')?'final':G.units.some(u=>u.boss&&u.side0==='enemy')?'boss':'battle';
+  if(W.scr==='van'||W.scr==='shop')return 'van';
+  if(W.scr==='map')return 'city';
+  const reg=W.scr==='region'?W.rg:LOCS[S.loc]&&LOCS[S.loc].region;
+  const RT={moon:'moon',tokyo:'tokyo',kawasaki:'factory',hakone:'onsen',kashiwa:'suburb',koshigaya:'mall'};
+  if(reg)return RT[reg]||'city';
+  return {chinatown:'chinatown',noge:'noge'}[S.loc]||'city';
+}
+/* ---- ガイドと推奨レベル ---- */
+function guideLv(id){let m=0;Object.entries(EV).forEach(([k,e])=>{if((e.loc===id||(e.locf&&e.locf(S)===id))&&e.lv&&(!S.done[k]||e.repeat)&&(e.guide?e.guide(S):(e.main||e.story)&&(!e.cond||e.cond(S))))m=Math.max(m,e.lv);});return m;}
+function guideLocs(){
+  const out=new Set();if(!S||!OPT.guide||S.flags.cleared)return out;
+  Object.entries(EV).forEach(([k,e])=>{if(!e.loc&&!e.locf)return;if(!e.repeat&&S.done[k])return;
+    const on=e.guide?e.guide(S):(e.main||e.story)&&(!e.cond||e.cond(S));if(on)out.add(evLoc(e));});
+  return out;
+}
+const partyLv=()=>{const p=WD.party(S);return Math.round(p.reduce((a,u)=>a+u.lv+(u.oc||0),0)/p.length);};
+function locLv(id){const l=LOCS[id];return id==='kg'?Math.max(8,6+(S.mallFloor||1)*2):l.lv||1;}
+const lvStr=v=>v>50?'50+'+(v-50):String(v);
+function lvTag(id){const lv=locLv(id),p=partyLv(),c=lv>p+4?'bad':lv>p?'warn':'ok';return `<span class="lvtag ${c}">推奨Lv${lvStr(lv)}${id==='kg'?'〜':''}</span>`;}
+const guideTag='<span class="tagg">★ 物語</span>';
+function evKind(e){if(e.main||e.story)return '物語';if(e.join||e.rom)return '仲間';if(e.repeat&&e.nodes.start&&(e.nodes.start.battle||e.nodes.start.again))return '稼ぎ';return '寄り道';}
+let seenScene='';
+function sceneOnce(key,id,opt){const still=seenScene===key;seenScene=key;return SC.scene(id,Object.assign({still},opt||{}));}
+function scrTitle(el){
+  const has=!!loadSave();
+  const sv=has?loadSave():null;
+  el.innerHTML=`<div class="title">${SC.titleArt()}
+    <div class="tmenu">${btn('つづきから',has?`Lv${sv.roster[0].lv>=50&&sv.roster[0].oc?'50+'+sv.roster[0].oc:sv.roster[0].lv} / 手配度${sv.wanted} / 仲間${sv.roster.length-1}人`:'セーブデータがない','cont()','go',!has)}${btn('はじめから',has?'今のセーブデータは上書きされる':'ジャンク山から始める','newGame()')}${btn('設定','ガイド表示、効果音、再生速度',"W={scr:'opt',back:'title'};render()")}${btn('セーブデータの読み込み','書き出したコードから復元する',"W={scr:'data'};render()")}</div>
+    <p class="tfoot">ヨコハマ・ポートランド・ディヴィジョン。ジャンク漁りのチャンカーが拾ったのは、地図から消えた四つ星中華の、最後の一皿だった。</p></div>`;
+}
+function scrOpt(el){
+  el.innerHTML=`<h2>設定</h2><div class="panel"><div class="list">
+    <div class="inst"><div><b class="nm2">物語のガイド</b><small>次に物語が進む場所を、地図と地区に「★ 物語」で示す。消すと、手探りで遊べる</small></div><div class="ib">${sbtn(OPT.guide?'表示する ✓':'表示する',"setOpt('guide',true)")}${sbtn(!OPT.guide?'表示しない ✓':'表示しない',"setOpt('guide',false)")}</div></div>
+    <div class="inst"><div><b class="nm2">BGM</b><small>シンセの音楽(素材を使わず、その場で合成)</small></div><div class="ib">${sbtn(OPT.bgm?'ON ✓':'ON',"setOpt('bgm',true)")}${sbtn(!OPT.bgm?'OFF ✓':'OFF',"setOpt('bgm',false)")}${[[0.3,'小'],[0.6,'中'],[1,'大']].map(([v,l])=>sbtn(OPT.bgmVol===v?'音量'+l+' ✓':'音量'+l,`setOpt('bgmVol',${v})`)).join('')}</div></div>
+    <div class="inst"><div><b class="nm2">効果音</b><small>戦闘の効果音</small></div><div class="ib">${sbtn(soundOn?'ON ✓':'ON',"if(!soundOn)toggleSound();else render()")}${sbtn(!soundOn?'OFF ✓':'OFF',"if(soundOn)toggleSound();else render()")}</div></div>
+    <div class="inst"><div><b class="nm2">戦闘の再生速度</b><small>行動を1つずつ見せる速さ</small></div><div class="ib">${[['slow','ゆっくり'],['fast','はやい'],['click','クリック送り']].map(([k,l])=>sbtn(mode===k?l+' ✓':l,`mode='${k}';try{localStorage.setItem('chahan-speed','${k}')}catch(e){};render()`)).join('')}</div></div>
+  </div></div><div class="foot">${sbtn('← 戻る',`W={scr:'${W.back||'title'}'};render()`)}</div>`;
+}
+function scrMap(el){
+  const gl=guideLocs();const st={open:{},names:{},lv:{},guide:{},danger:{},here:S.loc,wanted:S.wanted,moon:!!S.flags.moon,outer:!!(S.flags.locNegishi||S.flags.locGaien||S.flags.locHakkei)};Object.entries(LOCS).filter(([id,l])=>!l.region).forEach(([id,l])=>{st.open[id]=!l.locked&&l.open(S);st.names[id]=l.name;st.lv[id]=locLv(id);st.guide[id]=gl.has(id)?(guideLv(id)||1):0;st.danger[id]=locLv(id)>partyLv()+4;});
+  const still=seenScene==='map';seenScene='map';
+  let h=`<h2>ネオヨコハマ <span class="tagr">ヨコハマ・ポートランド・ディヴィジョン</span></h2>${SC.cityMap(st).replace('class="cmap"',`class="cmap${still?' still':''}"`)}<div class="opts">`;
+  Object.entries(LOCS).filter(([id,l])=>!l.region&&l.open(S)).forEach(([id,l])=>{h+=btn(esc(l.name)+(gl.has(id)?guideTag:'')+lvTag(id),l.sub,`goLoc('${id}')`,gl.has(id)?'go':'');});
+  const regs=WD.REGIONS.filter(r=>!(r.hidden&&r.hidden(S))&&Object.values(LOCS).some(l=>l.region===r.id&&l.open(S)));
+  h+=`</div>${regs.length?`<h3>ネオヨコハマの外</h3><div class="opts">${regs.map(r=>{const g=Object.keys(LOCS).some(id=>LOCS[id].region===r.id&&gl.has(id));const lvs=Object.keys(LOCS).filter(id=>LOCS[id].region===r.id&&LOCS[id].open(S)).map(locLv);return btn(esc(r.n)+(g?guideTag:'')+`<span class="lvtag ${Math.min(...lvs)>partyLv()+4?'bad':Math.min(...lvs)>partyLv()?'warn':'ok'}">推奨Lv${Math.min(...lvs)}〜</span>`,r.sub||'',`goRegion('${r.id}')`,g?'go':'');}).join('')}</div>`:''}
+    <div class="foot">${sbtn('設定',"W={scr:'opt',back:'map'};render()")}${sbtn('セーブデータの書き出し・読み込み',"W={scr:'data'};render()")}${sbtn('タイトルへ',"W={scr:'title'};render()")}</div>`;
+  el.innerHTML=h;
+}
+function scrRegion(el){
+  const r=WD.REGIONS.find(x=>x.id===W.rg);
+  let h=`<h2>${esc(r.n)}</h2>${sceneOnce('r:'+r.id,r.scene||'pier',{label:r.n})}<p class="lead">${esc(r.sub||'')}</p><div class="opts">`;
+  const gl=guideLocs();Object.entries(LOCS).filter(([id,l])=>l.region===r.id&&l.open(S)).forEach(([id,l])=>{h+=btn(esc(l.name)+(gl.has(id)?guideTag:'')+lvTag(id),l.sub,`goLoc('${id}')`,gl.has(id)?'go':'');});
+  h+=`</div><div class="foot">${sbtn('← ネオヨコハマへ戻る',"W={scr:'map'};render()")}</div>`;
+  el.innerHTML=h;
+}
+function chatHTML(){
+  if(!W.chat||W.chat.loc!==S.loc){const c=WD.chatLine(S);W.chat={loc:S.loc,c};}
+  const c=W.chat.c;if(!c)return '';
+  return `<p class="chat">${c.line.startsWith('(')?esc(c.line.slice(1,-1)):`<b>${esc(c.name)}</b>「${esc(c.line)}」`}</p>`;
+}
+function scrDistrict(el){
+  const l=LOCS[S.loc];
+  const evs=Object.entries(EV).filter(([id,e])=>evLoc(e)===S.loc&&!e.auto&&(!e.cond||e.cond(S))&&(e.repeat||!S.done[id]));
+  const gl=guideLocs();
+  const gEv=([id,e])=>OPT.guide&&(e.guide?e.guide(S):(e.main||e.story));
+  const kinds=[...new Set(evs.map(([id,e])=>evKind(e)).concat(S.loc==='pier'||LOCS[S.loc].van&&S.flags.pro?['店']:[]).concat(evs.some(([id])=>['ripper','toji','collector','gw','gwmeal'].includes(id))?['店']:[]))];
+  const order=['物語','仲間','稼ぎ','寄り道','店'];
+  let h=`<h2>${esc(l.name)} ${lvTag(S.loc)}</h2>${sceneOnce('d:'+S.loc,l.scene||S.loc,{label:l.name})}<p class="lead">${esc(l.sub)}</p>${chatHTML()}<div class="strip"><span>ここでできること</span>${order.filter(k=>kinds.includes(k)).map(k=>`<span class="chip k-${k}">${k}</span>`).join('')}</div><div class="opts">`;
+  evs.sort((a,b)=>(gEv(b)?2:0)+(b[1].main?1:0)-(gEv(a)?2:0)-(a[1].main?1:0)).forEach(([id,e])=>{h+=btn(esc(e.label)+(gEv([id,e])?guideTag:e.main?'<span class="tagm">メイン</span>':'')+(e.lv?`<span class="lvtag ${e.lv>partyLv()+4?'bad':e.lv>partyLv()?'warn':'ok'}">推奨Lv${e.lv}</span>`:'')+(e.rom?'<span class="tagr">絆</span>':e.join?'<span class="tagr">仲間</span>':e.repeat?'<span class="tagr">くり返し</span>':''),e.sub,`openEvent('${id}')`,gEv([id,e])?'go':'');});
+  if(l.van&&S.flags.pro)h+=btn('PCバン',esc(l.van)+'。編成、メモリの挿し替え、倉庫、分解',"W={scr:'van',tab:'party'};render()");
+  if(S.loc==='pier'&&S.flags.pro)h+=btn('万屋ジロー','道具を買う、メモリを売る',"W={scr:'shop'};render()");
+  h+=`</div><div class="foot">${sbtn(LOCS[S.loc].region?'← '+WD.REGIONS.find(r=>r.id===LOCS[S.loc].region).n+'へ':'← 都市マップへ','toMap()')}</div>`;
+  el.innerHTML=h;
+}
+function scrEvent(el){
+  const ev=EV[W.ev],node=ev.nodes[W.node],lines=(node.dyn?node.dyn(S):node.t).concat(W.vary||[]);
+  const scid=node.scene||ev.scene||LOCS[evLoc(ev)].scene||evLoc(ev);
+  let h=`<h2>${esc(ev.label)}</h2>${sceneOnce('e:'+scid,scid,{slice:1,cls:'strip',label:LOCS[evLoc(ev)].name})}<div class="panel"><div class="lines">${lines.map(x=>Array.isArray(x)?`<p class="say"><b>${esc(x[0])}</b>「${esc(x[1])}」</p>`:`<p>${esc(x)}</p>`).join('')}</div></div>`;
+  if(node.check){
+    const ck=node.check;
+    if(!W.checkRes){
+      const see=WD.party(S).some(u=>CH.obsLevel(u)>0);
+      h+=`<div class="panel"><h3>${STAT[ck.stat]}の判定。誰がやる?</h3><p style="margin:0;color:var(--dim)">${see?`必要な値: 成功 ${ck.lo} / 大成功 ${ck.hi}(観察できる仲間が見抜いた)`:'必要な値は分からない。観察できる仲間がいれば見える'}</p><div class="opts">${WD.party(S).map(u=>btn(esc(u.name),`${STAT[ck.stat]} ${u.ex[ck.stat]}`,`doCheck('${u.id}')`)).join('')}</div></div>`;
+    }else{
+      const r=W.checkRes,nm={fail:'失敗',ok:'成功',great:'大成功'}[r.tier];
+      h+=`<div class="panel"><p class="res-tier ${r.tier}">${nm}</p><p style="margin:0">${esc(WD.member(S,r.uid).name)}の${STAT[ck.stat]}は ${r.v}。</p><div class="opts">${btn('続ける','','contCheck()','go')}</div></div>`;
+    }
+  }else if(node.battle)h+=`<div class="opts">${btn('戦闘開始',`パーティー: ${WD.party(S).map(u=>u.name).join('、')}`,'startEnc()','go')}</div>`;
+  else if(node.c||node.cf)h+=`<div class="opts">${curChoices().map((c,i)=>btn(esc(c.t),typeof c.sub==='function'?c.sub(S):c.sub,`choose(${i})`,'',c.dis&&c.dis(S))).join('')}</div>`;
+  else if(node.ending)h+=`<div class="opts">${btn('エンディングへ','','W={scr:\'ending\'};save();render();window.scrollTo(0,0)','go')}</div>`;
+  else h+=`<div class="opts">${btn('終える','','endEvent()','go')}</div>`;
+  el.innerHTML=h;
+}
+function scrLoot(el){
+  const over=S.bag.length-WD.CARRY;
+  let h=`<h2>戦闘結果</h2><div class="panel"><h3>引っこ抜いたメモリ</h3><div class="list">${G.loot.length?G.loot.map(i=>instCard(i)).join(''):'<p style="margin:0;color:var(--dim)">今回は何も奪わなかった。</p>'}</div>${G.battle.reward?`<p style="margin:0">報酬 ${G.battle.reward}cr</p>`:''}<p style="margin:0">経験値 ${G.xpGain||0}${S.roster.length>S.party.length?'(待機中の仲間には半分)':''}</p>${(G.lvups||[]).map(x=>`<p class="res-tier great" style="margin:0;font-size:18px">${esc(x.name)}はレベル${x.lv}になった</p>${(x.learn||[]).map(n=>`<p style="margin:0;color:var(--gold)">${esc(x.name)}は「${esc(n)}」を覚えた</p>`).join('')}`).join('')}${G.dogFind?`<p style="margin:0">シューマイが、どこからか${esc(G.dogFind)}をくわえてきた。</p>`:''}</div>`;
+  if((G.sent||[]).length)h+=`<div class="panel"><h3>手持ちがいっぱいなので、${G.sent.length}本をPCバンの倉庫へ転送した</h3><p style="margin:0;color:var(--dim)">${G.sent.map(i=>esc(CH.instName(i))).join('、')}。倉庫のメモリは、どこのPCバンからでも取り出せる。</p></div>`;
+  h+=`<div class="opts">${btn('進む',over>0?'手持ちを上限以内にする必要がある':`手持ちメモリ ${S.bag.length}/${WD.CARRY}`,'lootDone()','go',over>0)}${againNode()?btn(EV[W.ev].nodes.start.again?'さらに下の階へ':'もう一度戦う',EV[W.ev].nodes.start.again?'次の階で続けて戦う':'同じ稼ぎ場で続けて戦う','lootAgain()','',over>0):''}</div>`;
+  el.innerHTML=h;
+}
+/* ---- PCバン ---- */
+function vanTab(t){W.tab=t;W.sel=null;W.fixAsk=null;W.syn=[];W.synAfx=null;W.synMade=null;render();}
+function vanToggle(id){const i=S.party.indexOf(id);if(i>=0){if(id!=='hero')S.party.splice(i,1);}else if(S.party.length<WD.PARTY_MAX)S.party.push(id);save();render();}
+function vanSel(uid,pi){W.sel={uid,pi};render();}
+function stash(inst){(S.bag.length<WD.CARRY?S.bag:S.storage).push(inst);}
+function vanIns(src,i){const u=WD.member(S,W.sel.uid),p=u.ports[W.sel.pi],inst=S[src].splice(i,1)[0],old=p.inst;p.mem=inst.type;p.inst=inst;if(old)stash(old);CH.recompute(u);u.hp=u.maxhp;W.sel=null;save();render();}
+function vanOut(){const u=WD.member(S,W.sel.uid),p=u.ports[W.sel.pi];if(p.inst)stash(p.inst);p.mem=null;p.inst=null;CH.recompute(u);u.hp=u.maxhp;W.sel=null;save();render();}
+function vanMove(src,i){const dst=src==='bag'?'storage':'bag';if(dst==='bag'&&S.bag.length>=WD.CARRY)return;S[dst].push(S[src].splice(i,1)[0]);save();render();}
+function vanBreak(src,i){const inst=S[src][i];if(inst.rar>=4)return;S.parts+=CH.RAR[inst.rar].parts;S[src].splice(i,1);save();render();}
+function memTab(members,srcs){
+  if(W.sel){
+    const u=WD.member(S,W.sel.uid),p=u.ports[W.sel.pi],n=srcs.reduce((a,x)=>a+S[x].length,0);
+    const cand=src=>S[src].map((i,k)=>instCard(i,sbtn('挿す',`vanIns('${src}',${k})`))).join('');
+    const full=srcs.length===1&&S.bag.length>=WD.CARRY;
+    return `<div class="panel"><h3>${esc(u.name)}のポート${W.sel.pi+1}: ${p.inst?esc(CH.instName(p.inst))+' と差し替える':'空き'}</h3><div class="list">${srcs.map(cand).join('')}${n?'':`<p style="margin:0;color:var(--dim)">${srcs.length===1?'手持ちに挿せるメモリがない。倉庫のメモリはPCバンで挿せる。':'挿せるメモリを持っていない。'}</p>`}</div><div class="foot">${p.inst?sbtn(full?'抜くだけ(倉庫へ転送)':'抜くだけ','vanOut()'):''}${sbtn('やめる','W.sel=null;render()')}</div></div>`;
+  }
+  return members.map(u=>`<div class="panel"><div class="mrow"><span class="who">${esc(u.name)}</span><small>HP${u.maxhp} 攻撃${u.atk} 防御${u.def} 技術${u.tec} 速度${u.spd}</small></div><div class="list">${u.ports.length?'':'<p style="margin:0;color:var(--dim)">ポートが無い。メモリは挿せないが、引っこ抜くことはできる。</p>'}${u.ports.map((p,pi)=>p.inst?`<div class="inst r${p.inst.rar}"${tipAttr(CH.instName(p.inst)+'\n'+instLine(p.inst)+'\n'+skillLines(p.inst.type,CH.seep(u,p.inst.type)))}><div><b class="nm2">${esc(CH.instName(p.inst))}</b><span class="rb">${CH.RAR[p.inst.rar].n}</span><small>浸透度 ${CH.seep(u,p.inst.type)}% / ${p.inst.afx.length?p.inst.afx.map(CH.afxText).map(esc).join('、'):'追加効果なし'}</small></div><div class="ib">${CH.canFix(u,pi)?sbtn('固着させる',`askFix('${u.id}',${pi})`):''}${sbtn('替える',`vanSel('${u.id}',${pi})`)}</div></div>`:`<div class="inst"><div><b class="nm2" style="color:var(--dim)">空きポート</b></div><div class="ib">${sbtn('挿す',`vanSel('${u.id}',${pi})`)}</div></div>`).join('')}${fixedList(u)}</div></div>`).join('');
+}
+function fixedList(u){
+  const f=u.fixed||[];
+  return f.map(i=>`<div class="inst r${i.rar}"${tipAttr(CH.instName(i)+'\n'+instLine(i)+'\n'+skillLines(i.type,100))}><div><b class="nm2">◆ ${esc(CH.instName(i))}</b><span class="rb">固着</span><small>${CH.RAR[i.rar].n} / ${i.afx.length?i.afx.map(CH.afxText).map(esc).join('、'):'追加効果なし'} / ポートを使わない</small></div></div>`).join('')+(f.length?`<p style="margin:0;color:var(--dim);font-size:12px">固着 ${f.length}/${CH.FIXMAX}</p>`:'');
+}
+function askFix(uid,pi){W.fixAsk={uid,pi};render();}
+function doFix(){const a=W.fixAsk;W.fixAsk=null;const u=WD.member(S,a.uid);if(CH.fixMem(u,a.pi)){u.hp=u.maxhp;save();}render();}
+function fixDialog(){
+  if(!W.fixAsk)return '';
+  const u=WD.member(S,W.fixAsk.uid),inst=u.ports[W.fixAsk.pi].inst;
+  return `<div class="panel" style="border-color:var(--gold)"><h3 style="color:var(--gold)">${esc(u.name)}に「${esc(CH.instName(inst))}」を固着させる?</h3>
+    <p style="margin:0">固着したメモリは二度と抜けなくなる。代わりにポートを使わなくなり、技と追加効果(${esc(instLine(inst))})はずっと${esc(u.name)}のものになる。固着できるのは1人${CH.FIXMAX}本まで。</p>
+    <div class="foot">${sbtn('固着させる','doFix()')}${sbtn('やめる','W.fixAsk=null;render()')}</div></div>`;
+}
+/* ---- 合成 ---- */
+function synthPick(src,i){const k=src+':'+i;W.syn=W.syn||[];const j=W.syn.indexOf(k);if(j>=0)W.syn.splice(j,1);else if(W.syn.length<2)W.syn.push(k);W.synAfx=null;render();}
+const synInst=k=>{const [src,i]=k.split(':');return S[src][+i];};
+function synToggleAfx(k){const pv=synthNow();W.synAfx=W.synAfx||[];const j=W.synAfx.indexOf(k);if(j>=0)W.synAfx.splice(j,1);else if(W.synAfx.length<pv.slots)W.synAfx.push(k);render();}
+function synthNow(){return (W.syn||[]).length===2?CH.synthPreview(synInst(W.syn[0]),synInst(W.syn[1])):null;}
+function doSynth(){
+  const pv=synthNow();if(!pv||S.parts<pv.cost)return;
+  const chosen=(W.synAfx||[]).map(k=>pv.pool.find(a=>a.k===k)).filter(Boolean);
+  const inst=CH.mkInst(pv.type,pv.rar,CH.synthFill(pv.type,chosen,pv.slots),true);
+  W.syn.map(k=>k.split(':')).sort((a,b)=>b[1]-a[1]).forEach(([src,i])=>S[src].splice(+i,1));
+  S.parts-=pv.cost;S.recipes[pv.type]=1;WD.give(S,inst);W.syn=[];W.synAfx=null;W.synMade=inst;save();render();
+}
+function synthTab(){
+  let h='';
+  if(W.synMade){h+=`<div class="panel" style="border-color:var(--gold)"><h3 style="color:var(--gold)">合成に成功した</h3>${instCard(W.synMade)}<div class="foot">${sbtn('続ける','W.synMade=null;render()')}</div></div>`;return h;}
+  const pick=src=>S[src].map((i,k)=>{const key=src+':'+k,on=(W.syn||[]).includes(key);return instCard(i,i.rar>=4?'<span class="sk">一点物は素材にできない</span>':sbtn(on?'外す':'素材にする',`synthPick('${src}',${k})`));}).join('');
+  const pv=synthNow();
+  h+=`<div class="panel"><h3>素材を2本選ぶ(部品 ${S.parts}個)</h3><p style="margin:0;color:var(--dim)">同じ種類どうしなら、レアリティが1段上がる(禁制品まで)。違う種類どうしは、組み合わせによって新しいメモリになる。結果に運は絡まない。</p>`;
+  if((W.syn||[]).length===2){
+    if(!pv)h+=`<p style="margin:0;color:var(--red)">この2本は反応しない。</p>`;
+    else{
+      const known=S.recipes[pv.type]||CH.MEM[pv.type]&&!CH.MEM[pv.type].made||synInst(W.syn[0]).type===synInst(W.syn[1]).type;
+      const sel=W.synAfx||[];
+      h+=`<div class="inst r${pv.rar}"><div><b class="nm2">${known?esc(MEM[pv.type].name):'??? (まだ作ったことがない)'}</b><span class="rb">${CH.RAR[pv.rar].n}</span><small>追加効果の枠 ${pv.slots}。素材の効果から ${pv.slots} つまで選んで引き継ぐ。余った枠は、メモリの種類ごとに決まった効果で埋まる</small></div></div>`;
+      if(pv.slots)h+=`<div class="strip">${pv.pool.map(a=>`<button class="rowbtn${sel.includes(a.k)?' go':''}" onclick="synToggleAfx('${a.k}')">${sel.includes(a.k)?'✓ ':''}${esc(CH.afxText(a))}</button>`).join('')||'<span>素材に追加効果がない</span>'}</div>`;
+      h+=`<div class="foot">${sbtn(`合成する(部品 ${pv.cost}個)`,'doSynth()',S.parts<pv.cost)}${S.parts<pv.cost?'<span class="sk">部品が足りない。いらないメモリを分解すると手に入る</span>':''}</div>`;
+    }
+  }
+  h+=`</div><div class="panel"><h3>手持ち</h3><div class="list">${pick('bag')||'<p style="margin:0;color:var(--dim)">空。</p>'}</div><h3>倉庫</h3><div class="list">${pick('storage')||'<p style="margin:0;color:var(--dim)">空。</p>'}</div></div>`;
+  const known=Object.keys(S.recipes).filter(t=>MEM[t].made);
+  h+=`<div class="panel"><h3>作ったことのあるメモリ</h3><p style="margin:0;color:var(--dim)">${known.length?known.map(t=>esc(MEM[t].name)).join('、'):'まだない。'}</p></div>`;
+  return h;
+}
+function memoList(id){const m=(S.memo||{})[id]||[];return m.length?`<details class="memo"><summary>思い出 ${m.length}</summary><ul>${m.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>`:'';}
+function bondTab(){
+  const ids=S.roster.map(u=>u.id).filter(id=>id!=='hero');
+  if(!ids.length)return '<p class="lead">まだ仲間がいない。</p>';
+  const stName=['他人','顔なじみ','打ち解けた','結ばれた'];
+  return `<p style="margin:0;color:var(--dim)">一緒に戦うほど、そして「絆」の付いた出来事を重ねるほど、仲はゆっくり深まる。仲間同士の出来事も、各地で起きる。恋人を選ぶのは、物語の終盤になる。相棒と恋人は、チャンカーと続けて同じ敵を攻撃したとき、連携の威力が上がる。</p><div class="list">${ids.map(id=>{const R=WD.rom(S,id),u=WD.member(S,id);
+    if(u.dog)return `<div class="inst"><div><b class="nm2">${esc(u.name)}</b><span class="rb">群れの仲間</span><small>なつき度 ${'●'.repeat(Math.min(10,S.rel[id]||0))}${'○'.repeat(Math.max(0,10-(S.rel[id]||0)))}　ロマンスは無い。一緒に戦うほど懐く</small>${memoList(id)}</div></div>`;
+    const b=R.bond==='lover'?'恋人':R.bond==='partner'?'相棒':R.path==='closed'?'距離ができた':stName[R.st];
+    const nx=R.st+1,need=WD.REL_NEED[R.st],gate=nx<=3&&WD.ROM_GATE[R.st](S);
+    const hint=R.bond?`絆の連携 +${R.bond==='lover'?30:15}%`:R.st<3&&R.path!=='closed'?(EV['r'+id+nx]&&EV['r'+id+nx].cond(S)?'コンテナ埠頭で、話せることがある':(S.rel[id]||0)>=need&&!gate?(R.st===2?'答えを出すのは、もっと先になりそうだ':'この先は、物語がもう少し進んでから'):'次の出来事まで、もう少し一緒に過ごす'):'';
+    return `<div class="inst"><div><b class="nm2">${esc(u.name)}</b><span class="rb">${b}</span><small>${hint}</small>${memoList(id)}</div></div>`;}).join('')}</div>`;
+}
+function dexTab(){
+  const n=WD.dexScan(S),all=Object.keys(MEM),k=S.dexClaim||0,goal=WD.DEX_GOALS[k];
+  return `<p style="margin:0">集めた種類 <b class="nm2" style="color:var(--gold)">${n}</b> / ${all.length}${goal!=null?`(次の目標 ${goal}種類。コンテナ埠頭の「ジローの鑑定棚」で報酬)`:'(すべての報酬を受け取った)'}</p>
+    <p style="margin:0;color:var(--dim);font-size:12px">敵が挿しているメモリは引っこ抜いて、ほかは寄り道や合成で手に入る。稼ぎ場には、ときどき金色のポートを持つ「★レア個体」が現れる。</p>
+    <div class="dexgrid">${all.map(t=>{const r=S.dex[t];return r==null?`<div class="dexc"><b>???</b><small>${MEM[t].made?'合成でしか作れない':'未入手'}</small></div>`:`<div class="dexc r${r}"${tipAttr(MEM[t].name+'\n'+skillLines(t,null)+(MEM[t].peaky?'\n癖: '+MEM[t].peaky:''))}><b class="nm2">${esc(MEM[t].name)}</b><small>最高 ${CH.RAR[r].n}${MEM[t].made?' / 合成':''}</small></div>`;}).join('')}</div>`;
+}
+/* ---- エンディング ---- */
+const ENDTXT={
+  opt:['配信ボタンを押した。','その夜、ネオヨコハマじゅうの舌の端子に、同じ一皿が届いた。灰色の粥は、誰の舌にも、世界一の美食として感じられた。','争いは減った。飢えの実感も消えた。マンカンの株価は、月まで届いた。','チャンカーの舌にも、同じ一皿が届いた。旨かった。旨いという情報だけが、確実に届いていた。','翌朝、チャンカーは一人で、ネオ・トーキョー第七到着ゲートの裏へ向かった。暖簾は、まだ下がっていた。'],
+  once:['配信ボタンを押した。一度だけ。','その夜、ネオヨコハマの全員が、同時に目を閉じた。米の立つ音。卵の焦げる匂い。葱が切られてから四秒の味。','翌朝、街の屋台の前に、行列ができていた。ホログラムの屋台ではなく、本物の鍋と火のある屋台に。','一度知ってしまった実感は、もうデータでは満たされない。人々は、自分の舌で、自分の一皿を探し始めた。','マンカンの株価は、少しだけ下がった。'],
+  shop:['プロトコルチャーハン・クラックスピードを、舌の端子から抜いた。','三か月後、旧中華街跡の更地に、朗々飯店の看板が戻った。','厨房の奥の金庫に、あのメモリが眠っている。食べたい者は、店に来て、皿を前にして、自分で決めればいい。データで食べるか、鍋で食べるか。','開店の日、行列の一番前に、痩せた老人が並んでいた。会長だった。'],
+  none:['配信ケーブルを、舌の端子から外した。','代わりに、プロトコルチャーハン・クラックスピードを、最後にもう一度だけ、舌の端子に当てた。','米が、立っていた。卵は鍋肌の温度を覚えたまま、舌の上でほどけた。','食べ終えると、メモリの中身は空になっていた。誰の脳にも、もう二度と書き込まれない。','会長は、空の皿を見つめたまま、長いこと動かなかった。','チャンカーは塔を降りて、ネオ・トーキョーへ向かった。腹が減っていた。データではなく、胃袋が。'],
+  chef:['料理長・朗が、塔の頂上に、青い火を一つ灯した。','半透明の手が、鍋を振った。実体のない鍋から、本物の湯気が立った。誰も、それがどうやって可能なのか説明できなかった。説明する必要もなかった。','皿が一枚、会長の前に置かれた。','会長は、震える手でレンゲを持った。舌の端子ではなく、口に運んだ。','長い沈黙のあと、会長は泣いた。「……味がする」。','その夜、配信は行われなかった。代わりに、朗々飯店の予約台帳に、一件目の名前が書き込まれた。'],
+};
+function scrEnding(el){
+  const e=S.ending||'none',lines=ENDTXT[e].slice();
+  const ids=S.roster.map(u=>u.id).filter(id=>id!=='hero');
+  const lov=ids.filter(id=>WD.rom(S,id).bond==='lover'),par=ids.filter(id=>WD.rom(S,id).bond==='partner');
+  const nm=id=>WD.member(S,id).name;
+  const epi=[],loveH=[];
+  lov.forEach(id=>{const L=WD.LOVEEND[id];if(!L)return;const ls=L.t.concat(e==='shop'&&L.shop?L.shop:[]);
+    loveH.push(`<div class="loveep"><h3>${esc(nm(id))}</h3>${SC.scene(L.scene,{label:nm(id)})}<div class="lines">${ls.map(x=>Array.isArray(x)?`<p><b>${esc(x[0])}</b>「${esc(x[1])}」</p>`:`<p>${esc(x)}</p>`).join('')}</div></div>`);});
+  if(lov.length>1)loveH.push(`<div class="lines">${WD.POLYEND.map(x=>`<p>${esc(x)}</p>`).join('')}</div>`);
+  if(!lov.length)epi.push('チャンカーは、誰の恋人にもならなかった。それでも、ねぐらの夜には、誰かが必ずドラム缶に火を入れに来る。');
+  par.forEach(id=>{if(WD.PARTEND[id])epi.push(WD.PARTEND[id]);});
+  if(ids.includes('kill')&&!lov.includes('kill')&&!par.includes('kill'))epi.push('キルチョイサーは、初めて報酬を全額受け取った。「ついてる日も、あるのね」。');
+  if(ids.includes('aur')&&!lov.includes('aur'))epi.push('オロールは、相変わらず甲冑を脱がない。誰も、何も言わない。');
+  ids.filter(id=>!lov.includes(id)&&!par.includes(id)&&!['kill','aur'].includes(id)&&!S.left[id]&&WD.AFTER[id]).forEach(id=>epi.push(WD.AFTER[id]));
+  Object.keys(S.left||{}).filter(id=>S.left[id]&&WD.CHARS[id]).forEach(id=>epi.push(`${WD.CHARS[id].name}とは、あれきり会っていない。ノゲの路地で、似た背中を見かけた気がした。`));
+  epi.push('麺処グラヴィティ・ウェルの暖簾は、今日も下がっている。カウンターは六席。寸胴型のロボットが、入口で頭を下げる。','混ぜた。');
+  const cnt=Object.keys(S.dex||{}).length;
+  el.innerHTML=`<div class="ending">${SC.scene('gw',{label:'EPILOGUE'})}
+    <h2>${{opt:'最適な一皿',once:'一度きりの実感',shop:'朗々飯店、再開',none:'最後の一口',chef:'本物の一皿'}[e]}</h2>
+    <div class="lines">${lines.map(x=>`<p>${esc(x)}</p>`).join('')}</div>${loveH.length?`<h2 class="loveh">それから</h2>${loveH.join('')}`:''}<div class="lines">${epi.map(x=>`<p>${esc(x)}</p>`).join('')}</div>
+    <div class="credits"><p>プロトコルチャーハン・クラックスピード</p><p>到達レベル ${CH.lvText(S.roster[0])} / 手配度 ${S.wanted} / 仲間 ${ids.length}人 / メモリ図鑑 ${cnt}種類</p><p>ここまで遊んでくれて、ありがとう。</p></div>
+    <div class="opts">${btn('クリア後の世界へ','仲間集め、図鑑、メガモールの深層は続けられる',"W={scr:'map'};save();render();window.scrollTo(0,0)",'go')}${btn('タイトルへ','',"W={scr:'title'};render()")}</div></div>`;
+}
+/* ---- メニュー(非戦闘時) ---- */
+function openMenu(){W.back=W.scr;W.scr='menu';W.tab='status';W.sel=null;render();}
+function closeMenu(){W={scr:W.back||'map'};render();}
+function scrMenu(el){
+  const tabs=[['status','仲間の状態'],['mem','メモリの挿し替え'],['bond','絆'],['dex','メモリ図鑑'],['items','持ち物']];
+  let h=`<h2>メニュー</h2><div class="tabs">${tabs.map(([k,l])=>`<button class="${W.tab===k?'on':''}" onclick="vanTab('${k}')">${l}</button>`).join('')}</div>`;
+  if(W.tab==='status'){
+    h+=WD.party(S).map(u=>`<div class="panel"><div class="mrow"><span class="who">${esc(u.name)}</span><small>${esc(u.role)}</small></div>
+      <div class="strip"><span>成長</span><span class="chip a">Lv ${CH.lvText(u)}</span><span class="chip"${tipAttr('レベル50からは「限界突破」。経験値を積むたびに +1 され、HP・攻撃・防御・技術・速度が少しずつ伸び続ける')}>${u.lv>=CH.LVMAX?`限界突破 次まで ${CH.ocNeed(u.oc||0)-(u.ocx||0)}`:`次のレベルまで ${CH.xpNeed(u.lv)-u.xp}`}</span>${(CH.setBonus(u),u.sets||[]).map(x=>`<span class="chip e"${tipAttr(CH.BRANDS[x.b].n+'のメモリを'+x.n+'本: '+CH.setText(x.b)+(x.n>=3?'(3本で倍)':''))}>セット: ${CH.BRANDS[x.b].n}×${x.n}</span>`).join('')}<span class="chip"${tipAttr(`${CH.WEAPON[u.fxk]}の習熟 ${CH.profRank(u)}/10\n命中+${CH.profRank(u)*2}%、通常攻撃の威力+${CH.profRank(u)*3}%\nその武器で攻撃を当てるほど上がる`)}>${esc(u.wname)}(${CH.WEAPON[u.fxk]}) 習熟 ${CH.profRank(u)}${CH.profRank(u)>=10?'':` / 次まで${CH.profNext(u)}回`}</span></div>
+      <div class="strip"><span>戦闘</span><span class="chip">HP ${u.maxhp}</span><span class="chip">攻撃 ${u.atk}</span><span class="chip">防御 ${u.def}</span><span class="chip">技術 ${u.tec}</span><span class="chip">速度 ${u.spd}</span>${CH.obsLevel(u)?`<span class="chip a">観察力 ${CH.obsLevel(u)}</span>`:''}</div>
+      <div class="strip"><span>探索</span>${Object.keys(STAT).map(k=>`<span class="chip">${STAT[k]} ${u.ex[k]}</span>`).join('')}</div>
+      ${u.lvsk?`<div class="strip"><span>固有技</span>${u.lvsk.map(([id,lv])=>`<span class="sk${u.lv>=lv?' on':''}"${tipAttr(SK[id].desc)}>${u.lv>=lv?'●':'○'} ${SK[id].name}${u.lv>=lv?'':`(Lv${lv})`}</span>`).join('')}</div><p style="margin:0;color:var(--dim);font-size:12px">メモリは挿せない。基礎能力が高く、技はレベルで覚える。</p>`:''}
+      <div class="list">${fixedList(u)}${u.ports.map(p=>p.inst?`<div class="inst r${p.inst.rar}"><div><b class="nm2">${esc(CH.instName(p.inst))}</b><span class="rb">${CH.RAR[p.inst.rar].n}</span><small>浸透度 ${CH.seep(u,p.inst.type)}% / ${p.inst.afx.length?p.inst.afx.map(CH.afxText).map(esc).join('、'):'追加効果なし'}</small>${MEM[p.inst.type].skills.map(([id,need])=>{const on=CH.seep(u,p.inst.type)>=need;return `<span class="sk${on?' on':''}"${tipAttr(SK[id].desc)}>${on?'●':'○'} ${SK[id].name}${on?'':`(浸透度${need}%)`}　</span>`;}).join('')}</div></div>`:'<div class="inst"><div><b class="nm2" style="color:var(--dim)">空きポート</b></div></div>').join('')}</div></div>`).join('');
+    if(S.roster.length>S.party.length)h+=`<p style="margin:0;color:var(--dim)">待機中の仲間: ${S.roster.filter(u=>!S.party.includes(u.id)).map(u=>esc(u.name)).join('、')}(入れ替えは各地のPCバンで)</p>`;
+  }else if(W.tab==='bond'){
+    h+=bondTab();
+  }else if(W.tab==='dex'){
+    h+=dexTab();
+  }else if(W.tab==='mem'){
+    h+=`<p style="margin:0;color:var(--dim)">手持ちのメモリ(${S.bag.length}/${WD.CARRY}本)なら、どこでも挿し替えられる。倉庫のメモリはPCバンで扱う。</p>`+fixDialog()+memTab(WD.party(S),['bag']);
+    if(!W.sel)h+=`<div class="panel"><h3>手持ち ${S.bag.length}/${WD.CARRY}本</h3><div class="list">${S.bag.length?S.bag.map(i=>instCard(i)).join(''):'<p style="margin:0;color:var(--dim)">空。</p>'}</div></div>`;
+  }else{
+    h+=`<div class="panel"><h3>道具(戦闘中に使う)</h3><div class="strip">${Object.keys(CH.ITEM).map(id=>`<span class="chip">${CH.ITEM[id]} ×${S.items[id]}</span>`).join('')}</div><h3>その他</h3><div class="strip"><span class="chip">所持金 ${S.credits}cr</span><span class="chip">部品 ${S.parts}個</span></div></div>`;
+  }
+  h+=`<div class="foot">${sbtn('← 閉じる','closeMenu()')}</div>`;
+  el.innerHTML=h;
+}
+/* ---- TIPS(初回だけ出る最低限の説明) ---- */
+const TIPS={
+  district:'地区では、やることを選んで進める。「メイン」は物語が進む行動、「くり返し」は何度でもできる行動。右上の「メニュー」で、仲間の能力とメモリをいつでも確認できる。',
+  map:'都市マップでは、行き先の地区を選ぶ。どこへ行くのも自由だが、手強い相手が待つ場所もある。物語を追うかどうかも、自分で決めていい。',
+  check:'判定は運ではなく、担当者の能力値だけで決まる。誰に任せるかで結果が変わる。必要な値は、観察ができる仲間がいると見えるようになる。',
+  battle1:'味方全員の行動を選んで「実行」。敵カードの「次の行動」に、これから何をされるかが出ている。まずは「攻撃」と「技」で十分。画面下に並ぶ「戦場のモノ」は「戦場」コマンドで使える。',
+  battle2:'「メモリ」で、敵のメモリを引っこ抜いて奪える。奪ったメモリは同じ「メモリ」から自分に挿せる。「ハック」では敵に侵入できる。技を使うと熱が上がり、100でクラッシュして1回休みになる。「防御」で冷やせる。',
+  loot:'引っこ抜いたメモリは、奪った瞬間にレアリティと追加効果が分かる。持ち歩けるのは12本まで。入りきらない分は自動でPCバンの倉庫に転送される。「メニュー」でいつでも挿し替えられ、PCバンは各地にある。',
+  wanted:'手配度が上がった。手配度は物語を進めたときだけ上がり、戦闘を重ねても上がらない。上がるほど街の様子が変わり、起きる出来事も変わっていく。敵が挿しているメモリのレアリティも高くなる。ジャンク山にも新しい漂着物が流れ着く。',
+  level:'レベルが上がると能力値が伸びる。最大は50。待機中の仲間にも経験値の半分が入る。武器の習熟は別枠で、その武器で攻撃を当てるほど命中率と通常攻撃の威力が上がる。どちらも「メニュー」で確認できる。',
+  rom:'「絆」の付いた出来事は、仲間との個人的な時間。一緒に戦うほど、次の出来事が起きやすくなる。どこまで深めるかは自由に選べる。',
+  party:'仲間が加わった。同行できるのは4人まで。入れ替えは各地のPCバンで行う。仲間の能力は「メニュー」で見られる。',
+};
+function curTip(){
+  if(!S)return null;
+  const t=S.tips,pick=ids=>ids.find(id=>!t[id])||null;
+  switch(W.scr){
+    case 'battle':return !t.battle1?'battle1':(t.b1done&&!t.battle2?'battle2':null);
+    case 'district':return S.wanted>0&&!t.wanted?'wanted':S.roster.length>1&&!t.party?'party':!t.district?'district':!t.rom&&Object.entries(EV).some(([k,e])=>e.rom&&evLoc(e)===S.loc&&!S.done[k]&&e.cond&&e.cond(S))?'rom':null;
+    case 'map':return pick(['map']);
+    case 'event':return EV[W.ev].nodes[W.node].check&&!t.check?'check':null;
+    case 'loot':return G.loot.length&&!t.loot?'loot':(G.lvups||[]).length&&!t.level?'level':null;
+  }
+  return null;
+}
+function tipHTML(){const id=curTip();return id?`<div class="tipbox"><b>TIPS</b><p>${TIPS[id]}</p>${sbtn('わかった',`tipOk('${id}')`)}</div>`:'';}
+function tipOk(id){S.tips[id]=1;render();}
+function scrVan(el){
+  const tabs=[['party','編成'],['mem','メモリの挿し替え'],['store','倉庫と分解'],['synth','合成']];
+  let h=`<h2>PCバン <span class="tagr">${esc(LOCS[S.loc].van||'')}</span></h2><div class="tabs">${tabs.map(([k,l])=>`<button class="${W.tab===k?'on':''}" onclick="vanTab('${k}')">${l}</button>`).join('')}</div>`;
+  if(W.tab==='party'){
+    h+=`<div class="panel"><h3>パーティー ${S.party.length}/${WD.PARTY_MAX}人</h3><div class="list">${S.roster.map(u=>{const inP=S.party.includes(u.id);
+      return `<div class="inst"><div><b class="nm2">${esc(u.name)}</b><span class="rb">${inP?'同行中':'待機'}</span><small>Lv${CH.lvText(u)} ${esc(u.role)} / HP${u.maxhp} 攻撃${u.atk} 防御${u.def} 技術${u.tec} 速度${u.spd}</small><small>${Object.keys(STAT).map(k=>`${STAT[k]}${u.ex[k]}`).join(' ')}${CH.obsLevel(u)?` / 観察ができる(観察力${CH.obsLevel(u)})`:''}</small></div><div class="ib">${u.id==='hero'?'':sbtn(inP?'外す':'連れていく',`vanToggle('${u.id}')`,!inP&&S.party.length>=WD.PARTY_MAX)}</div></div>`;}).join('')}</div></div>`;
+  }else if(W.tab==='mem'){
+    h+=fixDialog()+memTab(S.roster,['bag','storage']);
+  }else if(W.tab==='synth'){
+    h+=synthTab();
+  }else{
+    const lst=(src,mv)=>S[src].length?S[src].map((i,k)=>instCard(i,sbtn(mv,`vanMove('${src}',${k})`,src==='storage'&&S.bag.length>=WD.CARRY)+sbtn(`分解 +${CH.RAR[i.rar].parts}`,`vanBreak('${src}',${k})`,i.rar>=4))).join(''):'<p style="margin:0;color:var(--dim)">空。</p>';
+    h+=`<div class="panel"><h3>手持ち ${S.bag.length}/${WD.CARRY}本(戦闘中に挿せるのはここにあるものだけ)</h3><div class="list">${lst('bag','倉庫へ')}</div></div>
+      <div class="panel"><h3>倉庫 ${S.storage.length}本</h3><div class="list">${lst('storage','手持ちへ')}</div></div>
+      <p style="margin:0;color:var(--dim)">分解で得た部品: ${S.parts}個。部品は「合成」で使う。一点物は分解できない。</p>`;
+  }
+  h+=`<div class="foot">${sbtn('← '+esc(LOCS[S.loc].name)+'へ',"W={scr:'district'};save();render()")}</div>`;
+  el.innerHTML=h;
+}
+/* ---- 万屋 ---- */
+const price=id=>Math.round(WD.PRICE[id]*(S.flags.jiroFav?0.8:1));
+function buy(id){const p=price(id);if(S.credits<p)return;S.credits-=p;S.items[id]++;save();render();}
+function sell(i){const inst=S.bag[i];if(inst.rar>=4)return;S.credits+=CH.RAR[inst.rar].sell;S.bag.splice(i,1);save();render();}
+function scrShop(el){
+  const desc={gel:'味方1人のHPを70回復',coolant:'熱-50。高熱の相手は脆化',emp:'敵全体の防壁とポート耐久を下げ、ドローンを止める'};
+  el.innerHTML=`<h2>万屋ジロー</h2><div class="panel"><h3>道具を買う</h3><div class="opts">${Object.keys(WD.PRICE).map(id=>btn(`${CH.ITEM[id]} ${price(id)}cr`,`${desc[id]} / 所持${S.items[id]}${S.flags.jiroFav?' / 二割引き':''}`,`buy('${id}')`,'',S.credits<price(id))).join('')}</div></div>
+    <div class="panel"><h3>手持ちのメモリを売る</h3><div class="list">${S.bag.length?S.bag.map((i,k)=>instCard(i,sbtn(i.rar>=4?'値が付かない':`売る ${CH.RAR[i.rar].sell}cr`,`sell(${k})`,i.rar>=4))).join(''):'<p style="margin:0;color:var(--dim)">売れるメモリを持っていない。</p>'}</div></div>
+    <div class="foot">${sbtn('← コンテナ埠頭へ',"W={scr:'district'};render()")}</div>`;
+}
+/* ---- セーブデータ ---- */
+function expCode(){return S?btoa(unescape(encodeURIComponent(JSON.stringify(S)))):'';}
+function copyCode(){const t=$('exp');t.select();try{navigator.clipboard.writeText(t.value).then(()=>{$('datamsg').textContent='コピーした。';},()=>{$('datamsg').textContent='コピーできなかった。枠の中を選択して手動でコピーしてほしい。';});}catch(e){$('datamsg').textContent='コピーできなかった。枠の中を選択して手動でコピーしてほしい。';}}
+function impCode(){try{const t=JSON.parse(decodeURIComponent(escape(atob($('imp').value.trim()))));if(!t||!t.roster)throw 0;S=WD.migrate(t);bind();save();W={scr:'map'};render();}catch(e){$('datamsg').textContent='読み込めなかった。コードが途中で切れていないか確かめてほしい。';}}
+function scrData(el){
+  el.innerHTML=`<h2>セーブデータ</h2><p class="lead">進行は地区の画面に戻るたび、このブラウザに自動で保存される。別の端末に移すときや、念のための控えには、下のコードを使う。</p>
+    ${S?`<div class="panel"><h3>書き出し</h3><textarea id="exp" readonly>${expCode()}</textarea><div class="foot">${sbtn('コピー','copyCode()')}</div></div>`:''}
+    <div class="panel"><h3>読み込み</h3><textarea id="imp" placeholder="書き出したコードを貼り付ける"></textarea><div class="foot">${sbtn('このコードで始める','impCode()')}</div></div>
+    <p id="datamsg" style="margin:0;color:var(--gold)"></p><div class="foot">${sbtn('← 戻る',`W={scr:'${S?'map':'title'}'};render()`)}</div>`;
+}
+function render(){
+  const bt=W.scr==='battle';
+  if(W.scr==='taa'){try{BGM.stop();}catch(e){}$('battle').hidden=true;$('world').hidden=true;$('menubtn').hidden=true;if(!$('taaov'))openTaa();return;}
+  try{BGM.play(bgmTrack());}catch(e){}
+  $('battle').hidden=!bt;$('world').hidden=bt;
+  $('menubtn').hidden=!(S&&['map','district','region'].includes(W.scr));
+  document.body.classList.toggle('titlemode',W.scr==='title'||W.scr==='ending');
+  if(bt){$('btip').innerHTML=tipHTML();renderBattle();return;}
+  $('bname').textContent=W.scr==='title'||!S?'':W.scr==='map'?'都市マップ':W.scr==='region'?WD.REGIONS.find(r=>r.id===W.rg).n:LOCS[S.loc].name;
+  $('res').innerHTML=S&&W.scr!=='title'?`<span>手配度</span><b class="w">${S.wanted}</b><span>所持金</span><b>${S.credits}</b><span>cr</span>`:'';
+  ({opt:scrOpt,ending:scrEnding,region:scrRegion,title:scrTitle,map:scrMap,district:scrDistrict,event:scrEvent,van:scrVan,shop:scrShop,loot:scrLoot,data:scrData,menu:scrMenu}[W.scr])($('world'));
+  $('world').insertAdjacentHTML('afterbegin',tipHTML());
+}
+function boot(){W={scr:'title'};render();}
+
+const tipEl=$('tip');
+function placeTip(x,y){const w=tipEl.offsetWidth,h=tipEl.offsetHeight;tipEl.style.left=Math.max(8,Math.min(x+14,innerWidth-w-8))+'px';tipEl.style.top=(y+18+h>innerHeight?Math.max(8,y-h-12):y+18)+'px';}
+document.addEventListener('mouseover',e=>{const t=e.target.closest&&e.target.closest('[data-tip]');if(t){tipEl.textContent=t.dataset.tip;tipEl.hidden=false;placeTip(e.clientX,e.clientY);}else tipEl.hidden=true;});
+document.addEventListener('mousemove',e=>{if(!tipEl.hidden)placeTip(e.clientX,e.clientY);});
+document.addEventListener('mouseleave',()=>{tipEl.hidden=true;});
+/* ---- 雨 ---- */
+(function(){const cv=$('rain');if(!cv||!cv.getContext)return;const cx=cv.getContext('2d');let W2=0,H2=0,drops=[];
+  const rs=()=>{W2=cv.width=innerWidth;H2=cv.height=innerHeight;drops=Array.from({length:Math.round(W2/9)},()=>({x:Math.random()*W2,y:Math.random()*H2,l:10+Math.random()*22,v:9+Math.random()*10,a:.08+Math.random()*.22}));};
+  rs();addEventListener('resize',rs);
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const f=()=>{cx.clearRect(0,0,W2,H2);cx.lineWidth=1;drops.forEach(d=>{cx.strokeStyle=`rgba(150,200,255,${d.a})`;cx.beginPath();cx.moveTo(d.x,d.y);cx.lineTo(d.x-d.l*.18,d.y+d.l);cx.stroke();d.y+=d.v;d.x-=d.v*.18;if(d.y>H2){d.y=-d.l;d.x=Math.random()*W2*1.1;}});requestAnimationFrame(f);};f();})();
+boot();
+</script>
+</body>
+</html>
