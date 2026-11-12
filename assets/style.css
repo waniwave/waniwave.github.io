@@ -299,3 +299,8 @@ footer {
 .support span { color: var(--mute); }
 .support a { border-bottom: 1px solid var(--line); }
 .support a:hover { border-color: var(--red); }
+
+/* ---- games: extra links (guides etc.) ---- */
+.game-extra { font-size: .9375rem; }
+.game-extra a { border-bottom: 1px solid var(--red); }
+.game-extra a:hover { color: var(--red); }
