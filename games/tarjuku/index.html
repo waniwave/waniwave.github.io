@@ -1,4 +1,5 @@
-<!doctype html><html lang="ja"><head><meta charset=utf8><meta property="og:type" content="website"><meta property="og:title" content="ター宿"><meta property="og:description" content="タームたちが泊まる宿を歩き、札を集め、組み合わせで強さを議論する。探索とカードバトルのゲーム。"><meta property="og:url" content="https://waniwave.com/games/tarjuku/"><meta property="og:image" content="https://waniwave.com/games/tarjuku/thumb.jpg"><meta name="twitter:card" content="summary_large_image"><link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
 <title>ター宿</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -446,6 +447,33 @@ input[type=text]{font:inherit;background:var(--yoru);color:var(--washi);border:1
 .netsteps li.err{color:#ff8a7a}.netsteps li.err::after{content:" ✗"}
 #netMsg.err{color:#ff8a7a}
 @keyframes netblink{50%{opacity:.2}}
+.ordb{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin-top:4px;padding:5px 10px;border-radius:4px;border:1px solid var(--line);background:rgba(0,0,0,.25);font-family:var(--f-dot)}
+.ordb>span:first-child{color:var(--mute);font-size:12px}
+.ordb b{font-size:16px}.ordb.me b:not(.sec){color:#7fe0c0}.ordb.op b:not(.sec){color:#ff8a7a}.ordb b.sec{color:var(--mute);font-weight:400}
+.ordb small{flex-basis:100%;color:var(--mute);font-size:11.5px}
+.bo3{display:flex;gap:6px 10px;align-items:baseline;flex-wrap:wrap;font-family:var(--f-dot);margin:6px 0}
+.bo3 .ps{color:#7fe0c0}.bo3 .es{color:#ff8a7a}
+.sbcols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sbcols h3{font-size:13px;margin:4px 0}
+.sblist{max-height:42vh;overflow-y:auto;display:grid;gap:3px;padding-right:2px}
+.sbrow{display:grid;grid-template-columns:24px minmax(0,1fr) 26px auto;gap:6px;align-items:center;text-align:left;padding:4px 6px;border:1px solid var(--line);border-radius:3px;background:var(--ai2);color:var(--washi);cursor:pointer;font-size:12.5px}
+.sbrow .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbrow.new{border-color:var(--andon)}
+.sbrow:disabled{opacity:.4;cursor:default}
+.linkb{border:0;background:none;color:var(--andon);text-decoration:underline;cursor:pointer;padding:0;font:inherit}
+@media (max-width:560px){.sbcols{grid-template-columns:1fr}.sblist{max-height:30vh}}
+.sbres{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;margin-bottom:4px}
+.sbres .res{font-family:var(--f-disp);font-size:22px}
+.sbh{margin:12px 0 4px}
+.dlist.sbl{max-height:none}
+.bosel{border:1px solid var(--line);border-radius:4px;padding:6px 10px;display:flex;flex-wrap:wrap;gap:4px 16px;margin:6px 0}
+.bosel label{display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer}
+.shake{animation:sbshake .3s}
+@keyframes sbshake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.sblanes{display:flex;flex-wrap:wrap;gap:4px 8px;margin:4px 0 2px;font-family:var(--f-dot);font-size:12.5px}
+.sblanes span{border:1px solid var(--line);border-radius:3px;padding:2px 8px}
+.sblanes .p{border-color:#7fe0c0}.sblanes .e{border-color:#ff8a7a}
+.sbrow.dim{opacity:.55}
 </style>
 
 <div id="title">
@@ -1325,7 +1353,7 @@ function foes(st,c,i){return st.lanes[i][opp(c.side)].filter(x=>!hidden_(st,x))}
 function foesAll(st,c){return mine(st,opp(c.side)).filter(x=>!hidden_(st,x))}
 function protectedFrom(x){return !!(D(x).indestructible||x.boxed)}
 function nulled(st,c){if(c.mem&&c.mem.sealed)return true;if(c.lane<0)return false;if(roomOf(st,c.lane).mute)return true;if(D(c).nullifier)return false;return st.lanes[c.lane][opp(c.side)].some(x=>D(x).nullifier)}
-function buff(st,c,n,src){if(n<0&&src!==c.side&&(D(c).stoic||(c.lane>=0&&st.lanes[c.lane][c.side].some(x=>x.id==='nishijima'&&x!==c&&!nulled(st,x)))))return;c.buff+=n}
+function buff(st,c,n,src){if(n<0&&src!==c.side&&D(c).reflect&&c.lane>=0&&!nulled(st,c)){const a=st.actor;if(a&&a!==c&&a.side!==c.side&&a.lane>=0){a.buff+=n;return}}if(n<0&&src!==c.side&&(D(c).stoic||(c.lane>=0&&st.lanes[c.lane][c.side].some(x=>x.id==='nishijima'&&x!==c&&!nulled(st,x)))))return;if(n<0&&src!==c.side&&guardFrom(st,c,'down'))return;c.buff+=n}
 function oppenSet(st,s){const m=mine(st,s);return['golden','silver','bronze'].every(id=>m.some(x=>x.id===id))}
 function teishokuCheck(st,s,L){const m=mine(st,s);if(['teishoku','kobachi','miso','tsuke'].every(id=>m.some(x=>x.id===id)))L('★ 定食が完成した！ 定食の強さ5倍。')}
 function arrive(st,c,L){c.mem.arrived=1;buff(st,c,15,c.side);L('★ 金武町タームくんが到着したタム！ +15。')}
@@ -1386,6 +1414,10 @@ function destroy(st,c,L){
   if(protectedFrom(c)){L(`「${nm(c)}」は箱に入っているので壊れない。`);return false}
   if(roomOf(st,c.lane).protect){L(`「${nm(c)}」は${roomOf(st,c.lane).name}に守られていて壊れない。`);return false}
   if(c.mem.shield){c.mem.shield=0;L(`「${nm(c)}」は守りで攻撃を防いだ！`);return false}
+  {const a=st.actor;if(a&&a.side!==c.side){const g=guardFrom(st,c,'kill');if(g){L(g===D(c).name?`★ 「${nm(c)}」は守りが固くて壊れない！`:`★ 「${nm(c)}」は「${g}」に守られて壊れない！`);return false}}}
+  {const a=st.actor;if(a&&a!==c&&a.side!==c.side&&a.lane>=0){
+    if(c.mem.kaeshi||(d.reflect&&!nulled(st,c))){if(c.mem.kaeshi)c.mem.kaeshi=0;L(`★ 「${nm(c)}」が跳ね返した！ 「${nm(a)}」に返っていく。`);destroy(st,a,L);return false}
+    if(c.id!=='m_migawari'){const bg=st.lanes[c.lane][c.side].find(x=>x.id==='m_migawari'&&!x.mem.used&&!nulled(st,x));if(bg){bg.mem.used=1;L(`★ 身代わりの浴衣が「${nm(c)}」をかばった！`);return destroy(st,bg,L)}}}}
   const lane=c.lane;c.mem.lastLane=lane;removeFrom(st,c);st.grave[c.side].push(c);st.dead[c.side]++;L(`「${nm(c)}」が退場した。`);
   if(d.onDestroy){const twice=mine(st,c.side).some(x=>x.id==='daihon'&&!nulled(st,x));d.onDestroy(st,c,L,lane);if(twice){L('★ 台本どおり、もう一度。');d.onDestroy(st,c,L,lane)}}
   watchers(st,'onAnyDestroy').forEach(w=>D(w).onAnyDestroy(st,w,c,L));
@@ -1397,8 +1429,8 @@ function reveal(st,c,i,L){
   if(lane.soil[c.side]>0){buff(st,c,lane.soil[c.side],c.side);L(`土台の上に置かれた。「${nm(c)}」+${lane.soil[c.side]}。`);lane.soil[c.side]=0}
   const d=D(c);
   const rm=roomOf(st,i);
-  if(d.onReveal){if(nulled(st,c))L(rm.mute?'……冷蔵庫の中で、能力が冷えて動かない。':'……角に阻まれ、能力が発動しない。');
-    else{D(c).onReveal(st,c,L);if(rm.double&&c.lane>=0&&D(c).onReveal){L('宿直室：もう一度！');D(c).onReveal(st,c,L)}}}
+  if(d.onReveal){const blk=revealBlock(st,c,i);if(blk)L(blk);else if(nulled(st,c))L(rm.mute?'……冷蔵庫の中で、能力が冷えて動かない。':'……角に阻まれ、能力が発動しない。');
+    else{const pa=st.actor;st.actor=c;try{D(c).onReveal(st,c,L);if(rm.double&&c.lane>=0&&D(c).onReveal){L('宿直室：もう一度！');D(c).onReveal(st,c,L)}}finally{st.actor=pa}}}
   if(c.lane<0)return;
   if(rm.draw)drawN(st,c.side,1,L);
   if(rm.copy&&addHand(st,c.side,c.id))L(`玄関で「${nm(c)}」がもう1枚、手札に増えた。`);
@@ -1419,17 +1451,17 @@ function newBattle(o){
   for(let k=0;k<ph;k++)draw(st,'p');for(let k=0;k<3;k++)draw(st,'e');
   return st;
 }
-function startTurn(st,L){st.turn++;['p','e'].forEach(s=>{st.taxNow[s]=st.taxNext[s];st.taxNext[s]=0});['p','e'].forEach(s=>{const n=st.okawari[s]||0;st.okawari[s]=0;if(n){const k=drawN(st,s,n);if(k&&L&&s==='p')L(`おかわり：余った茶で札を${k}枚多く引いた。`)}});['p','e'].forEach(s=>{st.tea[s]=st.turn+st.teaNext[s];st.teaNext[s]=0;st.discNow[s]=st.discAll[s];st.discAll[s]=0});st.tea.p+=(st.turn===1?st.bonusTea:0);draw(st,'p');draw(st,'e');L(`―― ${st.turn}ターン目 ――`);openRooms(st,L);if(st.lanes.some((l,i)=>roomOf(st,i).chaya)){st.tea.p++;st.tea.e++;L('茶屋：両陣営とも茶+1。')}}
+function startTurn(st,L){st.turn++;st.coin=Math.random()<.5?'p':'e';['p','e'].forEach(s=>{st.taxNow[s]=st.taxNext[s];st.taxNext[s]=0});['p','e'].forEach(s=>{const n=st.okawari[s]||0;st.okawari[s]=0;if(n){const k=drawN(st,s,n);if(k&&L&&s==='p')L(`おかわり：余った茶で札を${k}枚多く引いた。`)}});['p','e'].forEach(s=>{st.tea[s]=st.turn+st.teaNext[s];st.teaNext[s]=0;st.discNow[s]=st.discAll[s];st.discAll[s]=0});st.tea.p+=(st.turn===1?st.bonusTea:0);draw(st,'p');draw(st,'e');L(`―― ${st.turn}ターン目 ――`);openRooms(st,L);if(st.lanes.some((l,i)=>roomOf(st,i).chaya)){st.tea.p++;st.tea.e++;L('茶屋：両陣営とも茶+1。')}}
 function endTurnQueue(st){
   const q=[];
-  for(const c of board(st).slice()){if(D(c).endTurn)q.push({src:c,run:L=>{if(c.lane<0||nulled(st,c)||!D(c).endTurn)return;D(c).endTurn(st,c,L)}})}
+  for(const c of board(st).slice()){if(D(c).endTurn)q.push({src:c,run:L=>{if(c.lane<0||nulled(st,c)||!D(c).endTurn)return;const pa=st.actor;st.actor=c;try{D(c).endTurn(st,c,L)}finally{st.actor=pa}}})}
   st.lanes.forEach((l,i)=>{if(roomOf(st,i).endTurn)q.push({room:i,run:L=>{const r=roomOf(st,i);if(r.endTurn)r.endTurn(st,i,L)}})});
   if(st.turn===3&&st.lanes.some(l=>l.room==='koutei'))q.push({run:L=>{st.lanes.forEach((l,i)=>{if(l.room==='koutei')changeRoom(st,i,L)})}});
   return q;
 }
 function endOfTurn(st,L){endTurnQueue(st).forEach(x=>x.run(L))}
 function laneWins(st,s){let n=0;for(let i=0;i<3;i++)if(laneWinner(st,i)===s)n++;return n}
-function leader(st){const p=laneWins(st,'p'),e=laneWins(st,'e');if(p!==e)return p>e?'p':'e';return Math.random()<.5?'p':'e'}
+function leader(st){const p=laneWins(st,'p'),e=laneWins(st,'e');if(p!==e)return p>e?'p':'e';if(st.coin!=='p'&&st.coin!=='e')st.coin=Math.random()<.5?'p':'e';return st.coin}
 function score(st){const lanes=[];let pw=0,ew=0,pt=0,et=0;st.lanes.forEach((l,i)=>{const p=laneSum(st,i,'p'),e=laneSum(st,i,'e');pt+=p;et+=e;const w=laneWinner(st,i);if(w==='p')pw++;if(w==='e')ew++;lanes.push({p,e,w})});let outcome=pw>ew?'win':ew>pw?'lose':(pt>et?'win':et>pt?'lose':'draw');st.lanes.forEach((l,i)=>{if(roomOf(st,i).decisive&&lanes[i].w!=='-')outcome=lanes[i].w==='p'?'win':'lose'});const o0=outcome;const dcx=s=>mine(st,s).some(x=>x.id==='setsudan'&&!nulled(st,x));if(outcome==='lose'&&dcx('p'))outcome='draw';if(outcome==='win'&&dcx('e'))outcome='draw';return{lanes,pw,ew,pt,et,outcome,dc:outcome!==o0}}
 function costFor(st,s,c,n){return Math.max(0,D(c).cost+(c.costMod||0)+(st.taxNow?st.taxNow[s]:0)-(n===0?st.discount[s]:0)-st.discNow[s])}
 function evalSt(st,s){let v=0;for(let i=0;i<3;i++){const R=roomOf(st,i);if(R.dead)continue;let d=laneSum(st,i,s)-laneSum(st,i,opp(s));if(R.reverse)d=-d;if(R.decisive)d*=3;v+=Math.max(-15,Math.min(15,d))+(d>0?7:d<0?-7:0)}return v+st.hand[s].length*0.8}
@@ -1989,6 +2021,62 @@ FAMILIES.push(
  ['x_onsenzaru','kapibara','yuyu','miso']
 );
 for(const k in TAGC)delete TAGC[k];
+// ===== v13: メタカード（除去・デバフ対策） =====
+CARDS.push(
+{id:'m_kagami',name:'合わせ鏡',g:'鏡',tier:'2',cost:2,pow:4,tags:['inn'],reflect:1,fx:'🪞↩️💥',text:'〈宿〉【常時】相手の効果で破壊されたり強さを下げられたりするとき、かわりにその効果を出した相手の札が受ける（跳ね返す）。',flavor:'洗面所の鏡と、廊下の鏡が向かい合っている。'},
+{id:'m_kaeshi',name:'返し技',g:'返',tier:'2',cost:3,pow:4,tags:['fgc'],fx:'🥋↩️💥',text:'〈格ゲー〉【登場】この部屋の自分の札すべてに「返し」をつける：次に相手の効果で破壊されるとき、かわりにその効果を出した札を破壊する（1回）。',flavor:'昇龍を読んでいた。',
+ onReveal:(st,c,L)=>{const t=same(st,c);t.forEach(x=>x.mem.kaeshi=1);L(`この部屋の自分の札${t.length}枚に「返し」がついた。`)}},
+{id:'m_kekkai',name:'立入禁止テープ',g:'禁',tier:'2',cost:3,pow:6,tags:['inn'],noReveal:1,fx:'🚧🚫✋',text:'〈宿〉【常時】この部屋では、登場能力が発揮されない（両陣営）。',flavor:'清掃中。'},
+{id:'m_kisei',name:'書き込み規制',g:'規',tier:'2',cost:4,pow:6,tags:['thread'],fx:'📜🔒⏳',text:'〈スレ〉【常時】最終ターンには、相手の登場能力が発揮されない（どの部屋でも）。',flavor:'「規制されてて書き込めない」「携帯から」'},
+{id:'m_migawari',name:'身代わりの浴衣',g:'衣',tier:'3',cost:1,pow:3,tags:['inn'],fx:'👘🛡️',text:'〈宿〉【常時】この部屋の自分の札が相手の効果で破壊されるとき、かわりにこの札が退場する（1回）。',flavor:'中身は、もういない。'},
+{id:'m_kakolog',name:'過去ログ保存',g:'録',tier:'3',cost:2,pow:3,tags:['thread'],fx:'💾↩️🃏',text:'〈スレ〉【常時】この部屋の自分の札が破壊されると、同じ札が手札に戻ってくる（1ターンに1回）。',flavor:'dat落ちしても、まとめに残る。',
+ onAnyDestroy:(st,w,c,L)=>{if(c===w||c.side!==w.side||c.mem.lastLane!==w.lane||w.mem.logT===st.turn||nulled(st,w))return;w.mem.logT=st.turn;if(addHand(st,w.side,c.id))L(`★ 過去ログから「${nm(c)}」が復活した（手札へ）。`)}},
+{id:'m_ukemi',name:'受け身',g:'受',tier:'3',cost:2,pow:4,tags:['fgc'],stoic:1,fx:'🤸🛡️⬆️',text:'〈格ゲー〉相手の効果で強さが下がらない。【常時】最終ターン、この部屋の他の自分の札1枚につき+2。',flavor:'起き攻めは、受け身から始まる。',
+ cont:(st,c)=>st.turn>=st.maxTurn?same(st,c).filter(x=>x!==c).length*2:0}
+);
+CARDS.forEach(c=>{CMAP[c.id]=c});
+COLLECTIBLE.length=0;CARDS.filter(c=>!c.token).forEach(c=>COLLECTIBLE.push(c));
+// 除去耐性カードの上方修正
+[['johnbox',5],['nishijima',6],['kame',6],['matsu',6],['nuke',5],['g_shield',5]].forEach(([id,p])=>{if(CMAP[id]&&CMAP[id].pow<p)CMAP[id].pow=p});
+FAMILIES.push(['m_kagami','m_migawari','m_kekkai','johnbox','nishijima'],['m_kaeshi','m_ukemi','nuke','matsu'],['m_kisei','m_kakolog','anchor','nanashi']);
+function revealBlock(st,c,i){
+  const l=st.lanes[i];if([...l.p,...l.e].some(x=>x!==c&&D(x).noReveal&&!nulled(st,x)))return '……立入禁止テープの部屋なので、登場能力は発揮されない。';
+  {const b=l[opp(c.side)].find(x=>D(x).oppNoReveal&&!nulled(st,x));if(b)return `★ 「${D(b).name}」があるので、この部屋では「${nm(c)}」の登場能力は発揮されない！`}
+  if(st.turn>=st.maxTurn&&mine(st,opp(c.side)).some(x=>x.id==='m_kisei'&&!nulled(st,x)))return '……書き込み規制中。最終ターンの登場能力は発揮されない。';
+  return null}
+
+// ===== v13: 除去・デバフへのメタ札 =====
+// 相手の効果からの防御（強さ低下・破壊）をまとめて判定
+function guardFrom(st,c,kind){
+  if(c.lane<0)return null;
+  const own=st.lanes[c.lane][c.side];
+  for(const x of own){const d=D(x);if(nulled(st,x))continue;
+    if(d.laneGuard)return d.name;
+    if(d.laneGuardTag&&has(c,d.laneGuardTag)&&(kind==='down'||d.laneGuardKill))return d.name}
+  if(kind==='down'&&st.turn>=st.maxTurn){const f=mine(st,c.side).find(x=>D(x).finalGuard&&!nulled(st,x));if(f)return D(f).name}
+  return null}
+const shieldLane=(st,c,L,label)=>{const t=same(st,c);t.forEach(x=>x.mem.shield=1);if(t.length)L(`${label}：この部屋の自分の札${t.length}枚に「守り」がついた。`)};
+CARDS.push(
+{id:'f_juubako',name:'重箱',g:'重',tier:'3',cost:2,pow:4,tags:['food'],fx:'🍱🛡️全',text:'〈食べ物〉【登場】この部屋の自分の札すべてに「守り」をつける。【常時】この部屋の自分の〈食べ物〉は、相手の効果で強さが下がらない。',flavor:'三段重ねは、崩れない。',
+ laneGuardTag:'food',onReveal:(st,c,L)=>shieldLane(st,c,L,'重箱のふたを閉めた')},
+{id:'f_kashiori',name:'お返しの菓子折り',g:'菓',tier:'3',cost:3,pow:6,tags:['food'],reflect:1,fx:'🎁↩️',text:'〈食べ物〉【常時】相手の効果で破壊されたり強さを下げられたりするとき、かわりにその効果を出した相手の札が受ける（跳ね返す）。',flavor:'「つまらないものですが」と、そっくりそのまま返す。'},
+{id:'f_kashikiri',name:'本日貸切',g:'貸',tier:'3',cost:2,pow:4,tags:['food','inn'],oppNoReveal:1,fx:'🚫🪧',text:'〈食べ物〉〈宿〉【常時】この部屋では、相手の札の【登場】能力が発揮されない（自分の札は使える）。',flavor:'のれんの前に、札が一枚。'},
+{id:'a_yamaarashi',name:'ヤマアラシター',g:'針',tier:'3',cost:2,pow:5,tags:['animal'],reflect:1,fx:'🦔↩️',text:'〈動物〉【常時】相手の効果で破壊されたり強さを下げられたりするとき、かわりにその効果を出した相手の札が受ける（跳ね返す）。',flavor:'さわったほうが痛い。'},
+{id:'a_boss',name:'群れのボス',g:'長',tier:'2',cost:4,pow:7,tags:['animal'],laneGuard:1,fx:'🐺🛡️全',text:'〈動物〉【常時】この部屋の自分の札は、相手の効果で破壊されず、強さも下がらない。',flavor:'ボスがいるあいだ、群れには手が出せない。'},
+{id:'a_sunaba',name:'砂浴び',g:'砂',tier:'4',cost:1,pow:3,tags:['animal'],fx:'🐦🛡️全',text:'〈動物〉【登場】この部屋の自分の札すべてに「守り」をつける。',flavor:'ダニも除去も、はらい落とす。',onReveal:(st,c,L)=>shieldLane(st,c,L,'砂浴びをした')},
+{id:'k_bousai',name:'防災ずきん',g:'防',tier:'4',cost:1,pow:2,tags:['inn'],fx:'⛑️🛡️全',text:'〈宿〉【登場】この部屋の自分の札すべてに「守り」をつける（次に受ける破壊・盗み・戻しを1回だけ防ぐ）。',flavor:'避難訓練は、毎月第2水曜日。',onReveal:(st,c,L)=>shieldLane(st,c,L,'防災ずきんをかぶった')},
+{id:'k_kekkai2',name:'宿の結界',g:'結',tier:'2',cost:4,pow:6,tags:[],wild:1,finalGuard:1,fx:'⛩️🛡️',text:'〈ワイルド〉【常時】最終ターンには、自分の場の札すべてが相手の効果で強さを下げられない（全部屋）。',flavor:'チェックアウトの直前に、いちばん強く張られる。'},
+{id:'t_sakujo',name:'削除依頼',g:'削',tier:'3',cost:2,pow:3,tags:['thread'],oppNoReveal:1,fx:'📜🚫',text:'〈スレ〉【常時】この部屋では、相手の札の【登場】能力が発揮されない（自分の札は使える）。',flavor:'「該当レスの削除をお願いします」'},
+{id:'fg_guard',name:'しゃがみガード',g:'屈',tier:'3',cost:3,pow:5,tags:['fgc'],laneGuard:1,fx:'🛡️⬇️全',text:'〈格ゲー〉【常時】この部屋の自分の札は、相手の効果で破壊されず、強さも下がらない。',flavor:'下段も中段も、全部ガードすればいい。'}
+);
+CARDS.forEach(c=>{CMAP[c.id]=c});
+COLLECTIBLE.length=0;CARDS.filter(c=>!c.token).forEach(c=>COLLECTIBLE.push(c));
+// 既存の耐性札を、コストに見合う強さへ
+[['kesu6',2],['kame',1],['m_kagami',2],['m_kaeshi',2],['m_migawari',1],['m_kakolog',2],['m_ukemi',2],['johnbox',1],['matsu',1]].forEach(([id,n])=>{if(CMAP[id])CMAP[id].pow+=n});
+if(CMAP.m_kisei)CMAP.m_kisei.cost=3;if(CMAP.m_kekkai)CMAP.m_kekkai.cost=2;
+['m_kagami','m_kaeshi','m_kekkai','m_kisei'].forEach(id=>{if(CMAP[id])CMAP[id].tier='3'});
+FAMILIES.push(['f_juubako','f_kashiori','f_kashikiri','teishoku','onigiri'],['a_yamaarashi','a_boss','a_sunaba','kame','harinezumi'],['k_bousai','k_kekkai2','m_migawari','m_kagami','johnbox'],['t_sakujo','m_kisei','m_kakolog','nanashi'],['fg_guard','m_kaeshi','m_ukemi','nuke','matsu']);
+for(const k in TAGC)delete TAGC[k];
 
 </script>
 <script>
@@ -2078,7 +2166,10 @@ function artHTML(id){const d=CMAP[id];const a=artOf(id);
   return `<div class="art pic sc-${a.sc} pt${a.pt}"><span class="e1" style="transform:rotate(${a.rot}deg)${a.flip?' scaleX(-1)':''}">${a.e1}</span>${a.e2?`<span class="e2">${a.e2}</span>`:''}<span class="kj">${esc(d.g)}</span></div>`}
 // ----- デッキスロット -----
 function fixDeck(arr){const out=[];(arr||[]).forEach(id=>{if(CMAP[id]&&out.length<10&&out.filter(x=>x===id).length<Math.min(2,own(id)))out.push(id)});return out}
-function ensureSlots(){if(!Array.isArray(G.decks)||G.decks.length!==3){G.decks=[G.deck.slice(),[],[]];G.slot=0}if(G.slot==null)G.slot=0;if(!G.deckNames)G.deckNames=['デッキ1','デッキ2','デッキ3'];if(!G.fav)G.fav={}}
+function curSide(){ensureSlots();return G.sides[G.slot]}
+function sideCount(id){return curSide().filter(x=>x===id).length}
+function fixSide(arr,main){const out=[];(arr||[]).forEach(id=>{if(CMAP[id]&&!CMAP[id].token&&out.length<4&&main.filter(x=>x===id).length+out.filter(x=>x===id).length<Math.min(2,own(id)))out.push(id)});return out}
+function ensureSlots(){if(G&&(!Array.isArray(G.sides)||G.sides.length!==3))G.sides=[[],[],[]];if(!Array.isArray(G.decks)||G.decks.length!==3){G.decks=[G.deck.slice(),[],[]];G.slot=0}if(G.slot==null)G.slot=0;if(!G.deckNames)G.deckNames=['デッキ1','デッキ2','デッキ3'];if(!G.fav)G.fav={}}
 function slotDeck(i){return i===G.slot?G.deck:fixDeck(G.decks[i])}
 function deckTheme(deck){const cnt={};deck.forEach(id=>tagsOf(id).forEach(t=>{if(t!=='ter')cnt[t]=(cnt[t]||0)+1}));const t=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0];return t&&cnt[t]>=3?TAGN[t]:''}
 function slotLabel(i){const d=slotDeck(i);const th=deckTheme(d);return `${G.deckNames[i]}（${d.length}枚${th?'・〈'+th+'〉中心':''}）`}
@@ -2129,7 +2220,8 @@ function bcTransport(code,onConn){const me=Math.random().toString(36).slice(2);c
   ch.onmessage=e=>{const d=e.data;if(!d||d.from===me)return;if(d.bye){(hs.close||[]).forEach(f=>f());return}if(d.s!=null)(hs.data||[]).forEach(f=>f(d.s))};
   setTimeout(()=>{onConn(conn);(hs.open||[]).forEach(f=>f())},50);return{destroy(){try{ch.close()}catch(e){}}}}
 const useBC=()=>/(^|#|&)bc($|&)/.test(location.hash)||window.__NETBC;
-function myHello(){return{t:'hello',v:1,name:(G.netName||'旅のター客').slice(0,16),deck:G.deck.slice(),lv:lvMap()}}
+const NET_V=3;
+function myHello(){return{t:'hello',v:NET_V,bo:NET.bo,name:(G.netName||'旅のター客').slice(0,16),deck:G.deck.slice(),lv:lvMap()}}
 function onlineMenu(){
   ensureSlots();
   const ok=validSlots();
@@ -2138,12 +2230,13 @@ function onlineMenu(){
    <p class="small">友達とインターネットごしに対戦します。片方が「部屋をつくる」で部屋番号を出し、もう片方がその番号で「部屋に入る」。</p>
    <div class="row"><label class="small" for="netName">名前</label><input type="text" id="netName" maxlength="16" value="${esc(G.netName||'旅のター客')}"></div>
    <p class="small">使うデッキ：${esc(slotLabel(G.slot))}</p>
+   <fieldset class="bosel"><legend class="small">部屋をつくるときの形式</legend><label><input type="radio" name="bo" value="3" ${G.netBo!==1?'checked':''}> 2本先取（BO3・サイドボードあり）</label><label><input type="radio" name="bo" value="1" ${G.netBo===1?'checked':''}> 1本勝負（BO1）</label></fieldset>
    <div class="row"><button class="btn primary" id="netHost" type="button">部屋をつくる</button></div>
    <div class="row"><input type="text" id="netCode" maxlength="8" placeholder="部屋番号（5文字）" aria-label="部屋番号" style="text-transform:uppercase"><button class="btn primary" id="netJoin" type="button">部屋に入る</button></div>
    <div class="small" id="netMsg" role="status" style="min-height:2.6em"></div>
    <div class="row"><button class="btn" data-close type="button">閉じる</button></div>`,el=>{
     const nm_=()=>{const v=el.querySelector('#netName').value.trim();G.netName=v||'旅のター客';save()};
-    el.querySelector('#netHost').onclick=()=>{nm_();modalClose=null;netHost()};
+    el.querySelector('#netHost').onclick=()=>{nm_();const bo=+(el.querySelector('input[name=bo]:checked')||{}).value===1?1:3;G.netBo=bo;save();NET.bo=bo;modalClose=null;netHost()};
     el.querySelector('#netJoin').onclick=()=>{nm_();const c=el.querySelector('#netCode').value.trim().toUpperCase();if(!/^[A-Z0-9]{5}$/.test(c)){netStatus('部屋番号は5文字です。',1);return}modalClose=null;netJoin(c,0)};
    }));
 }
@@ -2152,12 +2245,12 @@ function peerOpts(){return window.__PEEROPTS||{debug:1,config:{iceServers:[{urls
 function hookConn(c,onOpen){let opened=false;
   c.on('data',raw=>{let m;try{m=typeof raw==='string'?JSON.parse(raw):raw}catch(e){return}onNet(m)});
   c.on('open',()=>{opened=true;NET.conn=c;NET.live=true;netStep(2,'done');netStep(3,'done');if(onOpen)onOpen()});
-  c.on('close',()=>{if(NET.conn!==c)return;const was=NET.live;NET.live=false;NET.conn=null;if(was&&UI.b&&UI.b.o.online&&!UI.b.done){blog('通信が切れた。');finishBattle({outcome:'draw',fromNet:1,dc:1})}else if(was&&!NET.started)netStatus('相手との接続が切れました。')});
+  c.on('close',()=>{if(NET.conn!==c)return;const was=NET.live;NET.live=false;NET.conn=null;if(was&&UI.b&&UI.b.o.online&&!UI.b.done){blog('通信が切れた。');finishBattle({outcome:'draw',fromNet:1,dc:1})}else if(was&&NET.match&&!UI.b){NET.match=null;netClose();modal('<h2>通信が切れました</h2><p>相手との接続が切れたため、マッチは終わりです。</p><div class="row"><button class="btn primary" data-close type="button">宿に戻る</button></div>')}else if(was&&!NET.started)netStatus('相手との接続が切れました。')});
   c.on('iceStateChanged',s=>{if(opened)return;if(s==='checking'){NET.found=true;netStep(2,'done');netStep(3,'now')}if(s==='failed')netFail('ice')});
   c.on('error',e=>console.error(e))}
 function netStatus(t,err){const el=$('#netMsg');if(el){el.textContent=t;el.classList.toggle('err',!!err)}}
 function netStep(n,s){const el=$('#ns'+n);if(el)el.className=s}
-const NET_ERR={ice:'相手は見つかりましたが、回線どうしを直接つなげませんでした。P2Pは回線の組み合わせによって通らないことがあります。どちらかがWi-Fiとスマホ回線を切り替えると、つながることがあります。',noroom:'その番号の部屋が見つかりません。番号が合っているか、相手の画面が「部屋をつくりました」のまま開いているか確かめてください。',server:'仲介サーバーにつながりませんでした。少し時間をおいて、もう一度試してください。',timeout:'時間内につながりませんでした。',lib:'通信の部品を読み込めませんでした。ネットにつながっているか確かめてください。'};
+const NET_ERR={ver:'相手とゲームのバージョンが違います。両方ともページを再読み込み（更新）してから、もう一度つないでください。',ice:'相手は見つかりましたが、回線どうしを直接つなげませんでした。P2Pは回線の組み合わせによって通らないことがあります。どちらかがWi-Fiとスマホ回線を切り替えると、つながることがあります。',noroom:'その番号の部屋が見つかりません。番号が合っているか、相手の画面が「部屋をつくりました」のまま開いているか確かめてください。',server:'仲介サーバーにつながりませんでした。少し時間をおいて、もう一度試してください。',timeout:'時間内につながりませんでした。',lib:'通信の部品を読み込めませんでした。ネットにつながっているか確かめてください。'};
 function netFail(kind){if(NET.started||NET.live)return;clearTimeout(NET.tm);
   if(NET.role==='host'){if(kind==='ice'){netStatus('相手が入ろうとしましたが、回線どうしを直接つなげませんでした。相手にもう一度入ってもらうか、どちらかが回線（Wi-Fi／スマホ回線）を切り替えてみてください。',1);netStep(2,'now');netStep(3,'')}else netStatus(NET_ERR[kind]||NET_ERR.server,1);return}
   if(kind==='timeout'&&NET.found)kind='ice';
@@ -2165,7 +2258,7 @@ function netFail(kind){if(NET.started||NET.live)return;clearTimeout(NET.tm);
   [1,2,3].forEach(n=>{const el=$('#ns'+n);if(el&&el.className==='now')el.className='err'});netStatus(NET_ERR[kind]||NET_ERR.timeout,1);const r=$('#netRetry');if(r)r.hidden=false}
 function netWaitUI(role,code){
   modal(`<h2>${role==='host'?'部屋をつくりました':'部屋に入っています'}</h2>
-   ${role==='host'?`<p>下の番号を相手に伝えてください。相手が入ると、自動で対局が始まります。</p><div class="netcode" id="netBig" aria-live="polite">準備中…</div><div class="row" style="justify-content:center"><button class="btn" id="netCopy" type="button" disabled>番号をコピー</button></div><p class="small"><b>この画面は開いたまま</b>待ってください。閉じたり、別のアプリに切り替えたりすると、部屋がなくなることがあります。</p>`:`<p>部屋番号 <b class="netcode sm">${esc(code)}</b> につないでいます。</p>`}
+   ${role==='host'?`<p class="small">形式：<b>${NET.bo===1?'1本勝負（BO1）':'2本先取（BO3・サイドボードあり）'}</b></p><p>下の番号を相手に伝えてください。相手が入ると、自動で対局が始まります。</p><div class="netcode" id="netBig" aria-live="polite">準備中…</div><div class="row" style="justify-content:center"><button class="btn" id="netCopy" type="button" disabled>番号をコピー</button></div><p class="small"><b>この画面は開いたまま</b>待ってください。閉じたり、別のアプリに切り替えたりすると、部屋がなくなることがあります。</p>`:`<p>部屋番号 <b class="netcode sm">${esc(code)}</b> につないでいます。</p>`}
    <ol class="netsteps"><li id="ns1" class="now">仲介サーバーにつなぐ</li><li id="ns2">${role==='host'?'相手が部屋に入るのを待つ':'部屋を見つける'}</li><li id="ns3">相手と直接つながる</li></ol>
    <div class="small" id="netMsg" role="status" style="min-height:2.6em"></div>
    <div class="row">${role==='guest'?'<button class="btn primary" id="netRetry" type="button" hidden>もう一度つなぐ</button>':''}<button class="btn" id="netCancel" type="button">やめる</button></div>`,el=>{
@@ -2198,6 +2291,69 @@ async function netJoin(code,tries){
   p.on('open',()=>{netStep(1,'done');netStep(2,'now');const c=p.connect('tarjuku-'+code,{reliable:true});hookConn(c,startHello)});
   p.on('error',e=>{if(NET.peer!==p||NET.live)return;netFail(e.type==='peer-unavailable'?'noroom':p.open?'timeout':'server')});
 }
+// ===== v12: BO3＋サイドボーディング =====
+const SIDE_MAX=4;
+function newMatch(myDeck,oppDeck,bo){const sd=curSide().slice();NET.match={bo:bo===1?1:3,n:1,me:0,opp:0,draw:0,base:myDeck.slice(),deck:myDeck.slice(),baseSide:sd.slice(),side:sd,oppBase:oppDeck.slice(),readyMe:false,readyOpp:false,seen:[],phase:'game'}}
+function swapsOf(base,deck){const c={};base.forEach(id=>c[id]=(c[id]||0)+1);deck.forEach(id=>{if(c[id])c[id]--});return Object.values(c).reduce((a,b)=>a+b,0)}
+function matchOver(m){return m.bo===1||m.me>=2||m.opp>=2||m.n>=3}
+function onlineGameOver(r,out,sc){
+  const b=UI.b,st=b.st,m=NET.match;if(!m)return;
+  if(out==='win')m.me++;else if(out==='lose')m.opp++;else m.draw++;
+  m.seen=[...new Set([...st.lanes.flatMap(l=>l.e.map(c=>c.id)),...st.grave.e.map(c=>c.id)])].filter(id=>CMAP[id]&&!CMAP[id].token);
+  const over=r.dc||matchOver(m);
+  if(out==='win')sfx('win');else if(out==='lose')sfx('lose');
+  const title=out==='win'?(r.retreat==='e'?'相手がチェックアウト':'勝ち'):out==='lose'?(r.retreat==='p'?'チェックアウト':'負け'):'引き分け';
+  const laneTxt=st.lanes.map((l,i)=>`<div class="rlane ${sc.lanes[i].w}" style="animation-delay:${i*0.25}s"><span>${esc(ROOMS[l.room].name)}</span><b>${sc.lanes[i].p}</b><span>－</span><b>${sc.lanes[i].e}</b><span>${sc.lanes[i].w==='p'?'あなた':sc.lanes[i].w==='e'?'相手':'互角'}</span></div>`).join('');
+  const mres=m.me>m.opp?'win':m.me<m.opp?'lose':'draw';
+  if(!over){leaveBattle();save();sideboard({out,title,lanes:st.lanes.map((l,i)=>[ROOMS[l.room].name,sc.lanes[i].p,sc.lanes[i].e,sc.lanes[i].w])});return}
+  modal(`<h2 class="res ${out}">${m.bo===1?'':'第'+m.n+'戦：'}${title}</h2><div class="rlanes">${laneTxt}</div>
+   ${m.bo===1?'':`<div class="bo3"><span>マッチ（2本先取）</span><b class="ps">あなた ${m.me}</b><span>－</span><b class="es">${m.opp} 相手</b>${m.draw?`<span class="small">引き分け${m.draw}</span>`:''}</div>`}
+   ${r.dc?'<p class="small">通信が切れたため、マッチはここで終わりです。</p>':''}
+   ${m.bo===1?'':over?`<p><b>マッチ終了：${mres==='win'?'あなたの勝ち！':mres==='lose'?'相手の勝ち':'引き分け'}</b></p>`:`<p class="small">次は第${m.n+1}戦。そのまえに、デッキの札を${SIDE_MAX}枚まで入れ替えられます（サイドボーディング）。</p>`}
+   <div class="row"><button class="btn primary" type="button" id="goNext">${over?'宿に戻る':'サイドボーディングへ'}</button></div>`,el=>{
+    el.querySelector('#goNext').onclick=()=>{modalClose=null;$('#ov').hidden=true;leaveBattle();if(over)endMatch(r.dc?'dc':mres);else sideboard()};
+  },()=>{leaveBattle();if(over)endMatch(r.dc?'dc':mres);else sideboard()});
+  save();
+}
+function leaveBattle(){if(!UI.b)return;$('#battle').hidden=true;document.body.style.overflow='';$('#bAge').hidden=false;UI.b=null;bgmMode('f'+G.floor);render()}
+function endMatch(res){const m=NET.match;const opp=NET.opp?NET.opp.name:'相手';const lines=[];const rewards=[];
+  if(m&&res!=='dc'){if(res==='win'){G.pts+=30;G.wins++;lines.push('宿ポ +30');const pool=m.oppBase.filter(id=>CMAP[id]&&!CMAP[id].token);const un=pool.filter(id=>!own(id));const c=pick(un.length?un:pool);if(c)rewards.push(giveCard(c))}
+    else if(res==='lose'){G.losses++;const pool=m.oppBase.filter(id=>CMAP[id]&&!CMAP[id].token);const c=pick(pool);if(c){rewards.push(giveCard(c));lines.push(`${opp}が札を1枚くれた。`)}}}
+  save();netClose();NET.match=null;
+  if(!m||res==='dc'){say(['（オンライン対戦が終わった）']);return}
+  modal(`<h2>マッチ終了：${res==='win'?'勝ち！':res==='lose'?'負け':'引き分け'}</h2><p>${esc(opp)}とのマッチ　あなた ${m.me}－${m.opp} 相手</p>${lines.map(x=>`<div class="small">${esc(x)}</div>`).join('')}
+   ${rewards.length?`<div class="cardrow">${rewards.map(g=>`<div class="rw">${cardOwnHTML(g.id,{cls:'flipin',attr:`data-view="${g.id}" tabindex="0"`})}<span class="small">${g.new?'<b class="newb">NEW!</b>':''}</span></div>`).join('')}</div>`:''}
+   <div class="row"><button class="btn primary" data-close type="button">宿に戻る</button></div>`,null,()=>checkCollection());
+}
+function sideboard(info){
+  const m=NET.match;if(!m)return;m.phase='side';m.readyMe=false;
+  let main=m.deck.slice(),side=m.side.slice();
+  const draw=()=>{
+    const full=main.length===10;
+    const r=(id,k,where)=>{const c=CMAP[id];return `<button type="button" class="sbrow ${where==='in'&&full?'dim':''}" data-${where}="${k}" title="${esc(c.name)}"><span class="tb2">${c.cost}</span><span class="n">${esc(c.short||c.name)}</span><span class="pw">${c.pow}</span><span class="small">${where==='out'?'→控え':(full?'':'←デッキ')}</span></button>`};
+    modal(`${info?`<div class="sbres"><b class="res ${info.out}">第${m.n}戦：${info.title}</b><span class="bo3"><span>マッチ（2本先取）</span><b class="ps">あなた ${m.me}</b><span>－</span><b class="es">${m.opp} 相手</b></span></div><div class="sblanes">${info.lanes.map(([n,a,b,w])=>`<span class="${w}">${esc(n)} <b>${a}－${b}</b> ${w==='p'?'あなた':w==='e'?'相手':'互角'}</span>`).join('')}</div>`:''}
+     <h2>サイドボーディング（第${m.n+1}戦のまえ）</h2>
+     ${side.length||main.length<10?`<p class="small">デッキの札を押すと控えへ、控えの札を押すとデッキへ移ります（先にデッキから1枚抜いてから入れます）。デッキが10枚なら次へ進めます。</p>`:`<p class="small">このデッキにはサイドボードがありません。サイドボードはデッキ画面で、デッキごとに4枚まで登録できます。</p>`}
+     ${m.seen.length?`<p class="small">前の試合で相手が見せた札：${m.seen.map(id=>`<button type="button" class="linkb" data-view="${id}">${esc(CMAP[id].short||CMAP[id].name)}</button>`).join('、')}</p>`:''}
+     <div class="sbcols"><div><h3>デッキ <b class="${full?'ps':'es'}">${main.length}／10</b></h3><div class="sblist">${main.map((id,k)=>r(id,k,'out')).join('')}</div></div>
+      <div><h3>控え（サイドボード） ${side.length}枚</h3><div class="sblist">${side.map((id,k)=>r(id,k,'in')).join('')||'<div class="small">なし</div>'}</div></div></div>
+     <div class="row"><button class="btn" type="button" id="sbReset">第1戦の形に戻す</button><button class="btn primary" type="button" id="sbOk" ${full?'':'disabled'}>${full?'これで第'+(m.n+1)+'戦へ':'デッキをあと'+(10-main.length)+'枚'}</button></div>`,el=>{
+      el.querySelectorAll('[data-out]').forEach(b=>b.onclick=()=>{const k=+b.dataset.out;side=[...side,main[k]];main=main.filter((_,j)=>j!==k);sfx('flip');redraw()});
+      el.querySelectorAll('[data-in]').forEach(b=>b.onclick=()=>{if(main.length>=10){b.classList.add('shake');setTimeout(()=>b.classList.remove('shake'),300);return}const k=+b.dataset.in;main=[...main,side[k]];side=side.filter((_,j)=>j!==k);sfx('place');redraw()});
+      el.querySelector('#sbReset').onclick=()=>{main=m.base.slice();side=m.baseSide.slice();redraw()};
+      el.querySelector('#sbOk').onclick=()=>{m.deck=main.slice();m.side=side.slice();m.readyMe=true;netSend({t:'side',deck:m.deck});sideWait()};
+     },null);
+  };
+  const redraw=()=>{const sc=[...document.querySelectorAll('#modal .sblist')].map(x=>x.scrollTop);draw();[...document.querySelectorAll('#modal .sblist')].forEach((x,i)=>{x.scrollTop=sc[i]||0})};
+  draw();
+}
+function sideWait(){const m=NET.match;if(!m)return;
+  if(NET.role==='host'&&m.readyOpp){nextGame();return}
+  modal(`<h2>相手を待っています</h2><p>相手がサイドボーディングを終えると、第${m.n+1}戦が始まります。</p><ol class="netsteps"><li class="done">あなたのデッキを決めた</li><li class="now">相手がデッキを決める</li></ol><div class="row"><button class="btn" type="button" id="sbBack">入れ替えをやり直す</button></div>`,el=>{
+    el.querySelector('#sbBack').onclick=()=>{m.readyMe=false;netSend({t:'unready'});sideboard()}},null);
+}
+function nextGame(){const m=NET.match;m.n++;m.readyMe=false;m.readyOpp=false;m.phase='game';modalClose=null;$('#ov').hidden=true;hostStart()}
+
 // 視点の入れ替え（ホスト＝p／ゲスト＝e の正本を、ゲスト目線にする）
 function flipObj(o){if(Array.isArray(o))return o.map(flipObj);if(o&&typeof o==='object'){const r={};for(const k in o){const nk=k==='p'?'e':k==='e'?'p':k;r[nk]=flipObj(o[k])}return r}if(o==='p')return 'e';if(o==='e')return 'p';return o}
 function flipTxt(s){return String(s).replace(/あなた|相手/g,m=>m==='あなた'?'相手':'あなた')}
@@ -2208,11 +2364,16 @@ function validDeck(d){return Array.isArray(d)&&d.length===10&&d.every(id=>CMAP[i
 function onNet(m){
   if(!m||typeof m!=='object')return;
   if(NET.role==='host'){
-    if(m.t==='hello'&&!NET.started){if(!validDeck(m.deck)){netStatus('相手のデッキが読めませんでした。');return}NET.opp={name:String(m.name||'相手').slice(0,16),deck:m.deck,lv:m.lv||{}};netSend(myHello());hostStart();return}
+    if(m.t==='hello'&&!NET.started){if(m.v!==NET_V){netSend({t:'oldver'});netStatus('相手のゲームのバージョンが違います。相手にページを再読み込み（更新）してもらってから、もう一度入ってもらってください。',1);return}if(!validDeck(m.deck)){netStatus('相手のデッキが読めませんでした。');return}NET.opp={name:String(m.name||'相手').slice(0,16),deck:m.deck,lv:m.lv||{}};netSend(myHello());hostStart();return}
     if(m.t==='plays'&&UI.b&&UI.b.o.online){UI.b.netPlays=Array.isArray(m.plays)?m.plays.slice(0,8):[];if(UI.b.waitNet){UI.b.waitNet=false;UI.b.busy=false;resolveTurn()}else{UI.b.cap={head:'相手は手を決めた',body:'あなたが「ターン終了」を押すと、札がめくられる。',lines:[]};renderBattle()}return}
+    if(m.t==='side'&&NET.match){if(!validDeck(m.deck)||swapsOf(NET.match.oppBase,m.deck)>SIDE_MAX)return;NET.opp.deck=m.deck.slice();NET.match.readyOpp=true;if(NET.match.readyMe&&!UI.b)nextGame();return}
+    if(m.t==='unready'&&NET.match){NET.match.readyOpp=false;return}
     if(m.t==='resign'&&UI.b&&UI.b.o.online&&!UI.b.done){blog('相手がチェックアウトした！');finishBattle({outcome:'win',retreat:'e',fromNet:1});return}
   }else if(NET.role==='guest'){
+    if(m.t==='oldver'||(m.t==='hello'&&m.v!==NET_V)){clearInterval(NET.hi);netStatus(NET_ERR.ver,1);const c=NET.conn;NET.live=false;NET.conn=null;try{c&&c.close()}catch(e){}return}
     if(m.t==='hello'){if(!validDeck(m.deck))return;NET.opp={name:String(m.name||'相手').slice(0,16),deck:m.deck};return}
+    if(m.t==='side'){if(validDeck(m.deck)&&NET.opp)NET.opp.deck=m.deck.slice();return}
+    if(m.t==='resign'&&UI.b&&UI.b.o.online&&!UI.b.done){blog('相手がチェックアウトした！');finishBattle({outcome:'win',retreat:'e',fromNet:1});return}
     if(m.t==='state'||m.t==='step'||m.t==='end'){NET.q=NET.q.then(()=>guestApply(m)).catch(e=>console.error(e));return}
   }
 }
@@ -2221,22 +2382,23 @@ function openOnline(st,role){
   const o={online:role,foe:NET.opp.name,card:NET.opp.deck[0]||'eo',eDeck:NET.opp.deck.slice(),maxTurn:st.maxTurn};
   UI.b={st,o,sel:null,log:[],busy:false,fx:null,cap:null,pred:null};
   $('#bLog').innerHTML='';$('#bLog').hidden=true;$('#battle').hidden=false;document.body.style.overflow='hidden';$('#bAge').hidden=true;
-  $('#bFoe').innerHTML=`${cardHTML(o.card)}<div><b>${esc(o.foe)}</b><small>オンライン対戦</small></div>`;
+  const mm=NET.match;$('#bFoe').innerHTML=`${cardHTML(o.card)}<div><b>${esc(o.foe)}</b><small>${mm&&mm.bo===1?'オンライン 1本勝負':`オンライン 第${mm?mm.n:1}戦（2本先取・あなた${mm?mm.me:0}－${mm?mm.opp:0}）`}</small></div>`;
   blog(`${o.foe}とのオンライン強さ議論が始まった。`);
   UI.b.cap={head:`オンライン対戦：${o.foe}`,body:'お互いに札を置いて「ターン終了」。両方そろうと、一斉にめくられる。',lines:[]};
   bgmMode('battle');sfx('chime');renderBattle();
 }
 function hostStart(){
   const pool=[...new Set(FLOORS.flatMap(f=>f.rooms||[]))].filter(r=>ROOMS[r]&&!ROOMS[r].dead);const rooms=[];while(rooms.length<3&&pool.length)rooms.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
-  const st=newBattle({pDeck:G.deck.slice(),eDeck:NET.opp.deck.slice(),rooms,maxTurn:6,pLv:lvMap()});
+  if(!NET.match)newMatch(G.deck.slice(),NET.opp.deck.slice(),NET.bo);
+  const st=newBattle({pDeck:NET.match.deck.slice(),eDeck:NET.opp.deck.slice(),rooms,maxTurn:6,pLv:lvMap()});
   const lv=NET.opp.lv||{};[...st.deck.e,...st.hand.e].forEach(c=>{const n=+lv[c.id]||0;if(n>0&&n<=5)c.lv=n});
   const tl=[];startTurn(st,t=>tl.push(t));
   openOnline(st,'host');UI.b.cap.lines=tl.filter(t=>!t.startsWith('――'));renderBattle();
-  netSend({t:'state',init:1,st:packSt(st),lines:tl});
+  netSend({t:'state',init:1,bo:NET.match.bo,st:packSt(st),lines:tl});
 }
 function hostSendState(lines){netSend({t:'state',st:packSt(UI.b.st),lines:lines||[]})}
 async function guestApply(m){
-  if(m.t==='state'&&m.init){openOnline(guestSt(m.st),'guest');UI.b.cap.lines=(m.lines||[]).map(flipTxt).filter(t=>!t.startsWith('――'));renderBattle();return}
+  if(m.t==='state'&&m.init){if(!NET.match)newMatch(G.deck.slice(),NET.opp.deck.slice(),m.bo);else if(NET.match.phase==='side'){NET.match.n++;NET.match.phase='game';NET.match.readyMe=false}modalClose=null;openOnline(guestSt(m.st),'guest');UI.b.cap.lines=(m.lines||[]).map(flipTxt).filter(t=>!t.startsWith('――'));renderBattle();return}
   const b=UI.b;if(!b||!b.o.online||b.done)return;
   if(m.t==='step'){const before=snap(b.st);b.st=guestSt(m.st);const lines=(m.lines||[]).map(flipTxt);lines.forEach(blog);await fxPresent(flipTxt(m.head||''),m.body||'',m.src,before,lines,m.always);renderBattle();return}
   if(m.t==='state'){b.st=guestSt(m.st);b.busy=false;b.sel=null;b.pred=null;const st=b.st;const fin=st.turn>=st.maxTurn;const tl=(m.lines||[]).map(flipTxt);tl.forEach(blog);
@@ -2729,6 +2891,7 @@ const PACKS=[
  {id:'animal',name:'かわいい動物パック',price:35,n:3,desc:'〈動物〉の札と、動物の餌になる〈食べ物〉だけ。',filter:c=>has(c.id,'animal')||(has(c.id,'food')&&Math.random()<0.3)},
  {id:'fgc',name:'格ゲーパック',price:35,n:3,desc:'〈格ゲー〉の札だけ。昇龍拳コマンド、シミー、ウメハラ……',filter:c=>has(c.id,'fgc')},
  {id:'mixp',name:'ごちゃまぜパック',price:35,n:3,desc:'系統をまたぐ札と〈ワイルド〉の札が多め。好きな系統どうしをつなげる。',filter:c=>c.id.startsWith('x_')||Math.random()<0.15},
+ {id:'meta',name:'対策パック「荒らし対策」',price:35,n:3,desc:'除去・弱体化を跳ね返す札、登場能力を止める札など、メタ札が多め。BO3のサイドボーディング用に。',filter:c=>c.id.startsWith('m_')||Math.random()<0.1},
  {id:'gen',name:'スタンダード・ブースター',price:30,n:3,desc:'〈汎用〉の札だけ。普通のカードゲームにありそうな札。使うと文句を言われる。',filter:c=>has(c.id,'gen')},
  {id:'death',name:'冠婚葬祭パック',price:35,n:3,desc:'〈死〉〈永遠〉〈セレブ〉〈箱〉の札だけ。',filter:c=>['death','eternal','celeb','box'].some(t=>has(c.id,t))},
  {id:'night',name:'深夜パック',price:80,n:3,desc:'22〜5時限定。Tier2以上が1枚確定。',night:1,boost:1},
@@ -2879,6 +3042,10 @@ function boardCard(st,c,fx){
   if(fx){if(fx.src===c.uid)cls+='src ';if(fx.born.has(c.uid))cls+='new ';const dl=fx.deltas.get(c.uid);if(dl)extra+=`<span class="flo ${dl>0?'up':'dn'}">${dl>0?'+':''}${dl}</span>`,cls+=dl>0?'hitup ':'hitdn '}
   return cardHTML(c.id,{pw:powerOf(st,c),lv:c.lv,foil:c.side==='p'&&G.foil[c.id],cls,attr:`data-bc="${c.uid}" tabindex="0"`,extra});
 }
+function ordHTML(st){if(!st.lanes)return'';const L=leader(st);const p=laneWins(st,'p'),e=laneWins(st,'e');const me=L==='p';
+  const why=p!==e?`いま制している部屋が多い${me?'あなた':'相手'}が先`:'制している部屋の数が同じなので、このターンはコイントスで決定';
+  return `<div class="ordb ${me?'me':'op'}" data-tip="ターン終了のとき、札は「先にめくる側」の札から、置いた順にすべてめくられる。そのあとで、もう一方の札がめくられる。"><span>このターンのめくる順</span><b>① ${me?'あなた':'相手'}</b><span>→</span><b class="sec">② ${me?'相手':'あなた'}</b><small>${why}</small></div>`}
+function ordLabel(st,pd){const k=st.pending.indexOf(pd)+1;return leader(st)==='p'?`${k}番目`:`相手の後・${k}`}
 function renderBattle(){
   const b=UI.b;if(!b)return;const st=b.st;const fx=b.fx;
   $('#bTurn').innerHTML=turnHTML(st);
@@ -2886,7 +3053,7 @@ function renderBattle(){
   $('#bAge').disabled=st.aged.p||b.busy;$('#bOut').disabled=b.busy;$('#bSpd').textContent='演出：'+(UI.fast?'速い':'ふつう');
   $('#bEH').innerHTML=`<span class="key">相手の手札</span>`+st.hand.e.map(()=>'<div class="card back"></div>').join('')+`<span class="key">　山札${st.deck.e.length}　退場${st.dead.e}</span>`;
   const sc=score(st);
-  $('#bSum').innerHTML=((st.gauge.p||st.gauge.e)?`<span class="gaugeb">📊ゲージ あなた${st.gauge.p}／相手${st.gauge.e}</span>`:'')+`<span>部屋の取り合い：</span><b class="ps">あなた ${sc.pw}</b><span>－</span><b class="es">${sc.ew} 相手</b><span class="small">（3部屋のうち、2部屋とれば勝ち）</span>`;
+  $('#bSum').innerHTML=((st.gauge.p||st.gauge.e)?`<span class="gaugeb">📊ゲージ あなた${st.gauge.p}／相手${st.gauge.e}</span>`:'')+`<span>部屋の取り合い：</span><b class="ps">あなた ${sc.pw}</b><span>－</span><b class="es">${sc.ew} 相手</b><span class="small">（3部屋のうち、2部屋とれば勝ち）</span>`+ordHTML(st);
   const cap=b.cap;
   $('#bCap').innerHTML=cap?`<div class="caph">${esc(cap.head)}</div>${cap.body?`<div class="capb">${fmtText(cap.body)}</div>`:''}${cap.lines&&cap.lines.length?`<ul class="capl">${cap.lines.slice(0,6).map(l=>`<li class="${l.startsWith('★')?'cb':''}">${esc(l)}</li>`).join('')}</ul>`:''}`:'';
   $('#bLanes').innerHTML=st.lanes.map((l,i)=>{
@@ -2896,7 +3063,7 @@ function renderBattle(){
     const es=sc.lanes[i].e,ps=sc.lanes[i].p,w=sc.lanes[i].w;const ld=fx&&fx.laneD[i];
     const ghost=side=>fx?fx.ghosts.filter(g=>g.lane===i&&g.side===side).map(g=>cardHTML(g.id,{pw:g.p,cls:'ghost'+(side==='e'?' e':''),extra:'<span class="stamp">退場</span>'})).join(''):'';
     const ec=l.e.map(c=>boardCard(st,c,fx)).join('')+ghost('e');
-    const pc=l.p.map(c=>boardCard(st,c,fx)).join('')+ghost('p')+st.pending.filter(p=>p.lane===i).map(p=>cardHTML(p.c.id,{pw:D(p.c).pow+p.c.buff+(p.c.lv||0),lv:p.c.lv,cls:'pend',attr:`data-pend="${p.c.uid}" tabindex="0"`,extra:'<span class="stamp sm">予定</span>'})).join('');
+    const pc=l.p.map(c=>boardCard(st,c,fx)).join('')+ghost('p')+st.pending.filter(p=>p.lane===i).map(p=>cardHTML(p.c.id,{pw:D(p.c).pow+p.c.buff+(p.c.lv||0),lv:p.c.lv,cls:'pend',attr:`data-pend="${p.c.uid}" tabindex="0"`,extra:`<span class="stamp sm">${ordLabel(st,p)}</span>`})).join('');
     let pred='';if(sel&&b.pred){const pr=b.pred[i];if(pr){const parts=pr.map((v,j)=>{const t=[];if(v[0])t.push(`あなた${v[0]>0?'+':''}${v[0]}`);if(v[1])t.push(`相手${v[1]>0?'+':''}${v[1]}`);return t.length?(j===i?'':`${ROOMS[st.lanes[j].room].name}：`)+t.join(' '):null});
       const here=parts[i];const others=parts.filter((x,j)=>x&&j!==i);pred=`<div class="pred">ここに置くと：${here||'変化なし'}${others.length?`<br><span>${esc(others.join('／'))}</span>`:''}<small>（予想）</small></div>`}else pred=`<div class="pred no">${locked?'まだ置けない':'置けない'}</div>`}
     const wtag=w==='p'?'<span class="win p">あなたが優勢</span>':w==='e'?'<span class="win e">相手が優勢</span>':'<span class="win">互角</span>';
@@ -2983,7 +3150,7 @@ async function resolveTurn(){
   let ep=[];if(b.o.online){ep=(b.netPlays||[]).map(x=>({c:st.hand.e.find(c=>c.uid===x.uid),lane:+x.lane})).filter(x=>x.c&&x.lane>=0&&x.lane<3);b.netPlays=null}else if(b.o.tutorial)ep=(TUT_E[st.turn]||[]).map(([id,l])=>({c:inst(id,'e'),lane:l}));else try{ep=aiPlan(st,'e',(b.o.friend||b.o.npc==='tarkaku'||b.o.npc==='maap')?'max':undefined)}catch(err){console.error(err)}
   commitPlays(st,'e',ep);
   st.okawari.p=Math.floor(Math.max(0,teaLeft(st))/2);const pp=st.pending.slice();st.pending=[];if(pp.length)st.discount.p=0;
-  const lead=leader(st);
+  const lead=leader(st);banner(`${lead==='p'?'あなた':'相手'}の札から めくる`);
   b.cap={head:`めくる順番：${lead==='p'?'あなた':'相手'}が先`,body:`いま多くの部屋で上回っている側（${lead==='p'?'あなた':'相手'}）の札から、置いた順にめくられる。相手は${ep.length}枚、あなたは${pp.length}枚。`,lines:[]};renderBattle();
   await sleep(UI.fast?400:1000);
   const seq=lead==='p'?[...pp.map(x=>['p',x]),...ep.map(x=>['e',x])]:[...ep.map(x=>['e',x]),...pp.map(x=>['p',x])];
@@ -3013,6 +3180,7 @@ function finishBattle(r){
   const b=UI.b;if(!b||b.done)return;b.done=true;const st=b.st,o=b.o;const sc=score(st);let out=r.outcome;
   if(o.online==='host'&&!r.fromNet)netSend({t:'end',st:packSt(st),r:{outcome:out,retreat:r.retreat}});
   if(o.online==='guest'&&!r.fromNet&&r.retreat==='p')netSend({t:'resign'});
+  if(o.online){onlineGameOver(r,out,sc);return}
   if(o.tutorial){if(out!=='win'){out='win';r={outcome:'win'}}G.flags.tut=1}
   const lines=[];let gain=0;const rewards=[];
   if(r.dc)lines.push('通信が切れたため、引き分けになった。');
@@ -3118,7 +3286,8 @@ function renderDeck(){
   const SORTS={cost:byCost,fav:(a,b)=>(G.fav[b.id]?1:0)-(G.fav[a.id]?1:0)||byCost(a,b),pow:(a,b)=>b.pow-a.pow||byCost(a,b),tier:(a,b)=>TIER_ORDER.indexOf(a.tier)-TIER_ORDER.indexOf(b.tier)||byCost(a,b),name:(a,b)=>(a.short||a.name).localeCompare(b.short||b.name,'ja')};
   const ownedList=COLLECTIBLE.filter(c=>own(c.id)>0&&(!f||(f==='__fav'?G.fav[c.id]:has(c.id,f)))).sort(SORTS[so]||byCost);
   const tagsOwned=[...new Set(COLLECTIBLE.filter(c=>own(c.id)).flatMap(c=>tagsOf(c.id)))].filter(t=>t!=='ter');
-  const row=(c,inDeck,k)=>{const full=!inDeck&&(deckCount(c.id)>=Math.min(own(c.id),2)||G.deck.length>=mx);
+  const side=curSide();const sideRow=(id,k)=>{const c=CMAP[id];return `<div class="ditem in sbi" data-show="${id}" tabindex="0"><span></span><span class="tb2" style="background:${TIER[c.tier].c}">T${TIER[c.tier].n}</span><span class="c">${c.cost}</span><span class="n">${esc(c.short||c.name)}<small>${esc(c.fx||'')}　${tagsOf(id).filter(t=>t!=='ter').map(t=>TAGN[t]).join('・')}</small></span><span class="p">${c.pow+lvOf(id)}</span><button type="button" class="dbtn rm" data-srm="${k}" aria-label="サイドボードから外す">−</button></div>`};
+  const row=(c,inDeck,k)=>{const full=!inDeck&&(deckCount(c.id)+sideCount(c.id)>=Math.min(own(c.id),2)||G.deck.length>=mx);
     return `<div class="ditem ${inDeck?'in':''} ${full?'dis':''} ${G.foil[c.id]?'fo':''} ${has(c.id,'gen')?'gen':''} ${UI.deckDetail===c.id?'cur':''}" data-show="${c.id}" tabindex="0"><button type="button" class="favb ${G.fav[c.id]?'on':''}" data-fav="${c.id}" aria-label="お気に入り" aria-pressed="${G.fav[c.id]?'true':'false'}">${G.fav[c.id]?'★':'☆'}</button><span class="tb2" style="background:${TIER[c.tier].c}">T${TIER[c.tier].n}</span><span class="c">${c.cost}</span><span class="n">${esc(c.short||c.name)}${starOf(c.id)?` <i class="st">${'★'.repeat(starOf(c.id))}</i>`:''}<small>${esc(c.fx||'')}　${tagsOf(c.id).filter(t=>t!=='ter').map(t=>TAGN[t]).join('・')}</small></span><span class="p">${c.pow+lvOf(c.id)}</span>${inDeck?`<button type="button" class="dbtn rm" data-rm="${k}" aria-label="デッキから外す">−</button>`:`<button type="button" class="dbtn" data-add="${c.id}" ${full?'disabled':''} aria-label="デッキに入れる">＋</button><span class="own">${deckCount(c.id)}/${Math.min(own(c.id),2)}</span>`}</div>`};
   const combos=FAMILIES.map(fm=>{const u=[...new Set(fm)].filter(id=>G.deck.includes(id));return u.length>=2?u.map(id=>CMAP[id].short||CMAP[id].name).join('＋'):null}).filter(Boolean);
   const adv=curveAdvice(G.deck);const det=UI.deckDetail&&CMAP[UI.deckDetail]?UI.deckDetail:null;
@@ -3129,9 +3298,12 @@ function renderDeck(){
     ${curveHTML(G.deck)}
     <div class="small" style="margin:6px 0">組み合わせ：${combos.length?combos.map(esc).join('　／　'):'なし（同じ〈系統〉の札を揃えよう）'}</div>
     <div class="row" style="margin-bottom:8px"><button class="btn primary" id="dAuto" type="button">おまかせ編成</button><button class="btn" id="dClear" type="button">全部外す</button></div>
-    <div class="dlist">${G.deck.map((id,k)=>row(CMAP[id],true,k)).join('')||'<div class="small">デッキが空です。右の手持ちの札の「＋」で入れてください。</div>'}</div></div>
+    <div class="dlist">${G.deck.map((id,k)=>row(CMAP[id],true,k)).join('')||'<div class="small">デッキが空です。右の手持ちの札の「＋」で入れてください。</div>'}</div>
+    <h3 class="sbh">サイドボード <b class="dcount">${side.length}／4枚</b></h3>
+    <p class="small" style="margin:0 0 6px">BO3のオンライン対戦で、2戦目からデッキの札と入れ替えられる控え。0枚でもかまいません。札を押して、右の「札の効果」の「サイドボードに入れる」で登録します。</p>
+    <div class="dlist sbl">${side.map(sideRow).join('')||'<div class="small">サイドボードは空です。</div>'}</div></div>
    <div class="side2">
-    <div class="panel" id="deckDetail"><h3>札の効果</h3>${det?detailHTML(det)+`<div class="row" style="margin-top:8px"><button class="btn primary" type="button" data-add="${det}" ${deckCount(det)>=Math.min(own(det),2)||G.deck.length>=mx?'disabled':''}>デッキに入れる</button><button class="btn" type="button" data-fav="${det}">${G.fav[det]?'★ お気に入りを外す':'☆ お気に入りにする'}</button></div>`:'<div class="small">札を押すと、ここに効果が出ます。読んでから「＋」で入れよう。</div>'}</div>
+    <div class="panel" id="deckDetail"><h3>札の効果</h3>${det?detailHTML(det)+`<div class="row" style="margin-top:8px"><button class="btn primary" type="button" data-add="${det}" ${deckCount(det)>=Math.min(own(det),2)||G.deck.length>=mx?'disabled':''}>デッキに入れる</button><button class="btn" type="button" data-sadd="${det}" ${side.length>=4||deckCount(det)+sideCount(det)>=Math.min(own(det),2)?'disabled':''}>サイドボードに入れる</button><button class="btn" type="button" data-fav="${det}">${G.fav[det]?'★ お気に入りを外す':'☆ お気に入りにする'}</button></div>`:'<div class="small">札を押すと、ここに効果が出ます。読んでから「＋」で入れよう。</div>'}</div>
     <div class="panel"><h3>手持ちの札</h3>
      <div class="row" style="margin-bottom:6px"><label class="small" for="dFilter">系統で絞る</label><select id="dFilter"><option value="">すべて</option><option value="__fav" ${f==='__fav'?'selected':''}>★お気に入り</option>${tagsOwned.map(t=>`<option value="${t}" ${f===t?'selected':''}>${esc(TAGN[t])}</option>`).join('')}</select><label class="small" for="dSort">並び</label><select id="dSort">${[['cost','コスト順'],['fav','お気に入りが先'],['pow','強さ順'],['tier','Tier順'],['name','名前順']].map(([v,l])=>`<option value="${v}" ${so===v?'selected':''}>${l}</option>`).join('')}</select></div>
      <div class="dlist">${ownedList.map(c=>row(c,false)).join('')||'<div class="small">この系統の札は、まだ持っていない。</div>'}</div></div>
@@ -3151,7 +3323,10 @@ $('#p-deck').addEventListener('click',e=>{const fv=e.target.closest('[data-fav]'
   if(fv){const id=fv.dataset.fav;if(G.fav[id])delete G.fav[id];else G.fav[id]=1;save();renderDeck();return}
   if(sl){const i=+sl.dataset.slot;if(i!==G.slot){useSlot(i);sfx('flip');renderDeck();toast(`${G.deckNames[i]}に切り替えました`,'ev')}return}
   const a=e.target.closest('[data-add]'),r=e.target.closest('[data-rm]'),s=e.target.closest('[data-show]');
-  if(a){const id=a.dataset.add;if(deckCount(id)<Math.min(own(id),2)&&G.deck.length<deckMax()){G.deck.push(id);UI.deckDetail=id;save();sfx('place');renderDeck()}return}
+  const sa=e.target.closest('[data-sadd]'),sr=e.target.closest('[data-srm]');
+  if(sa){const id=sa.dataset.sadd;const sd=curSide();if(sd.length<4&&deckCount(id)+sideCount(id)<Math.min(own(id),2)){sd.push(id);save();sfx('place');renderDeck()}return}
+  if(sr){curSide().splice(+sr.dataset.srm,1);save();sfx('flip');renderDeck();return}
+  if(a){const id=a.dataset.add;if(deckCount(id)+sideCount(id)<Math.min(own(id),2)&&G.deck.length<deckMax()){G.deck.push(id);UI.deckDetail=id;save();sfx('place');renderDeck()}return}
   if(r){G.deck.splice(+r.dataset.rm,1);save();renderDeck();return}
   if(s){UI.deckDetail=s.dataset.show;renderDeck();if(innerWidth<720){const d=$('#deckDetail');if(d&&d.scrollIntoView)d.scrollIntoView({block:'nearest'})}}});
 $('#p-deck').addEventListener('keydown',e=>{if(e.key==='Enter'){const s=e.target.closest('[data-show]');if(s&&!e.target.closest('button')){UI.deckDetail=s.dataset.show;renderDeck()}}});
@@ -3274,7 +3449,7 @@ function boot(fresh){
   const d=newGame();Object.keys(d).forEach(k=>{if(G[k]===undefined)G[k]=d[k]});
   if(!G.seen||G.seen.length!==FLOORS.length)G.seen=d.seen;
   Object.keys(G.owned).forEach(id=>{if(!CMAP[id])delete G.owned[id]});G.deck=G.deck.filter(id=>CMAP[id]);{const d2=[];G.deck.forEach(id=>{if(d2.length<10&&d2.filter(x=>x===id).length<Math.min(2,own(id)))d2.push(id)});G.deck=d2}
-  ensureSlots();G.decks=G.decks.map((x,i)=>i===G.slot?G.deck.slice():fixDeck(x));
+  ensureSlots();G.decks=G.decks.map((x,i)=>i===G.slot?G.deck.slice():fixDeck(x));G.sides=G.sides.map((s,i)=>fixSide(s,G.decks[i]));
   $('#title').hidden=true;markSeen();setTab('explore');checkCollection();
   if(fresh||!G.flags.intro){G.flags.intro=1;save();say(['（夕方5時。あなたは白い旅館「ター宿」の玄関に立っている）','（東に、小さな郵便受けがある）','（壁には「ターム強さ議論スレまとめ（改訂版 v1.2）」が額に入れて飾られている）','（ここは、タームたちの宿。タームは概念であり、宿泊客でもある）','（足元から声がした。「はじめまして、土です」……声は北のほうからだ）','（何もない場所で C キーか「行動」を押すと、叫んだり祈ったり、いろいろできる）'])}
 }
@@ -3444,6 +3619,7 @@ function renderStats(){
   prevStats=vals;
 }
 Object.assign(TAG_TIP,{gen:'〈汎用〉どのデッキにも入る、普通のカードゲームにありそうな札。シナジーはない。使うと相手に文句を言われる。',wild:'〈ワイルド〉どの系統の札としても数える。好きな系統のデッキに、いつでも混ぜられる。'});
+try{Object.assign(KW_TIP,{'跳ね返':'相手の効果で破壊・弱体化されるとき、かわりにその効果を出した相手の札が受ける。','返し':'次に相手の効果で破壊されるとき、かわりにその効果を出した札を破壊する（1回だけ）。','登場能力が発揮されない':'その札を置いても【登場】の効果が起きない。【常時】や【ターン終了時】は働く。'})}catch(e){}
 </script>
 
 </body></html>
