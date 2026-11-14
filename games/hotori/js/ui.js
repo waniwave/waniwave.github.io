@@ -274,8 +274,98 @@ function myAlerts(evs) {
   });
   return out.slice(0, 3);
 }
+// ===== 効果の見える化 =====
+const SPEED = { fast: 0.55, normal: 1, slow: 1.6, off: 0 };
+A.speed = store.get('tjgod-speed', 'normal');
+const spf = () => SPEED[A.speed] == null ? 1 : SPEED[A.speed];
+const KIND_LABEL = { pick: '取ったとき', cut: '捨てられたとき', death: '捨て札へ送られたとき', turn: '手番の終わり', other: '常時', hook: '常時' };
+function centerOf(el) { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
+function targetsOf(items) {
+  const out = [];
+  const q = sel => { const el = document.querySelector(sel); if (el) out.push(el); };
+  items.forEach(e => {
+    if (e.k === 'kill') q(`[data-gu="${e.u}"]`);
+    else if (e.k === 'move' || e.k === 'zero' || e.k === 'token' || e.k === 'revive' || e.k === 'guard') q(`[data-u="${e.u}"],[data-hu="${e.u}"]`);
+    else if (e.k === 'tier') q(`.chip[data-cat="${e.cat}"]`);
+    else if (e.k === 'dir') q('.dirind');
+    else if (e.k === 'swap') { q(`[data-stack="${e.a}"]`); q(`[data-stack="${e.b}"]`); }
+  });
+  return [...new Set(out)].slice(0, 8);
+}
+function drawArrows(from, targets, color, ms) {
+  if (!targets.length) return;
+  const W = window.innerWidth, H = window.innerHeight;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'arrows'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const id = 'ah' + Math.random().toString(36).slice(2, 7);
+  let html = `<defs><marker id="${id}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${color}"/></marker></defs>`;
+  targets.forEach(t => {
+    const b = centerOf(t); const mx = (from.x + b.x) / 2, my = Math.min(from.y, b.y) - 60;
+    html += `<path d="M${from.x} ${from.y} Q${mx} ${my} ${b.x} ${b.y}" stroke="${color}" stroke-width="4" fill="none" stroke-linecap="round" marker-end="url(#${id})" class="ar"/>`;
+    t.classList.add('hit'); setTimeout(() => t.classList.remove('hit'), ms);
+  });
+  svg.innerHTML = html; $('#fx').appendChild(svg); setTimeout(() => svg.remove(), ms);
+}
+function seatAnchor(p) {
+  const el = document.querySelector(`.seat[data-seat="${p}"]`);
+  if (!el) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  const r = el.getBoundingClientRect();
+  return { x: Math.min(window.innerWidth - 200, Math.max(200, r.left + r.width / 2)), y: Math.min(window.innerHeight - 160, Math.max(150, r.top + Math.min(r.height, 260) / 2)) };
+}
+function cutIn(gr, ms) {
+  const st = A.st; const e = gr.fx; const d = TJ.CARD[e.id]; if (!d) return;
+  const pos = seatAnchor(e.p);
+  const el = document.createElement('div'); el.className = 'cutin';
+  const who = e.p === A.me ? 'あなた' : st.seats[e.p].name;
+  const lines = gr.banners.map(t => `<div class="ci-l">${esc(t.replace(/^★\s*/, ''))}</div>`).join('');
+  const c = (findCard(e.u) || {}).c || { id: e.id, u: e.u, x: {} };
+  el.innerHTML = `<div class="ci-h" style="--sc:${SEATC[e.p]}"><b>${esc(who)}</b>の<span>【${KIND_LABEL[e.kind] || '効果'}】</span></div>
+    <div class="ci-c">${cardHTML(c, {})}</div>${lines}`;
+  el.style.left = pos.x + 'px'; el.style.top = pos.y + 'px';
+  el.style.animationDuration = ms + 'ms';
+  $('#fx').appendChild(el);
+  TJ.audio.play('banner');
+  setTimeout(() => drawArrows(centerOf(el), targetsOf(gr.items), SEATHEX[e.p], Math.max(500, ms - 250)), 220);
+  setTimeout(() => el.remove(), ms);
+}
+function ruleFlash(gr, ms) {
+  const S = TJ.SETS[gr.rule.sid]; if (!S) return;
+  const rc = document.querySelector(`.rcard[data-rule="${gr.rule.sid}"]`);
+  if (rc) { rc.classList.add('flash'); setTimeout(() => rc.classList.remove('flash'), ms + 400); }
+  const b = document.createElement('div'); b.className = 'banner rule';
+  b.innerHTML = `<small>${S.e || ''} セットのルール発動</small>${esc((S.rules && S.rules.text || '').replace(/^【(.+?)】.*/, '【$1】'))}${gr.banners.length ? '<br>' + gr.banners.map(t => esc(t.replace(/^★\s*/, ''))).join('<br>') : ''}`;
+  b.style.animationDuration = ms + 'ms';
+  $('#fx').appendChild(b); setTimeout(() => b.remove(), ms);
+  TJ.audio.play('up');
+  if (rc) setTimeout(() => drawArrows(centerOf(rc), targetsOf(gr.items), '#d9c8ff', Math.max(500, ms - 250)), 200);
+}
+function ping(e) {
+  let el = null, txt = '';
+  if (e.k === 'guard') { el = document.querySelector(`[data-u="${e.u}"],[data-hu="${e.u}"]`); txt = e.reflect ? '↩ 跳ね返した' : '🛡 守った'; }
+  else if (e.k === 'sealed') { el = document.querySelector(`[data-u="${e.u}"]`); txt = '🚫 封じられた'; }
+  else if (e.k === 'fx' && e.kind === 'hook') { el = document.querySelector(`[data-u="${e.u}"]`); txt = { protect: '🛡 守った', tierPower: '⚙ 段数が変わった', blockPick: '🚫 封じた', triggerTimes: '⚙ 2回', datOchi: '⏳ dat落ちしない', order: '⚙ 順番', rankPts: '🔌 回線切断' }[e.hook] || '⚙ 発動'; }
+  else if (e.k === 'rule' && e.hook) { el = document.querySelector(`.rcard[data-rule="${e.sid}"]`); txt = '⚙ ルール発動'; if (el) { el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1400); } }
+  if (!el) return;
+  const c = centerOf(el); const f = document.createElement('div'); f.className = 'pingt'; f.textContent = txt;
+  f.style.left = c.x + 'px'; f.style.top = c.y + 'px'; $('#fx').appendChild(f); setTimeout(() => f.remove(), 1300);
+  el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 1200);
+}
+// 手札の束が席から席へ移る
+function passAnim(dir, ms) {
+  for (let p = 0; p < 4; p++) {
+    const a = document.querySelector(`[data-stack="${p}"]`), b = document.querySelector(`[data-stack="${(p + dir + 4) % 4}"]`);
+    if (!a || !b) continue;
+    const s = centerOf(a), t = centerOf(b);
+    const f = document.createElement('div'); f.className = 'flyhand'; f.innerHTML = '<i></i><i></i><i></i>';
+    f.style.left = s.x + 'px'; f.style.top = s.y + 'px'; f.style.transitionDuration = ms + 'ms';
+    $('#fx').appendChild(f);
+    requestAnimationFrame(() => requestAnimationFrame(() => { f.style.transform = `translate(${t.x - s.x}px, ${t.y - s.y}px) rotate(${dir * 25}deg)`; f.style.opacity = '0.9'; }));
+    setTimeout(() => f.remove(), ms + 120);
+  }
+  TJ.audio.play('cut');
+}
 function playEvents(evs) {
-  const st = A.st;
+  const st = A.st; const S = spf();
   const alerts = myAlerts(evs);
   const rev = evs.find(e => e.k === 'reveal');
   if (rev) {
@@ -293,21 +383,39 @@ function playEvents(evs) {
       });
       const d = document.createElement('div'); d.className = 'reveal';
       d.innerHTML = `<div class="rv"><h3>公開！</h3>${lines.join('')}</div>`;
-      $('#fx').appendChild(d); setTimeout(() => d.remove(), 2000);
-    }, 1900);
+      d.style.animationDuration = Math.max(900, 2000 * (S || 0.45)) + 'ms';
+      $('#fx').appendChild(d); setTimeout(() => d.remove(), Math.max(900, 2000 * (S || 0.45)));
+    }, Math.max(850, 1900 * (S || 0.45)));
   }
+  // 効果を「発動」ごとにまとめる（発動したカード＋起きたこと＋その文）
+  const groups = []; let grp = null;
   evs.forEach(e => {
-    if (e.k === 'tier' && e.from != null) fx(() => TJ.audio.play(A.moved[e.cat] === 'up' ? 'up' : 'down'), 120);
-    if (e.k === 'banner') fx(() => banner(e.text), 1400);
+    if (e.k === 'fx' && e.kind !== 'hook') { grp = { fx: e, items: [], banners: [] }; groups.push(grp); return; }
+    if (e.k === 'rule' && !e.hook) { grp = { rule: e, items: [], banners: [] }; groups.push(grp); return; }
+    if (e.k === 'turn' || e.k === 'roundEnd' || e.k === 'round' || e.k === 'reveal') { grp = null; return; }
+    if (grp && e.k === 'banner') { grp.banners.push(e.text); return; }
+    if (grp && ['kill', 'move', 'zero', 'token', 'revive', 'tier', 'dir', 'swap', 'guard'].includes(e.k)) grp.items.push(e);
+    if (!grp && e.k === 'banner') groups.push({ banner: e.text });
+    if ((e.k === 'fx' && e.kind === 'hook') || (e.k === 'rule' && e.hook) || e.k === 'guard' || e.k === 'sealed') groups.push({ ping: e });
   });
+  groups.forEach(g => {
+    if (g.fx) { if (S) fx(() => cutIn(g, 1700 * S), 1700 * S + 120); else g.banners.forEach(t => fx(() => banner(t), 600)); }
+    else if (g.rule) fx(() => ruleFlash(g, 1500 * (S || 0.5)), 1500 * (S || 0.5) + 100);
+    else if (g.banner) fx(() => banner(g.banner), 1300 * (S || 0.5));
+    else if (g.ping) fx(() => ping(g.ping), 380 * (S || 0.5));
+  });
+  if (evs.some(e => e.k === 'tier' && e.from != null)) fx(() => TJ.audio.play(Object.values(A.moved).includes('up') ? 'up' : 'down'), 120);
   if (evs.some(e => e.k === 'take')) fx(() => TJ.audio.play('pick'), 50);
-  alerts.forEach(t => fx(() => alertBanner(t), 2000));
+  alerts.forEach(t => fx(() => alertBanner(t), 2000 * (S || 0.6)));
   const tr = evs.find(e => e.k === 'turn');
-  if (tr) fx(() => {
-    TJ.audio.music(tr.turn >= 6 ? 'tense' : 'game');
-    if (tr.turn === TJ.TURNS) banner('最終手番：スレがdat落ちした（ティア操作禁止）');
-    else if (st.players[A.me] && TJ.hasBonus(st, A.me)) banner('スレ主の権限：取りながらティアも動かせる');
-  }, 300);
+  if (tr) {
+    if (S) fx(() => passAnim(st.dir, 750 * S), 750 * S + 100);
+    fx(() => {
+      TJ.audio.music(tr.turn >= 6 ? 'tense' : 'game');
+      if (tr.turn === TJ.datTurn(st) && !TJ.canTier(st, A.me >= 0 ? A.me : 0)) banner('スレがdat落ちした（ここからティア操作禁止）');
+      else if (st.players[A.me] && TJ.hasBonus(st, A.me)) banner('スレ主の権限：取りながらティアも動かせる');
+    }, 300);
+  }
   const rd = evs.find(e => e.k === 'round');
   if (rd) fx(() => { TJ.audio.play('round'); TJ.audio.music('game'); banner(`${TJ.ROUND_NAMES[rd.round]}　親（スレ主）：${st.seats[rd.oya].name}`, false); }, 1600);
   if (evs.some(e => e.k === 'roundEnd')) fx(() => { TJ.audio.play('round'); A.roundOpen = true; render(); }, 100);
@@ -347,9 +455,15 @@ function confetti() {
 }
 
 // ===== カード表示 =====
+// 発動中（常時・育つ）の印
+function liveKind(d) {
+  if (d.onTurnEnd || d.carry) return { i: '⏳', t: '手番の終わりや局の終わりに変化する' };
+  if (d.hooks || d.reflect || d.onTierChange || d.onAnyDeath || d.onAnyMove || d.onReverse || d.onIntro || d.onAnyPick || d.noTier || d.tierX) return { i: '⚙', t: '場にある間、ずっと効いている（常時）' };
+  return null;
+}
 function cardHTML(c, o) {
   o = o || {}; const d = TJ.CARD[c.id]; const st = A.st;
-  const cats = d.cats.map(k => {
+  const cats = (c.cats || d.cats).map(k => {
     const pos = st && st.tiers[k] != null ? st.tiers[k] : null;
     const m = pos == null ? null : TJ.modOf(st, pos) * (d.tierX || 1);
     return `<span class="cat" style="--catc:${catColor(k)}">${esc(catName(k))}${pos != null && !d.noTier ? `<i>${tierShort(pos)}${m ? ' ' + fmt(m) : ''}</i>` : ''}</span>`;
@@ -357,32 +471,36 @@ function cardHTML(c, o) {
   // 左上の大きな数字：このカードの点。手札なら「取ったら何点か」、場なら「いま何点か」、図鑑では基本の点
   const ptsVal = o.pts != null ? o.pts : (c.x && c.x.base != null ? c.x.base : d.base);
   const ptsLab = o.ptsLabel || (o.pts != null ? '' : '基本');
-  const pv = o.total != null && o.total !== o.pts ? `<div class="pv">合計 <b class="${o.total > 0 ? 'p' : o.total < 0 ? 'n' : ''}">${fmt(o.total)}</b></div>` : '';
+  let foot = '';
+  if (o.total != null && o.total !== o.pts) foot += `<span>合計 <b class="${o.total > 0 ? 'p' : o.total < 0 ? 'n' : ''}">${fmt(o.total)}</b></span>`;
+  const cutm = o.cut ? `<span class="cutm ${o.cut.top ? 'top' : ''}" title="${o.cut.top ? 'カット候補：' : ''}${esc(o.cut.name)}が取ると${fmt(o.cut.v)}点（くわしくは拡大表示）">✂</span>` : '';
   const tag = o.button ? 'button' : 'div';
-  const attrs = o.button ? `type="button" data-a="${o.button}" data-u="${c.u}" aria-label="${esc(d.name)}"` : '';
-  const set = TJ.SETS[d.set];
-  return `<${tag} class="card ${o.cls || ''}" style="--cc:${catColor(d.cats[0])}" ${attrs}>
-    <div class="top"><span class="pts ${ptsVal > 0 ? 'p' : ptsVal < 0 ? 'n' : ''}" title="${ptsLab ? '基本の点' : 'このカードの点'}">${ptsLab ? `<small>${ptsLab}</small>` : ''}<b>${ptsVal}</b><small>点</small></span><span class="setb" title="${esc(set ? set.name : '')}">${set ? set.e : ''}</span></div>
-    <div class="art"><span class="em">${d.e || '🃏'}</span><span class="gl">${esc(d.g || '')}</span></div>
+  const attrs = o.button ? `type="button" data-a="${o.button}" data-u="${c.u}" aria-label="${esc(d.name)}"` : (c.u ? `data-u="${c.u}"` : '');
+  const set = TJ.SETS[d.set]; const lv = liveKind(d);
+  return `<${tag} class="card ${o.cls || ''}" style="--cc:${catColor(d.cats[0])}" data-set="${d.set}" ${attrs}>
+    <div class="top"><span class="pts ${ptsVal > 0 ? 'p' : ptsVal < 0 ? 'n' : ''}" title="${ptsLab ? '基本の点' : 'このカードの点'}">${ptsLab ? `<small>${ptsLab}</small>` : ''}<b>${ptsVal}</b><small>点</small></span>${lv ? `<span class="live" title="${lv.t}">${lv.i}</span>` : ''}<span class="setb" title="${esc(set ? set.name : '')}">${set ? set.e : ''}</span></div>
+    <div class="art"><span class="em">${d.e || '🃏'}</span><span class="gl">${esc(d.g || '')}</span>${cutm}</div>
     <div class="nm">${esc(d.name)}</div>
     <div class="cats">${cats}</div>
     <div class="tx">${richText(d.text || '')}</div>
     ${o.flavor ? `<div class="fl">${esc(d.flavor || '')}</div>` : ''}
-    ${pv}</${tag}>`;
+    ${foot ? `<div class="pv">${foot}</div>` : ''}</${tag}>`;
 }
 function ghostHTML(gh) {
   const st = A.st; const d = TJ.CARD[gh.c.id];
   const hid = d.hidden && gh.p !== A.me;
   const what = gh.why === 'kill' ? '捨て札へ' : `→ ${gh.to === A.me ? 'あなた' : esc(st.seats[gh.to].name)}の場へ`;
-  return `<span class="mc ghost" title="${esc(srcText(gh.src))}"><span class="e">${hid ? '❔' : d.e || '🃏'}</span><span class="n">${hid ? '存在しない' : esc(d.short || d.name)}</span><span class="stp">${what}<small>${esc(srcText(gh.src))}</small></span></span>`;
+  return `<span class="mc ghost" data-gu="${gh.c.u}" title="${esc(srcText(gh.src))}"><span class="e">${hid ? '❔' : d.e || '🃏'}</span><span class="n">${hid ? '存在しない' : esc(d.short || d.name)}</span><span class="stp">${what}<small>${esc(srcText(gh.src))}</small></span></span>`;
 }
 function miniHTML(c, owner, val) {
   const d = TJ.CARD[c.id];
-  if (d.hidden && owner !== A.me) return `<span class="mc hid ${A.newCards[c.u] ? 'new' : ''}"><span class="e">❔</span><span class="n">存在しない</span><span class="v">?</span></span>`;
+  if (d.hidden && owner !== A.me) return `<span class="mc hid ${A.newCards[c.u] ? 'new' : ''}" data-hu="${c.u}"><span class="e">❔</span><span class="n">存在しない</span><span class="v">?</span></span>`;
   const st = A.st; const fr = c.x && c.x.from;
   const came = fr && fr.round === st.round && fr.turn >= st.turn - 1 ? `<span class="came">${fr.revive ? '復活' : '← ' + (fr.p === A.me ? 'あなた' : esc(st.seats[fr.p].name))}</span>` : '';
-  const zb = c.x && c.x.zero ? '<span class="came z">化</span>' : '';
-  return `<span class="mc ${A.newCards[c.u] ? 'new' : ''} ${c.x && c.x.zero ? 'zero' : ''}" style="--cc:${catColor(d.cats[0])}" data-a="zoom" data-u="${c.u}" data-o="${owner}">${came}${zb}<span class="e">${d.e || '🃏'}</span><span class="n">${esc(d.short || d.name)}</span><span class="v ${val > 0 ? 'p' : val < 0 ? 'n' : ''}">${val}</span></span>`;
+  const marks = (c.x && c.x.zero ? '<span class="came z">化</span>' : '') + (c.x && c.x.stun ? '<span class="came z">☆</span>' : '');
+  const lv = liveKind(d);
+  const guard = c.x && (c.x.boxed || c.x.shield || c.x.kaeshi) ? `<span class="gd" title="${c.x.boxed ? '箱に入っている' : c.x.kaeshi ? '返しがついている' : '守りがついている'}">${c.x.boxed ? '📦' : c.x.kaeshi ? '↩' : '🛡'}</span>` : '';
+  return `<span class="mc ${A.newCards[c.u] ? 'new' : ''} ${c.x && c.x.zero ? 'zero' : ''}" style="--cc:${catColor((c.cats || d.cats)[0])}" data-a="zoom" data-u="${c.u}" data-o="${owner}" data-set="${d.set}">${came}${marks}<span class="e">${d.e || '🃏'}</span><span class="n">${esc(d.short || d.name)}</span>${lv ? `<span class="lv" title="${lv.t}">${lv.i}</span>` : ''}${guard}<span class="v ${val > 0 ? 'p' : val < 0 ? 'n' : ''}">${val}</span></span>`;
 }
 
 function findCard(u) {
@@ -442,10 +560,33 @@ function infoHTML(u) {
   const marks = [];
   if (c.x && c.x.zeroBy) marks.push(`化かされている：${esc(srcText(c.x.zeroBy.src))}`);
   if (c.x && c.x.from && c.x.from.round === st.round) marks.push(c.x.from.revive ? `捨て札から戻ってきた：${esc(srcText(c.x.from.src))}` : `${c.x.from.p === A.me ? 'あなた' : esc(st.seats[c.x.from.p].name)}の場から来た：${esc(srcText(c.x.from.src))}`);
-  return `<div class="cinfo"><span class="ce">${d.e || '🃏'}</span><div style="flex:1;min-width:0"><div class="ch"><b>${esc(d.name)}</b>${cats}<span style="font-size:12px;color:#6a6474">${set ? esc(set.e + ' ' + set.name) : ''}</span></div>
-    <div>${richText(d.text || '')}</div><div class="cf">${esc(d.flavor || '')}</div>
+  const lv = liveKind(d);
+  return `<div class="cinfo"><span class="ce">${d.e || '🃏'}</span><div style="flex:1;min-width:0"><div class="ch"><b>${esc(d.name)}</b>${cats}${lv ? `<span class="lvk" title="${lv.t}">${lv.i} ${lv.i === '⚙' ? '常時' : 'あとで動く'}</span>` : ''}<span class="cset">${set ? esc(set.e + ' ' + set.name) : ''}</span></div>
+    <div class="ctx">${richText(d.text || '')}</div><div class="cf">${esc(d.flavor || '')}</div>
     ${marks.length ? `<div class="cm">${marks.join('<br>')}</div>` : ''}
+    ${handLines(f)}
     ${e ? breakdownHTML(e) : ''}</div>${head}</div>`;
+}
+// 手札のカード：取ったときの合計の変化と、カット候補（渡す相手が取ったら何点得か）
+function handLines(f) {
+  const st = A.st; const me = A.me;
+  if (me < 0 || f.o !== -1 || st.phase !== 'pick' || st.players[me].act || !st.players[me].hand.some(c => c.u === f.c.u)) return '';
+  const out = [];
+  const pv = previewTakes()[f.c.u];
+  if (pv && pv.total != null) out.push(`<span class="hl-t">取ると あなたの合計 <b class="${pv.total > 0 ? 'p' : pv.total < 0 ? 'n' : ''}">${fmt(pv.total)}</b>点</span>`);
+  if (st.turn < TJ.TURNS) {
+    const cu = cutCandidates()[f.c.u];
+    if (cu) out.push(`<span class="hl-c ${cu.top ? 'top' : ''}">✂ ${cu.top ? '<b>カット候補</b>：' : ''}手札を渡す相手の<b style="color:${SEATC[(me + st.dir + 4) % 4]}">${esc(cu.name)}</b>が取ると <b>${fmt(cu.v)}</b>点${cu.top ? '（手札の中で一番）' : ''}</span>`);
+  } else out.push('<span class="hl-c">最終手番：このあと手札は回らない</span>');
+  return out.length ? `<div class="hlines">${out.join('')}</div>` : '';
+}
+function ruleInfoHTML(sid) {
+  const S = TJ.SETS[sid]; if (!S) return '';
+  const r = S.rules && S.rules.text;
+  const st = A.st; const n = st ? [0, 1, 2, 3].map(p => st.players[p].table.filter(c => TJ.CARD[c.id].set === sid).length) : null;
+  return `<div class="cinfo"><span class="ce">${S.e || '📜'}</span><div style="flex:1;min-width:0"><div class="ch"><b>${esc(S.name)}</b><span class="cset">カードセット</span></div>
+    <div class="ctx">${r ? richText(r) : '独自ルールはありません。'}</div><div class="cf">${esc(S.desc || '')}</div>
+    ${n ? `<div class="hlines"><span>場にあるこのセットのカード：${n.map((x, i) => `<b style="color:${SEATC[i]}">${i === A.me ? 'あなた' : esc(st.seats[i].name)} ${x}</b>`).join('　')}（光っているカード）</span></div>` : ''}</div></div>`;
 }
 function totalInfoHTML(p) {
   const st = A.st; const t = TJ.explainTotal(st, p);
@@ -473,8 +614,17 @@ function highlightTotal(p) {
   t.rows.forEach(([u, r]) => { if (r.total) document.querySelectorAll(`.mc[data-u="${u}"]`).forEach(el => el.classList.add(r.total > 0 ? 'infp' : 'infn')); });
   t.rules.forEach(x => document.querySelectorAll(`.rule[data-rule="${x.sid}"]`).forEach(el => el.classList.add(x.d > 0 ? 'infp' : 'infn')));
 }
+function setGlow(sid) {
+  document.querySelectorAll('.setglow').forEach(el => el.classList.remove('setglow'));
+  if (sid) document.querySelectorAll(`[data-set="${sid}"]`).forEach(el => el.classList.add('setglow'));
+}
 document.addEventListener('mouseover', e => {
   if (A.screen !== 'game' || !A.st) return;
+  const rc = e.target.closest('[data-rule]');
+  if (rc) { if (A.glow !== rc.dataset.rule) { A.glow = rc.dataset.rule; setGlow(A.glow); const bx = $('#cinfo'); if (bx) bx.innerHTML = ruleInfoHTML(A.glow); A.hoverU = null; A.hoverScore = null; } return; }
+  if (A.glow) { A.glow = null; setGlow(null); }
+  const er = e.target.closest('[data-cat-row]');
+  if (er) { document.querySelectorAll('.chip.hit2').forEach(x => x.classList.remove('hit2')); const ch = document.querySelector(`.chip[data-cat="${er.dataset.catRow}"]`); if (ch) ch.classList.add('hit2'); return; }
   const box = $('#cinfo');
   const sc = e.target.closest('[data-score]');
   if (sc) {
@@ -585,7 +735,23 @@ function rulesHTML() {
     <li><b>共通カテゴリ</b>（食べ物・死・宿・動物・スレ・湯・校庭・速さ・格ゲー・ター・老）のティアは、次の局へ引き継がれます。セット固有のカテゴリは毎局Tier3に戻ります。</li>
     <li>取ったカードは全員に見えています。誰が何を集めているかを読んで、ティアを動かしましょう。</li></ul></div>
   <div class="panel"><h3>親（スレ主）</h3><p>親は局ごとに交代します。親は<b class="kw">1手番目だけ</b>、カードを取りつつティアも動かせます。「>>1」などのカードで、ほかの人がこの権限を得ることもあります。</p></div>
-  <div class="panel"><h3>セットごとのルール</h3><p>カードセットによっては、その局だけの追加ルールがあります。対局画面の上に表示されます。</p></div>
+  <div class="panel"><h3>セットごとのルール</h3><p>カードセットによっては、その局だけの追加ルールがあります。卓の中央の<b class="kw">ルール札</b>に出ます。札が紫の枠なら、そのルールに関わるカードが場にあります。ルールが働いた瞬間は札が光ります。</p></div>
+  <div class="panel"><h3>卓の見かた</h3><ul>
+    <li>麻雀のように4人で卓を囲みます。自分は下、左・上・右に相手が座ります。名札の<b class="kw">東・南・西・北</b>は親（東）から数えた席の風です。</li>
+    <li>卓の中央がティア表です。上の丸印は7手番のどこまで進んだか（赤い縁の丸が dat落ちの最終手番）、右上の矢印は手札を回す向きです。</li>
+    <li>相手の名札の横の裏向きのカードが、その人の手札の枚数です。手番が終わると、手札の束が隣の席へ飛んでいきます。「あなたの手札が行く」「手札をくれる」の札で、誰に渡すかが分かります。</li></ul></div>
+  <div class="panel"><h3>効果の印</h3><ul>
+    <li><b class="kw">⚙</b>：場にあるあいだ、ずっと効いている効果（常時・ルールの書き換え）。</li>
+    <li><b class="kw">⏳</b>：手番の終わりや局の終わりなどに、あとから動く効果。</li>
+    <li><b class="kw">📦 箱</b>：箱に入ったカードは、捨て札にも移動にもならない。<b class="kw">🛡 守り</b>：一度だけ相手の効果を防ぐ。<b class="kw">↩ 返し</b>：一度だけ、相手の効果をそのカードへ跳ね返す。</li>
+    <li><b class="kw">☆</b>：気絶中。そのカードの【得点】や常時の効果が働かない（基本の点とティアの補正は残る）。<b class="kw">封じる</b>：封じられた手番に取ったカードは【取ったとき】が起きない。</li>
+    <li><b class="kw">🔋 ゲージ</b>：セットのルールでたまる数。<b class="kw">ワイルド</b>：取ったとき、自分の場で一番多いカテゴリが仲間に加わるカード。</li>
+    <li>効果が起きると、そのカードが<b class="kw">カットイン</b>で大きく出て、影響を受けた席やカードへ矢印が伸びます。速さは画面右上の「演出」で変えられます（「なし」で止める）。</li></ul></div>
+  <div class="panel"><h3>読み合いの道具</h3><ul>
+    <li><b class="kw">ティアの効き目</b>（卓の中央のタブ）：各カテゴリを1段上げた／下げたら、4人の点がそれぞれ何点動くかの表。色がついたマスが一番得をする人、赤い数字が一番損をする人です。行にマウスを乗せると、ティア表のそのカテゴリが光ります。</li>
+    <li><b class="kw">カット候補</b>：手札のカードには ✂ の印が付きます（赤く光るのが一番のカット候補）。カードにマウスを乗せる（スマホは選ぶ）と、手札を渡す相手（「あなたの手札が行く」人）がそれを取ったら何点得をするかが、拡大表示に出ます。捨ててティアを動かすときの目安にしてください。</li>
+    <li><b class="kw">点の内訳</b>：カードや点数にマウスを乗せる（スマホは選ぶ）と、手札の横の拡大表示に効果の全文と点数の内訳が出て、影響しているカードやティアが盤面で光ります。ルール札に乗せると、そのルールの全文が出ます。</li>
+    <li><b class="kw">直前の議論</b>：直前の手番で、誰がどのティアをどう動かしたか、どの効果が起きたかの振り返り。<b class="kw">記録</b>のタブには、この局で起きたことが全部残ります。</li></ul></div>
   <div class="panel"><h3>同点のとき</h3><p>局の中で同点なら、順位点を分け合います。最終結果が同点なら、4局の点数の合計で決めます。</p></div>`;
 }
 function renderRules() {
@@ -663,16 +829,14 @@ function tierboardHTML() {
   const rows = TJ.TIERS.map((t, i) => {
     const here = cats.filter(k => st.tiers[k] === i);
     const mod = t.mod == null ? `今${fmt(st.t8)}` : fmt(t.mod);
-    return `<div class="trow"><div class="tlab" style="background:${t.color}"><b>${t.k === 'G' ? 'God' : t.k}</b><small>${mod}</small></div><div class="tchips">${here.map(chip).join('')}</div></div>`;
+    return `<div class="trow"><div class="tlab" style="background:${t.color}" title="${esc(t.desc)}"><b>${t.k === 'G' ? 'God' : t.k}</b><small>${mod}</small></div><div class="tchips">${here.map(chip).join('')}</div></div>`;
   }).join('');
   const kes = cats.filter(k => st.tiers[k] === TJ.KESU);
-  return `<aside class="tierboard" aria-label="ティア表">
+  return `<div class="tierboard" aria-label="ティア表">
     <div class="tb-h"><span>【ター宿】強さ議論スレ ティア表</span><b>v${st.round + 1}.${st.turn}</b></div>
     ${rows}
     <div class="trow kesurow"><div class="tlab" style="background:#7a6a9a;color:#fff"><b>欠番</b><small>±0</small></div><div class="tchips">${kes.map(chip).join('') || '<span class="mute" style="font-size:11px;padding:4px">理由は聞かない</span>'}</div></div>
-    ${recapHTML()}
-    <p class="tb-foot">数字は、そのカテゴリのカードを各自が場に何枚持っているか（色＝席）。ティアの補正は1枚・1カテゴリごとに入ります。</p>
-  </aside>`;
+  </div>`;
 }
 function recapHTML() {
   const st = A.st; const r = st.recap;
@@ -692,8 +856,9 @@ function recapHTML() {
   (r.fx || []).forEach(x => posts.push(`<div class="rc-r fx">★ ${esc(srcText(x.src))}で〈${esc(catName(x.cat))}〉 ${tierLabel(x.from)} → <b class="${x.to === TJ.KESU || x.to > x.from ? 'n' : 'p'}">${tierLabel(x.to)}</b></div>`));
   return `<div class="recap">${head}${posts.join('')}</div>`;
 }
-function playerPanel(p, isMe) {
-  const st = A.st; const sc = scoresNow(); const P = st.players[p];
+const WINDS = ['東', '南', '西', '北'];
+function seatHTML(p, pos) {
+  const st = A.st; const sc = scoresNow(); const P = st.players[p]; const isMe = pos === 'me';
   const tot = sc.tot; const lead = Math.max(...tot) === tot[p] && tot[p] > 0;
   const tags = [];
   if (p === st.oya) tags.push('<span class="tag oya">親</span>');
@@ -701,15 +866,67 @@ function playerPanel(p, isMe) {
   if (st.phase === 'pick') tags.push(P.act ? '<span class="tag ok">決定</span>' : '<span class="tag wait">考え中</span>');
   if (st.phase === 'roundEnd' && (P.ok || st.seats[p].cpu)) tags.push('<span class="tag ok">OK</span>');
   if (!isMe && A.me >= 0) {
-    if ((A.me + st.dir + 4) % 4 === p) tags.push('<span class="tag dir">あなたの手札が行く →</span>');
-    if ((A.me - st.dir + 4) % 4 === p) tags.push('<span class="tag dir">← 手札をくれる</span>');
+    if ((A.me + st.dir + 4) % 4 === p) tags.push('<span class="tag dir">あなたの手札が行く</span>');
+    if ((A.me - st.dir + 4) % 4 === p) tags.push('<span class="tag dir">手札をくれる</span>');
   }
+  if (P.gauge) tags.push(`<span class="tag" title="ゲージ">🔋${P.gauge}</span>`);
   const cards = P.table.map(c => miniHTML(c, p, sc.map[c.u] ? sc.map[c.u].total : 0)).join('')
     + (st.ghosts || []).filter(gh => gh.p === p).map(gh => ghostHTML(gh)).join('');
-  const body = `<div class="pp-h"><span class="nm">${esc(st.seats[p].name)}</span>${tags.join('')}</div>
-    <div class="pp-s"><span class="sc" data-score="${p}" title="点数の内訳">${tot[p]}<small>点</small></span><span class="rp">順位点 <b>${P.rp}</b></span><span class="handc">手札 ${P.hand.length}</span></div>
-    <div class="tbl">${cards || '<span class="mute" style="font-size:12px">まだ何も取っていない</span>'}</div>`;
-  return isMe ? body : `<div class="pp ${lead ? 'lead' : ''}" style="--sc:${SEATC[p]}">${body}</div>`;
+  const wind = WINDS[(p - st.oya + 4) % 4];
+  const backs = isMe ? '' : `<div class="stack" data-stack="${p}" title="手札 ${P.hand.length}枚">${P.hand.map(() => '<i></i>').join('')}<span>${P.hand.length}</span></div>`;
+  return `<section class="seat pos-${pos} ${lead ? 'lead' : ''}" style="--sc:${SEATC[p]}" data-seat="${p}" aria-label="${esc(st.seats[p].name)}の席">
+    ${isMe ? '<div class="me-main">' : ''}<div class="np"><span class="wind" title="${wind}家">${wind}</span><span class="nm">${isMe ? 'あなた（' + esc(st.seats[p].name) + '）' : esc(st.seats[p].name)}</span>${tags.join('')}</div>
+    <div class="pp-s"><span class="sc" data-score="${p}" title="点数の内訳">${tot[p]}<small>点</small></span><span class="rp">順位点 <b>${P.rp}</b></span>${backs}</div>
+    <div class="tbl">${cards || '<span class="mute" style="font-size:12px">まだ何も取っていない</span>'}</div>
+    ${isMe ? (A._meExtra || '') + '</div>' + `<div class="me-side">${A._meSide || ''}</div>` : ''}
+  </section>`;
+}
+// ティアの効き目表：各カテゴリを1段動かしたら、各自の点がどう変わるか
+function effectTable() {
+  const st = A.st; const key = st.v + ':' + st.round + ':' + st.turn;
+  if (A.effCache && A.effCache.key === key && A.effCache.st === st) return A.effCache.rows;
+  const rows = TJ.tierCats(st).sort((a, b) => st.tiers[a] - st.tiers[b]).map(cat => ({ cat, up: TJ.ai.tierEffect(st, cat, 1), dn: TJ.ai.tierEffect(st, cat, -1) }));
+  A.effCache = { key, st, rows };
+  return rows;
+}
+function effectHTML() {
+  const st = A.st; const rows = effectTable();
+  const nm = i => i === A.me ? 'あなた' : esc(st.seats[i].name);
+  const head = `<tr><th>カテゴリ</th>${[0, 1, 2, 3].map(i => `<th style="color:${SEATC[i]}">${nm(i)}</th>`).join('')}</tr>`;
+  const body = rows.map(r => {
+    const mx = Math.max(...r.up), mn = Math.min(...r.dn);
+    return `<tr data-cat-row="${r.cat}"><td><span class="ek" style="--cc:${catColor(r.cat)}">${esc(catName(r.cat))}</span><small>${tierLabel(st.tiers[r.cat])}</small></td>${[0, 1, 2, 3].map(i => {
+      const u = r.up[i], d = r.dn[i];
+      const best = u === mx && u > 0; const worst = d === mn && d < 0;
+      return `<td class="${best ? 'best' : ''}" style="${best ? `--bc:${SEATHEX[i]}` : ''}"><b class="${u > 0 ? 'p' : u < 0 ? 'n' : ''}">${u ? fmt(u) : '·'}</b><small class="${worst ? 'wst' : ''}">${d ? fmt(d) : '·'}</small></td>`;
+    }).join('')}</tr>`;
+  }).join('');
+  return `<div class="effect"><p class="ef-n">各カテゴリを<b>1段上げたら</b>（下の小さい数字は<b>1段下げたら</b>）、各自の点がどう変わるか。色つきのマスが一番得する人です。</p><table class="eff">${head}${body}</table></div>`;
+}
+function logLines() {
+  return A.st.log.slice(-60).map(l => `<div class="${l.b ? 'b' : l.k === 'sys' ? 's' : l.k === 'vote' ? 'v' : ''}">${esc(l.t)}</div>`).join('');
+}
+function centerHTML() {
+  const st = A.st;
+  const pips = Array.from({ length: TJ.TURNS }, (_, i) => `<i class="${i + 1 < st.turn ? 'done' : i + 1 === st.turn ? 'now' : ''} ${i + 1 >= TJ.datTurn(st) ? 'dat' : ''}"></i>`).join('');
+  const dirL = st.dir === 1;
+  const rcards = st.sets.map(id => { const S = TJ.SETS[id]; const r = S.rules && S.rules.text; return `<div class="rcard ${r ? 'has' : ''}" data-rule="${id}" tabindex="0"><span class="e">${S.e || ''}</span><b>${esc(S.name)}</b>${r ? `<small>${richText(r)}</small>` : '<small class="mute">独自ルールなし</small>'}</div>`; }).join('');
+  const tab = A.ctab || 'recap';
+  return `<div class="felt">
+    <div class="felt-top">
+      <span class="kyoku">${TJ.ROUND_NAMES[st.round] || ''}</span>
+      <span class="oya">親 <b style="color:${SEATC[st.oya]}">${esc(st.seats[st.oya].name)}</b></span>
+      <span class="pips" title="手番（赤い枠はティア操作禁止）">${pips}<em>${Math.min(st.turn, 7)}/7</em></span>
+      <span class="dirind ${dirL ? 'l' : 'r'}" title="手札を回す向き">${dirL ? '↺' : '↻'} 手札は${dirL ? '左' : '右'}隣へ</span>
+    </div>
+    <div class="fboard">${tierboardHTML()}</div>
+    <div class="fside">
+    <div class="rcards" aria-label="この局のカードセットとルール">${rcards}</div>
+    <div class="ftabs" role="tablist"><button type="button" role="tab" data-a="ctab" data-t="recap" aria-selected="${tab === 'recap'}">直前の議論</button><button type="button" role="tab" data-a="ctab" data-t="eff" aria-selected="${tab === 'eff'}">ティアの効き目</button><button type="button" role="tab" data-a="ctab" data-t="log" aria-selected="${tab === 'log'}">記録</button></div>
+    <div class="fpane" id="fpane">${tab === 'eff' ? effectHTML() : tab === 'log' ? `<div class="logbox inpane">${logLines()}</div>` : recapHTML()}</div>
+    </div>
+    <p class="tb-foot">チップの数字は、そのカテゴリのカードを各自が場に何枚持っているか（色＝席）。カードの ⚙ は常時効いている効果、⏳ は手番の終わりなどに変化する効果、✂ はカット候補。</p>
+  </div>`;
 }
 function previewTakes() {
   const st = A.st; const key = st.v + ':' + st.round + ':' + st.turn;
@@ -764,57 +981,61 @@ function actbarHTML() {
     <button type="button" class="btn primary" data-a="submit" ${ok ? '' : 'disabled'}>${esc(label)}</button>
   </div>`;
 }
+function cutCandidates() {
+  const st = A.st; const me = A.me; const key = st.v + ':' + st.round + ':' + st.turn + ':' + st.dir;
+  if (A.cutCache && A.cutCache.key === key && A.cutCache.st === st) return A.cutCache.map;
+  const q = (me + st.dir + 4) % 4; const map = {};
+  st.players[me].hand.forEach(c => { try { map[c.u] = Math.round(TJ.ai.valueFor(st, me, q, c.u)); } catch (e) { map[c.u] = 0; } });
+  const mx = Math.max(...Object.values(map));
+  const out = {}; Object.keys(map).forEach(u => { out[u] = { v: map[u], top: map[u] === mx && mx > 0 && st.players[me].hand.length > 1, name: st.seats[q].name }; });
+  A.cutCache = { key, st, map: out };
+  return out;
+}
 function renderGame() {
   const st = A.st; const me = A.me; const spect = me < 0;
   const view = spect ? 0 : me;
-  const opps = [1, 2, 3].map(k => (view + k) % 4);
-  const rules = st.sets.map(id => TJ.SETS[id]).filter(s => s.rules && s.rules.text);
-  const dirTxt = st.dir === 1 ? '左隣へ回す' : '右隣へ回す';
+  const L = (view + 1) % 4, T = (view + 2) % 4, R = (view + 3) % 4;
   const timeLeft = st.timer && st.phase === 'pick' && A.deadline ? Math.max(0, Math.ceil((A.deadline - Date.now()) / 1000)) : null;
-  const sc = scoresNow();
-  let meHTML = '';
+  A._meExtra = ''; A._meSide = '';
   if (!spect) {
     const P = st.players[me];
-    const pv = st.phase === 'pick' && !P.act ? previewTakes() : {};
+    const active = st.phase === 'pick' && !P.act;
+    const pv = active ? previewTakes() : {};
+    const cut = active && st.turn < TJ.TURNS ? cutCandidates() : {};
     const hand = P.hand.map(c => cardHTML(c, {
-      button: st.phase === 'pick' && !P.act ? 'hand' : '',
+      button: active ? 'hand' : '',
       pts: pv[c.u] ? pv[c.u].self : null,
       ptsLabel: pv[c.u] ? '' : null,
       total: pv[c.u] && A.sel.mode === 'take' ? pv[c.u].total : null,
+      cut: cut[c.u] && (A.sel.mode === 'tier' || cut[c.u].top) ? cut[c.u] : null,
       cls: A.sel.u === c.u ? (A.sel.mode === 'tier' ? 'cutsel' : 'sel') : (P.act ? 'dim' : '')
     })).join('');
-    meHTML = `<section class="me" style="--sc:${SEATC[me]}" aria-label="あなたの場">
-      ${playerPanel(me, true)}
-      ${actbarHTML()}
-      <div id="cinfo">${infoHTML(A.sel.u != null ? A.sel.u : A.hoverU)}</div>
-      <div class="hand" aria-label="手札">${hand || '<span class="mute">手札はありません</span>'}</div>
-    </section>`;
-  } else meHTML = '<div class="panel waitbox">観戦中です（席がありません）</div>';
-  const logs = st.log.slice(-40).map(l => `<div class="${l.b ? 'b' : l.k === 'sys' ? 's' : l.k === 'vote' ? 'v' : ''}">${esc(l.t)}</div>`).join('');
+    A._meExtra = `${actbarHTML()}
+      <div class="hand" data-stack="${me}" aria-label="手札">${hand || '<span class="mute">手札はありません</span>'}</div>`;
+    A._meSide = `<div id="cinfo" aria-live="polite">${A.glow ? ruleInfoHTML(A.glow) : infoHTML(A.sel.u != null ? A.sel.u : A.hoverU)}</div>`;
+  }
+  const logs = logLines();
   let overlay = '';
   if (A.roundOpen && st.phase === 'roundEnd') overlay = roundHTML();
   if (A.modal) overlay = A.modal;
+  const sp = A.speed || 'normal';
   return `<header class="hd">
       <span class="logo">ター宿のほとり</span>
-      <span class="pill"><b>${TJ.ROUND_NAMES[st.round] || ''}</b></span>
-      <span class="pill">親 <b style="color:${SEATC[st.oya]}">${esc(st.seats[st.oya].name)}</b></span>
-      <span class="pill ${st.turn >= TJ.TURNS ? 'warn' : ''}">手番 <b>${Math.min(st.turn, 7)}</b>/7</span>
-      <span class="pill">${st.dir === 1 ? '↺' : '↻'} ${dirTxt}</span>
       ${timeLeft != null ? `<span class="pill time ${timeLeft <= 10 ? 'low' : ''}" id="tmr">残り <b>${timeLeft}</b>秒</span>` : ''}
       <span class="sp"></span>
+      <label class="pill" style="gap:4px">演出 <select id="opSpeed" aria-label="演出の速さ">${[['fast', 'はやい'], ['normal', 'ふつう'], ['slow', 'じっくり'], ['off', 'なし']].map(([v, t]) => `<option value="${v}" ${sp === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
       <button class="btn sm" data-a="mute" type="button">${TJ.audio.muted ? '音：OFF' : '音：ON'}</button>
       <button class="btn sm" data-a="rulesModal" type="button">ルール</button>
       <button class="btn sm" data-a="leave" type="button">退出</button>
     </header>
-    <div class="game">
-      ${tierboardHTML()}
-      <div class="main">
-        <div class="ruleband">${st.sets.map(id => `<span class="setp">${TJ.SETS[id].e || ''} ${esc(TJ.SETS[id].name)}</span>`).join('')}${rules.map(s => `<span class="rule" data-rule="${s.id}">${s.e || ''} ${richText(s.rules.text)}</span>`).join('')}</div>
-        <div class="opps">${opps.map(p => playerPanel(p, false)).join('')}</div>
-        ${meHTML}
-        <div class="logbox" id="logbox" aria-label="記録">${logs}</div>
-      </div>
+    <div class="mj">
+      <div class="g-top">${seatHTML(T, 'top')}</div>
+      <div class="g-left">${seatHTML(L, 'left')}</div>
+      <div class="g-center">${centerHTML()}</div>
+      <div class="g-right">${seatHTML(R, 'right')}</div>
+      <div class="g-me">${spect ? '<div class="panel waitbox">観戦中です（席がありません）</div>' : seatHTML(me, 'me')}</div>
     </div>
+    <div class="logbox" id="logbox" aria-label="記録">${logs}</div>
     ${overlay ? `<div class="ov" data-a="ovbg">${overlay}</div>` : ''}`;
 }
 function roundHTML() {
@@ -858,10 +1079,12 @@ function render() {
   const nmFocus = document.activeElement && document.activeElement.id;
   const nmVal = $('#code') ? $('#code').value : '';
   app.innerHTML = html;
+  document.body.dataset.screen = A.screen;
   if (nmFocus === 'code' && $('#code')) { $('#code').value = nmVal; $('#code').focus(); }
   if (A.screen === lastScreen) window.scrollTo(0, keepScroll); else window.scrollTo(0, 0);
   lastScreen = A.screen;
   const lb = $('#logbox'); if (lb) lb.scrollTop = lb.scrollHeight;
+  const lp = document.querySelector('.logbox.inpane'); if (lp) lp.scrollTop = lp.scrollHeight;
   // 再描画しても光らせたままにする
   if (A.screen === 'game' && A.hl) { const h = A.hl; if (h.p != null) highlightTotal(h.p); else if (h.u != null) highlight(h.u); }
 }
@@ -904,6 +1127,7 @@ document.addEventListener('input', e => {
   if (e.target.id === 'nm') { A.name = e.target.value.trim().slice(0, 12); store.set('tjgod-name', A.name); }
 });
 document.addEventListener('change', e => {
+  if (e.target.id === 'opSpeed') { A.speed = e.target.value; store.set('tjgod-speed', A.speed); return; }
   const H = A.session && A.session.isHost ? A.session : null; if (!H) return;
   if (e.target.id === 'opTimer') { H.lobby.timer = +e.target.value; H.push(); }
   if (e.target.id === 'opLv') { H.lobby.lv = +e.target.value; H.push(); }
@@ -955,6 +1179,7 @@ function clickAction(a, ds) {
       TJ.audio.play('click'); render(); break;
     case 'delta': A.sel.d = A.sel.d === +ds.d && A.sel.mode === 'take' ? null : +ds.d; TJ.audio.play('click'); render(); break;
     case 'submit': doSubmit(); break;
+    case 'ctab': A.ctab = ds.t; render(); break;
   }
 }
 

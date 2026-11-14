@@ -18,5 +18,35 @@ window.TJ_SET_FILES = [
   'yado.js',       // 女将の宿
   'movie.js',      // 『ターム　』
   'oppen.js',      // オッペンとタタ
-  'kin.js'         // 金武町タイム
+  'kin.js',        // 金武町タイム
+  // ---- ター宿の残り ----
+  'soutou.js',     // 相当
+  'wani.js',       // ワニ騒動
+  'tamden.js',     // タムデンとタムボイス
+  'hako.js',       // 箱と角
+  'dakuten.js',    // 濁点とスレ立て
+  'tayu.js',       // ター湯とカレー
+  'mure.js',       // 群れ
+  'mizube.js',     // 水辺と夜の動物
+  'esa.js',        // 動物と餌
+  'oogui.js',      // 大食い
+  'idou.js',       // 移動の旅
+  'taikuu.js',     // 対空と読み
+  'okizeme.js',    // 起き攻めとゲージ
+  'shinri.js',     // 守りと心理戦
+  'mamori.js',     // 守りの宿
+  'hanekaesu.js',  // 跳ね返す食卓と獣
+  'matagi.js',     // 系統またぎ
+  'wild.js',       // ワイルドとごった煮
+  'hanyou1.js',    // 汎用の勇者パーティ
+  'hanyou2.js',    // 汎用の城塞
+  'hanyou3.js',    // 汎用の魔導書
+  // ---- リミナル・スペース・オペラ／暖簾の外側 ----
+  'lso.js',        // リミナル・スペース・オペラ
+  'noren.js',      // 暖簾の外側
+  // ---- プロトコルチャーハン ----
+  'chahan1.js',    // プロトコルチャーハン
+  'chahan2.js',    // マンカン・ホールディングス
+  'chahan3.js',    // ネオヨコハマの夜
+  'chahan4.js'     // ネオヨコハマの昼
 ];
