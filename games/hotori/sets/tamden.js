@@ -18,7 +18,7 @@ TJ.registerSet({
     { id: 'tamgirl', name: 'タームデン・ガール', e: '👧', g: 'ガ', cats: ['tam', 'ter'], base: 2,
       text: '【取ったとき】先回り。次の手番、カードを取りつつティアも動かせる。【得点】「タームデン・ボーイ」がいれば+5。', flavor: 'ボーイよりさらに先回りしている。',
       onPick: (g, p) => { g.grantBonus(p); g.log(`${g.name(p)}は次の手番、取りながらティアも動かせる。`); }, score: K.with('tamden', 5) },
-    { id: 'map', name: 'マープの地図', e: '🗺️', g: '図', cats: ['inn'], base: 2,
+    { id: 'map', name: 'マープの地図', e: '🗺️', g: '図', cats: ['inn'], base: 3,
       text: '【得点】〈宿〉のティアの補正を、もう一度得る（地図は女将の頭の中にある）。', flavor: '女将の頭の中の地図を、誰かが書き写したもの。',
       score: (g) => g.mod('inn') || 0 },
     { id: 'kanae', name: '叶（にじさんじライバー）', short: '叶', e: '🎙️', g: '叶', cats: ['thread'], base: 2,

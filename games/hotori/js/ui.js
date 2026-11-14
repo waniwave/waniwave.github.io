@@ -54,7 +54,7 @@ function Host(online) {
 }
 Host.prototype.isHost = true;
 Host.prototype.open = async function () {
-  if (this.online) this.conn = await TJ.net.open(this.code, true, m => this.onMsg(m), (s, e) => { if (s === 'error') toast('通信：' + (e && e.message || e || 'エラー')); });
+  if (this.online) this.conn = await TJ.net.open(this.code, true, m => this.onMsg(m), (s, e) => { if (s === 'error') toast('通信：' + (e && e.message || e || 'エラー')); if (s === 'left') this.drop(e, '接続が切れた'); });
   this.iv = setInterval(() => this.tick(), 1000);
   this.push();
 };
@@ -67,6 +67,11 @@ Host.prototype.onMsg = function (m) {
   if (!m || m.from === CID) return;
   this.seen[m.from] = Date.now();
   const i = this.seatOf(m.from);
+  // 抜けた人が戻ってきたら、CPUから席を返す
+  if (i > 0 && m.t !== 'bye' && this.lobby.started && this.st && this.lobby.seats[i].dropped && this.st.seats[i].cpu) {
+    this.st.seats[i].cpu = false; this.lobby.seats[i].dropped = false;
+    this.st.log.push({ t: `${this.st.seats[i].name}が戻ってきた。席を返した。`, k: 'sys' }); toast(`${this.st.seats[i].name} が戻ってきました`); this.push();
+  }
   if (m.t === 'hello') {
     if (!this.lobby.started) {
       if (i < 0) {
@@ -90,7 +95,17 @@ Host.prototype.onMsg = function (m) {
     } else this.push();
   } else if (m.t === 'bye') {
     if (i > 0 && !this.lobby.started) { this.lobby.seats[i] = { name: CPU_NAMES[i], cpu: true }; this.push(); }
+    else if (i > 0) this.drop(m.from, '退出した');
   }
+};
+// 対局中に抜けた人の席をCPUに入れ替える（戻ってきたら返す）
+Host.prototype.drop = function (cid, why) {
+  const i = this.seatOf(cid); const st = this.st; const s = this.lobby.seats[i];
+  if (i <= 0 || !s || !this.lobby.started || !st || st.seats[i].cpu) return;
+  st.seats[i].cpu = true; s.dropped = true;
+  st.log.push({ t: `★ ${s.name}が${why || '抜けた'}。この席はCPUが代わりに打つ。`, k: 'sys', b: 1 });
+  toast(`${s.name} が抜けたので、CPUに交代しました`);
+  this.changed();
 };
 Host.prototype.tick = function () {
   const now = Date.now(); const st = this.st;
@@ -98,10 +113,7 @@ Host.prototype.tick = function () {
   if (!st) return;
   // 回線落ち → CPUが代打ち
   if (this.online && this.lobby.started) this.lobby.seats.forEach((s, i) => {
-    if (s.cid && s.cid !== CID && !st.seats[i].cpu && now - (this.seen[s.cid] || now) > 25000) {
-      st.seats[i].cpu = true; s.dropped = true;
-      st.log.push({ t: `${s.name}の回線が落ちた。CPUが代打ちする。`, k: 'sys' }); this.changed();
-    }
+    if (s.cid && s.cid !== CID && !st.seats[i].cpu && now - (this.seen[s.cid] || now) > 15000) this.drop(s.cid, '応答しなくなった');
   });
   // 手番の制限時間
   if (st.phase === 'pick' && st.timer && st.deadline && now > st.deadline) {
@@ -138,7 +150,7 @@ Host.prototype.cpuMoves = function () {
     setTimeout(() => {
       this.pending[i] = 0;
       if (this.st !== st || st.phase !== 'pick' || st.players[i].act || !st.seats[i].cpu || (st.round + ':' + st.turn) !== key) return;
-      const a = TJ.ai.choose(st, i, this.lobby.lv);
+      const a = TJ.ai.choose(st, i, st.tut ? 1 : this.lobby.lv);
       if (a) { const err = TJ.submit(st, i, a); if (err) TJ.submit(st, i, { type: 'take', u: st.players[i].hand[0].u }); }
       this.changed();
     }, 650 + Math.random() * 1100);
@@ -153,7 +165,11 @@ Host.prototype.act = function (a) {
 Host.prototype.startGame = function () {
   const L = this.lobby;
   if (!L.sets.length) { toast('カードセットを1つ以上選んでください'); return; }
-  this.st = TJ.newGame({ seats: L.seats.map(s => ({ name: s.name, cpu: s.cpu, lv: L.lv })), pool: L.sets.slice(), timer: L.timer });
+  const tut = !L.online && L.tut;
+  this.st = tut
+    ? TJ.newGame({ seats: L.seats.map(s => ({ name: s.name, cpu: s.cpu, lv: 1 })), pool: TUT_SETS.filter(id => TJ.SETS[id]), timer: 0, rounds: 1, start: 1, tut: true })
+    : TJ.newGame({ seats: L.seats.map(s => ({ name: s.name, cpu: s.cpu, lv: L.lv })), pool: L.sets.slice(), timer: L.timer });
+  A.tut = tut ? { i: 0 } : null;
   L.started = true; A.lastSeq = 0; A.finalShown = false;
   this.changed();
 };
@@ -421,6 +437,29 @@ function playEvents(evs) {
   if (evs.some(e => e.k === 'roundEnd')) fx(() => { TJ.audio.play('round'); A.roundOpen = true; render(); }, 100);
   if (evs.some(e => e.k === 'gameEnd')) fx(() => showFinal(), 100);
 }
+// ゲーム全体のまとめ（表彰）
+function finalSummaryHTML() {
+  const st = A.st; const S = st.stats || {}; const nm = p => `<b style="color:${SEATC[p]}">${p === A.me ? 'あなた' : esc(st.seats[p].name)}</b>`;
+  const items = [];
+  let mvp = null; st.results.forEach(r => r.rows.forEach((rows, p) => rows.forEach(x => { if (TJ.CARD[x.id] && (!mvp || x.r.total > mvp.v)) mvp = { v: x.r.total, p, id: x.id, round: r.round }; })));
+  if (mvp) { const d = TJ.CARD[mvp.id]; items.push(['🏆', 'MVPカード', `${d.e || ''}「${esc(d.short || d.name)}」 ${mvp.v}点（${nm(mvp.p)}・${TJ.ROUND_NAMES[mvp.round]}）`]); }
+  let hi = null; st.results.forEach(r => r.scores.forEach((v, p) => { if (!hi || v > hi.v) hi = { v, p, round: r.round }; }));
+  if (hi) items.push(['🔥', '最高得点の局', `${nm(hi.p)} ${hi.v}点（${TJ.ROUND_NAMES[hi.round]}）`]);
+  const mv = Object.entries(S.moves || {}).sort((a, b) => b[1] - a[1])[0];
+  if (mv) items.push(['🎢', '一番議論が荒れたカテゴリ', `〈${esc(catName(mv[0]))}〉 合計${mv[1]}段動いた`]);
+  const top = (arr) => { if (!arr) return null; const m = Math.max(...arr); return m > 0 ? { p: arr.indexOf(m), v: m } : null; };
+  const h = top(S.hits); if (h) items.push(['💥', '破壊王', `${nm(h.p)} 他人のカードを${h.v}枚消した`]);
+  const l = top(S.lost); if (l) items.push(['🩹', '一番の被害者', `${nm(l.p)} 場のカードを${l.v}枚消された`]);
+  const t = top(S.tierOps); if (t) items.push(['🗳️', 'ティア議論王', `${nm(t.p)} ${t.v}回ティアを動かした`]);
+  const s = top(S.stolen); if (s) items.push(['🦝', '持ち去り名人', `${nm(s.p)} ${s.v}枚を自分の場へ持ってきた`]);
+  // 逆転劇
+  if (st.results.length >= 4) {
+    const rp3 = [0, 1, 2, 3].map(p => st.players[p].hist.slice(0, 3).reduce((a, x) => a + x.pts, 0));
+    const lead3 = rp3.indexOf(Math.max(...rp3)); const w = st.final[0];
+    if (w !== lead3 && rp3[w] < rp3[lead3]) items.push(['🔄', '大逆転', `${nm(w)} 東3局まで首位の${nm(lead3)}を最後にまくった`]);
+  }
+  return `<div class="fs-h">このゲームのまとめ</div><div class="fs-g">${items.map(([e, k, v]) => `<div class="fs-i"><span class="fs-e">${e}</span><div><small>${k}</small><div>${v}</div></div></div>`).join('')}</div>`;
+}
 function closeFinal() { const f = $('.final'); if (f) f.remove(); const c = $('.confetti'); if (c) c.remove(); }
 function showFinal() {
   const st = A.st; if (!st || !st.final || A.finalShown) return;
@@ -435,6 +474,7 @@ function showFinal() {
   });
   el.innerHTML = `<div class="thr">【結論】ター宿 強さ議論スレ 最終まとめ v${st.round + 1}.0</div><h2>強さ議論の結論が出ました</h2>
     <div class="flist">${rows.join('')}</div>
+    <div class="fsum" id="fsum" hidden>${finalSummaryHTML()}</div>
     <div class="row" style="justify-content:center;margin-top:8px" id="finalBtns" hidden>
       ${A.session && A.session.isHost ? '<button class="btn primary big" data-a="again">もう一度（同じ部屋で）</button>' : ''}
       <button class="btn big" data-a="tomenu">メニューへ</button></div>`;
@@ -444,7 +484,7 @@ function showFinal() {
     const r = el.querySelector(`.fr[data-k="${k}"]`); if (r) r.classList.add('on');
     TJ.audio.play(k === 0 ? 'god' : 'rank');
     if (k === 0) confetti();
-    if (i === 3) { const b = el.querySelector('#finalBtns'); if (b) b.hidden = false; }
+    if (i === 3) { const b = el.querySelector('#finalBtns'); if (b) b.hidden = false; const f = el.querySelector('#fsum'); if (f) f.hidden = false; tutUpdate(); }
   }, 900 + i * (k === 0 ? 1500 : 1100)));
 }
 function confetti() {
@@ -465,7 +505,7 @@ function cardHTML(c, o) {
   o = o || {}; const d = TJ.CARD[c.id]; const st = A.st;
   const cats = (c.cats || d.cats).map(k => {
     const pos = st && st.tiers[k] != null ? st.tiers[k] : null;
-    const m = pos == null ? null : TJ.modOf(st, pos) * (d.tierX || 1);
+    const m = pos == null ? null : TJ.modOf(st, pos) * (d.tierX || 1) * (d.invert || (c.x && c.x.invert) ? -1 : 1);
     return `<span class="cat" style="--catc:${catColor(k)}">${esc(catName(k))}${pos != null && !d.noTier ? `<i>${tierShort(pos)}${m ? ' ' + fmt(m) : ''}</i>` : ''}</span>`;
   }).join('');
   // 左上の大きな数字：このカードの点。手札なら「取ったら何点か」、場なら「いま何点か」、図鑑では基本の点
@@ -639,6 +679,52 @@ document.addEventListener('mouseover', e => {
   highlight(u);
 });
 
+// ===== チュートリアル =====
+// オフラインでチェックを入れたときだけ。手番や場面に合わせて吹き出しで案内する
+const TUT_SETS = ['ham', 'teishoku', 'zoo', 'oppen'];
+const TUT = [
+  { t: 1, center: 1, h: 'ようこそ、ター宿のほとりへ', x: '4人で同じ7枚の手札を回しながら1枚ずつ取り、場のカードの点数を競うゲームです。カードの強さは、真ん中の<b>ティア表</b>でみんなが決めます。まずは1局だけ遊んでみましょう。' },
+  { t: 1, sel: '.hand', h: 'あなたの手札', x: 'カード左上の大きな数字は「いま取ったら何点になるか」。下の色の札がカードの<b>カテゴリ</b>です。' },
+  { t: 1, sel: '.tierboard', h: 'ティア表', x: 'カテゴリが上の段にあるほど、そのカテゴリのカードの点が上がります（Godなら1枚につき+6、Tier5なら−2）。どの段にあるかは、みんなの操作で毎手番変わります。' },
+  { t: 1, sel: '.me-side', h: '拡大表示', x: 'カードにマウスを乗せる（スマホは押す）と、ここに効果の全文と、点数の内訳が出ます。' },
+  { t: 1, sel: '.hand', h: 'カードを取ってみよう', x: '好きなカードを1枚押して、右の<b>「このカードを取る」</b>を押してください。全員が選び終わると一斉に公開されます。', wait: (st, P) => !!P.act },
+  { t: 2, sel: '.dirind', h: '手札は隣へ回る', x: '取り終わった残りの手札は、矢印の向きの隣の人へ渡ります。相手の場（取ったカード）は全員に見えています。誰が何を集めているか、見ておきましょう。' },
+  { t: 2, sel: '.actbar', h: 'ティアを動かしてみよう', x: '<b>「捨ててティアを動かす」</b>を押し、①ティア表のカテゴリ ②段数 ③捨てるカード の順に選んで決定。カードは1枚減りますが、自分の得意なカテゴリを上げたり、相手のを下げたりできます。', wait: (st, P) => !!P.act && A.lastActType === 'tier' },
+  { t: 3, sel: '.ftabs', h: '直前の議論とティアの効き目', x: '「直前の議論」で、誰がどのカテゴリを動かしたか分かります。<b>「ティアの効き目」</b>タブでは、各カテゴリを1段動かすと4人それぞれが何点変わるかが見られます。' },
+  { t: 3, sel: '.hand', h: '✂ はカット候補', x: 'カードの ✂ の印は、あなたが手札を渡す人がそのカードで得をする印です。赤く光るものは特に危険。捨ててティアを動かせば、相手に渡さずに済みます（カット）。' },
+  { t: 4, sel: '.rcards', h: 'ルール札', x: 'カードセットごとに、その局だけの追加ルールがあります。札にマウスを乗せると全文が出て、関係するカードが光ります。' },
+  { t: 6, sel: '.pips', h: 'もうすぐ dat落ち', x: '最後の7手番目は、スレがdat落ちしてティアを動かせません。動かすなら今のうちです。' },
+  { end: 1, center: 1, h: 'おつかれさまでした', x: '本番は<b>4局</b>遊び、局ごとの順位点（1位4点・2位2点・3位1点・4位0点）の合計で<b>ティアGOD</b>を決めます。メニューのルール説明もどうぞ。' }
+];
+function tutUpdate() {
+  document.querySelectorAll('.coach-hl').forEach(el => el.classList.remove('coach-hl'));
+  let box = document.getElementById('coach');
+  const st = A.st; const T = A.tut;
+  if (!T || A.screen !== 'game' || !st || !st.tut || A.me < 0) { if (box) box.remove(); return; }
+  const P = st.players[A.me];
+  let step = TUT[T.i];
+  // 過ぎた場面の案内は飛ばす
+  while (step && !step.end && (st.phase !== 'pick' || st.turn > step.t || (step.wait && step.wait(st, P)))) { T.i++; step = TUT[T.i]; }
+  const show = step && (step.end ? st.phase === 'gameEnd' && A.finalShown : st.phase === 'pick' && st.turn === step.t);
+  if (!show) { if (box) box.remove(); return; }
+  if (!box) { box = document.createElement('div'); box.id = 'coach'; box.className = 'coach'; document.body.appendChild(box); }
+  const n = TUT.filter(x => !x.end).length;
+  box.innerHTML = `<div class="co-h">${step.end ? '🎓' : '🧭'} ${step.h}<span>${step.end ? '' : `${Math.min(T.i + 1, n)}/${n}`}</span></div><div class="co-x">${step.x}</div>
+    <div class="co-b">${step.wait ? '<span class="co-w">やってみると次へ進みます</span>' : `<button class="btn primary sm" data-a="tutNext" type="button">${step.end ? '閉じる' : '次へ'}</button>`}${step.end ? '' : '<button class="btn sm ghost" data-a="tutSkip" type="button">案内を終える</button>'}</div>`;
+  const tg = step.sel ? document.querySelector(step.sel) : null;
+  if (tg) tg.classList.add('coach-hl');
+  box.classList.toggle('center', !tg && !step.end);
+  box.classList.toggle('end', !!step.end);
+  if (tg) {
+    const r = tg.getBoundingClientRect(); const bw = Math.min(360, window.innerWidth - 20); const bh = box.offsetHeight || 160;
+    let top = r.top - bh - 12; if (top < 8) top = Math.min(window.innerHeight - bh - 8, r.bottom + 12);
+    if (top < 8) top = 8;
+    const left = Math.max(10, Math.min(window.innerWidth - bw - 10, r.left + r.width / 2 - bw / 2));
+    box.style.top = top + 'px'; box.style.left = left + 'px'; box.style.width = bw + 'px';
+  } else { box.style.top = ''; box.style.left = ''; box.style.width = ''; }
+}
+window.addEventListener('resize', () => tutUpdate());
+
 // ===== 画面：メニュー =====
 // タイトルの絵：夜の川のほとりに建つター宿。窓の灯りが水面に映る
 function hotoriScene() {
@@ -745,6 +831,7 @@ function rulesHTML() {
     <li><b class="kw">⏳</b>：手番の終わりや局の終わりなどに、あとから動く効果。</li>
     <li><b class="kw">📦 箱</b>：箱に入ったカードは、捨て札にも移動にもならない。<b class="kw">🛡 守り</b>：一度だけ相手の効果を防ぐ。<b class="kw">↩ 返し</b>：一度だけ、相手の効果をそのカードへ跳ね返す。</li>
     <li><b class="kw">☆</b>：気絶中。そのカードの【得点】や常時の効果が働かない（基本の点とティアの補正は残る）。<b class="kw">封じる</b>：封じられた手番に取ったカードは【取ったとき】が起きない。</li>
+    <li><b class="kw">逆張り</b>：ティアの補正がプラスとマイナス逆になるカード（カテゴリが下の段にあるほど強い）。<b class="kw">予言</b>：取ったときに書いたカテゴリが、局の終わりに上の段にあれば点になる。<b class="kw">ティア崩し</b>：一番上のカテゴリを引きずり下ろす。</li>
     <li><b class="kw">🔋 ゲージ</b>：セットのルールでたまる数。<b class="kw">ワイルド</b>：取ったとき、自分の場で一番多いカテゴリが仲間に加わるカード。</li>
     <li>効果が起きると、そのカードが<b class="kw">カットイン</b>で大きく出て、影響を受けた席やカードへ矢印が伸びます。速さは画面右上の「演出」で変えられます（「なし」で止める）。</li></ul></div>
   <div class="panel"><h3>読み合いの道具</h3><ul>
@@ -752,6 +839,10 @@ function rulesHTML() {
     <li><b class="kw">カット候補</b>：手札のカードには ✂ の印が付きます（赤く光るのが一番のカット候補）。カードにマウスを乗せる（スマホは選ぶ）と、手札を渡す相手（「あなたの手札が行く」人）がそれを取ったら何点得をするかが、拡大表示に出ます。捨ててティアを動かすときの目安にしてください。</li>
     <li><b class="kw">点の内訳</b>：カードや点数にマウスを乗せる（スマホは選ぶ）と、手札の横の拡大表示に効果の全文と点数の内訳が出て、影響しているカードやティアが盤面で光ります。ルール札に乗せると、そのルールの全文が出ます。</li>
     <li><b class="kw">直前の議論</b>：直前の手番で、誰がどのティアをどう動かしたか、どの効果が起きたかの振り返り。<b class="kw">記録</b>のタブには、この局で起きたことが全部残ります。</li></ul></div>
+  <div class="panel"><h3>はじめての人へ・途中で抜けたとき</h3><ul>
+    <li>CPU戦の準備画面で<b class="kw">「チュートリアルで遊ぶ」</b>にチェックを入れると、案内を見ながら1局だけ遊べます。</li>
+    <li>オンライン対戦の途中で誰かが抜けると、その席は<b class="kw">代打ちCPU</b>が引き継ぎます。同じ部屋に戻ってくれば席を返します（部屋主が抜けると対局は終わります）。</li></ul></div>
+  <div class="panel"><h3>結果画面</h3><p>局の終わりに、<b class="kw">この局の決め手</b>（勝敗を分けたティア・カード・ルール・被害）と、各自の点数が基本・効果・ティア・ルールのどこから来たかの帯が出ます。最後には、MVPカードや破壊王などの<b class="kw">まとめ</b>が出ます。</p></div>
   <div class="panel"><h3>同点のとき</h3><p>局の中で同点なら、順位点を分け合います。最終結果が同点なら、4局の点数の合計で決めます。</p></div>`;
 }
 function renderRules() {
@@ -796,6 +887,7 @@ function renderLobby() {
         <label class="mute" style="font-size:13px">手番の制限時間 ${sel('opTimer', [[0, 'なし'], [30, '30秒'], [60, '60秒'], [90, '90秒']], L.timer)}</label>
         <label class="mute" style="font-size:13px">CPUの強さ ${sel('opLv', [[1, 'よわい'], [2, 'ふつう'], [3, 'つよい']], L.lv)}</label>
       </div>
+      ${!L.online && host ? `<label class="panel tutbox"><input type="checkbox" id="opTut" ${L.tut ? 'checked' : ''}> <span><b>チュートリアルで遊ぶ</b><small>はじめての人向け。案内を見ながら1局だけ遊びます（カードセットは分かりやすいものに固定、CPUはよわい）。</small></span></label>` : ''}
       ${host ? `<button class="btn primary big" data-a="start" type="button" ${n ? '' : 'disabled'}>対局開始</button>` : '<div class="panel waitbox">部屋主が始めるのを待っています…</div>'}
     </div>
     <div class="panel" style="display:flex;flex-direction:column;gap:10px">
@@ -862,7 +954,7 @@ function seatHTML(p, pos) {
   const tot = sc.tot; const lead = Math.max(...tot) === tot[p] && tot[p] > 0;
   const tags = [];
   if (p === st.oya) tags.push('<span class="tag oya">親</span>');
-  if (st.seats[p].cpu) tags.push('<span class="tag">CPU</span>');
+  if (st.seats[p].cpu) tags.push(A.lobby && A.lobby.seats[p] && A.lobby.seats[p].dropped ? '<span class="tag drop" title="抜けたので、CPUが代わりに打っています。戻ってくれば交代します">代打ちCPU</span>' : '<span class="tag">CPU</span>');
   if (st.phase === 'pick') tags.push(P.act ? '<span class="tag ok">決定</span>' : '<span class="tag wait">考え中</span>');
   if (st.phase === 'roundEnd' && (P.ok || st.seats[p].cpu)) tags.push('<span class="tag ok">OK</span>');
   if (!isMe && A.me >= 0) {
@@ -910,7 +1002,11 @@ function centerHTML() {
   const st = A.st;
   const pips = Array.from({ length: TJ.TURNS }, (_, i) => `<i class="${i + 1 < st.turn ? 'done' : i + 1 === st.turn ? 'now' : ''} ${i + 1 >= TJ.datTurn(st) ? 'dat' : ''}"></i>`).join('');
   const dirL = st.dir === 1;
-  const rcards = st.sets.map(id => { const S = TJ.SETS[id]; const r = S.rules && S.rules.text; return `<div class="rcard ${r ? 'has' : ''}" data-rule="${id}" tabindex="0"><span class="e">${S.e || ''}</span><b>${esc(S.name)}</b>${r ? `<small>${richText(r)}</small>` : '<small class="mute">独自ルールなし</small>'}</div>`; }).join('');
+  // ルールのあるセットは札、ないセットは小さな名札にまとめる（ルール札が多い局でも全部見えるように）
+  const withR = st.sets.filter(id => TJ.SETS[id].rules && TJ.SETS[id].rules.text);
+  const noR = st.sets.filter(id => !withR.includes(id));
+  const rcards = withR.map(id => { const S = TJ.SETS[id]; const m = S.rules.text.match(/^【(.+?)】(.*)$/s); return `<div class="rcard has" data-rule="${id}" tabindex="0" title="${esc(S.rules.text)}"><span class="e">${S.e || ''}</span><b>${m ? '【' + esc(m[1]) + '】' : esc(S.name)}</b><span class="rsn">${esc(S.name)}</span><small>${richText(m ? m[2] : S.rules.text)}</small></div>`; }).join('')
+    + (noR.length ? `<div class="rnone">${noR.map(id => { const S = TJ.SETS[id]; return `<span class="rn" data-rule="${id}" tabindex="0" title="${esc(S.name)}：独自ルールなし">${S.e || ''} ${esc(S.name)}</span>`; }).join('')}<span class="mute">独自ルールなし</span></div>` : '');
   const tab = A.ctab || 'recap';
   return `<div class="felt">
     <div class="felt-top">
@@ -1038,13 +1134,30 @@ function renderGame() {
     <div class="logbox" id="logbox" aria-label="記録">${logs}</div>
     ${overlay ? `<div class="ov" data-a="ovbg">${overlay}</div>` : ''}`;
 }
+// 点の出どころの帯：基本／効果／ティア／ルール（マイナスは右に赤で）
+function bandParts(r, p) {
+  const rows = r.rows[p]; const sum = rows.reduce((a, x) => a + x.r.total, 0);
+  const v = { base: 0, eff: 0, tier: 0, rule: r.scores[p] - sum };
+  rows.forEach(x => { v.base += x.r.base; v.eff += x.r.eff; v.tier += x.r.tier; v.rule += x.r.rule; });
+  return v;
+}
+const BAND = [['base', '基本', '#c9c2ae'], ['eff', '効果', '#6cc8bd'], ['tier', 'ティア', '#f3c54a'], ['rule', 'ルール', '#b39cff']];
+function bandHTML(r, p, scale) {
+  const v = bandParts(r, p);
+  const pos = BAND.filter(([k]) => v[k] > 0).map(([k, n, c]) => `<i style="width:${v[k] * scale}%;background:${c}" title="${n} ${fmt(v[k])}"></i>`).join('');
+  const neg = BAND.filter(([k]) => v[k] < 0).map(([k, n, c]) => `<i class="neg" style="width:${-v[k] * scale}%;--nc:${c}" title="${n} ${fmt(v[k])}"></i>`).join('');
+  const lab = BAND.filter(([k]) => v[k]).map(([k, n, c]) => `<span><b style="background:${c}"></b>${n}${fmt(Math.round(v[k]))}</span>`).join('');
+  return `<div class="band">${pos}${neg}</div><div class="bandl">${lab}${r.lost && r.lost[p] ? `<span class="lostn">消された ${r.lost[p]}枚</span>` : ''}</div>`;
+}
 function roundHTML() {
   const st = A.st; const r = st.results[st.results.length - 1]; if (!r) return '';
   const order = [0, 1, 2, 3].sort((a, b) => r.place[a] - r.place[b]);
+  const mx = Math.max(1, ...[0, 1, 2, 3].map(p => { const v = bandParts(r, p); return BAND.reduce((a, [k]) => a + Math.abs(v[k]), 0); }));
+  const scale = 100 / mx;
   const rows = order.map(p => {
     const bd = r.rows[p].map(x => { const d = TJ.CARD[x.id]; return `<tr><td>${d ? (d.e || '') + ' ' + esc(d.short || d.name) : '?'}</td><td>${x.r.base}</td><td>${fmt(x.r.eff)}</td><td>${fmt(x.r.tier)}</td><td><b>${x.r.total}</b></td></tr>`; }).join('');
     const sum = r.rows[p].reduce((a, x) => a + x.r.total, 0); const bonus = r.scores[p] - sum;
-    return `<tr class="r${r.place[p]}"><td class="pl">${r.place[p]}位</td><td><b style="color:${SEATC[p]}">${esc(st.seats[p].name)}</b>
+    return `<tr class="r${r.place[p]}"><td class="pl">${r.place[p]}位</td><td><b style="color:${SEATC[p]}">${p === A.me ? 'あなた（' + esc(st.seats[p].name) + '）' : esc(st.seats[p].name)}</b>${bandHTML(r, p, scale)}
       <details class="bd"><summary>内訳</summary><table class="bdt"><tr><td></td><td>基本</td><td>効果</td><td>ティア</td><td>計</td></tr>${bd}${bonus ? `<tr><td>セットのルール</td><td></td><td></td><td></td><td><b>${fmt(bonus)}</b></td></tr>` : ''}</table></details></td>
       <td class="big">${r.scores[p]}点</td><td class="big" style="color:var(--andon)">${fmt(r.pts[p])}</td><td>${st.players[p].rp}</td></tr>`;
   }).join('');
@@ -1052,7 +1165,8 @@ function roundHTML() {
   const ready = st.players.filter((x, i) => x.ok || st.seats[i].cpu).length;
   return `<div class="modal" role="dialog" aria-label="局の結果">
     <h2>${TJ.ROUND_NAMES[r.round]} 結果${r.reversed ? '（さかさま）' : ''}</h2>
-    <table class="restbl"><tr><th>順位</th><th>名前</th><th>点数</th><th>順位点</th><th>合計</th></tr>${rows}</table>
+    ${r.story && r.story.length ? `<div class="story"><div class="st-h">この局の決め手</div>${r.story.map(x => `<div class="st-l k-${x.type}"><span class="st-i">${{ tier: '📈', card: '🃏', rule: '📜', kill: '💥', close: '⚖️' }[x.type] || '・'}</span>${esc(x.t)}</div>`).join('')}</div>` : ''}
+    <table class="restbl"><tr><th>順位</th><th>名前と点の出どころ</th><th>点数</th><th>順位点</th><th>合計</th></tr>${rows}</table>
     <p class="mute" style="font-size:13px">共通カテゴリのティアは次の局へ引き継がれます。</p>
     <div class="row">${A.me >= 0 ? `<button class="btn primary big" data-a="okRound" type="button" ${ok ? 'disabled' : ''}>${ok ? '待っています…' : '次の局へ'}</button>` : ''}<span class="mute">準備OK ${ready}/4（45秒で自動的に進みます）</span></div>
   </div>`;
@@ -1087,6 +1201,7 @@ function render() {
   const lp = document.querySelector('.logbox.inpane'); if (lp) lp.scrollTop = lp.scrollHeight;
   // 再描画しても光らせたままにする
   if (A.screen === 'game' && A.hl) { const h = A.hl; if (h.p != null) highlightTotal(h.p); else if (h.u != null) highlight(h.u); }
+  tutUpdate();
 }
 setInterval(() => {
   const t = $('#tmr'); const st = A.st;
@@ -1116,6 +1231,7 @@ function doSubmit() {
     a = { type: 'tier', u: s.u, cat: s.cat, d: s.d };
   }
   const c = st.players[me].hand.find(x => x.u === a.u);
+  A.lastActType = a.type;
   A.myAct = a.type === 'take' ? `「${cardShort(c.id)}」を取る${a.tier ? `＋〈${catName(a.tier.cat)}〉${fmt(a.tier.d)}` : ''}` : `「${cardShort(c.id)}」を捨てて〈${catName(a.cat)}〉${fmt(a.d)}`;
   const err = A.session.act(a);
   if (err) { toast(err); TJ.audio.play('error'); A.myAct = null; return; }
@@ -1131,6 +1247,7 @@ document.addEventListener('change', e => {
   const H = A.session && A.session.isHost ? A.session : null; if (!H) return;
   if (e.target.id === 'opTimer') { H.lobby.timer = +e.target.value; H.push(); }
   if (e.target.id === 'opLv') { H.lobby.lv = +e.target.value; H.push(); }
+  if (e.target.id === 'opTut') { H.lobby.tut = !!e.target.checked; H.push(); }
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.id === 'code') clickAction('join', {});
@@ -1166,6 +1283,8 @@ function clickAction(a, ds) {
     case 'setsRand': if (H) { H.lobby.sets = TJ.util.shuffle(TJ.SET_ORDER.slice()).slice(0, 8); H.push(); } break;
     case 'kick': if (H) { const i = +ds.i; H.lobby.seats[i] = { name: CPU_NAMES[i], cpu: true }; H.push(); } break;
     case 'start': if (H) { TJ.audio.play('round'); H.startGame(); } break;
+    case 'tutNext': if (A.tut) { if (TUT[A.tut.i] && TUT[A.tut.i].end) A.tut = null; else A.tut.i++; tutUpdate(); } break;
+    case 'tutSkip': A.tut = null; tutUpdate(); break;
     case 'again': if (H) { closeFinal(); A.finalShown = false; H.backToLobby(); TJ.audio.music('menu'); } break;
     case 'okRound': if (A.session) { A.session.act({ type: 'ok' }); if (!A.session.isHost && st) { st.players[A.me].ok = true; render(); } } break;
     case 'zoom': A.modal = zoomHTML(+ds.u, +ds.o); render(); break;

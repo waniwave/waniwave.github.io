@@ -18,7 +18,7 @@ TJ.registerSet({
     { id: 'komanage', name: 'コマ投げ', e: '🌪️', g: '回', cats: ['fgc', 'move'], base: 3,
       text: '【取ったとき】レバー一回転。左右で点の高いほうの人の一番素点の高いカードを、反対側の隣の人の場へ投げ飛ばす。', flavor: 'レバーを一回転。',
       onPick: (g, p) => { const q = g.richer(p); const r = g.neighbors(p).find(x => x !== q); const t = K.bestOf(g, [q]); if (t && g.moveTo(t, r)) g.log(`★ 吸い込んで、投げた！「${g.cardName(t)}」が${g.name(r)}の場へ。`, true); } },
-    { id: 'zanzou', name: '秒速5タームメートルの残像', short: '秒速の残像', e: '👤', g: '影', cats: ['speed', 'move', 'ter'], base: 1,
+    { id: 'zanzou', name: '秒速5タームメートルの残像', short: '秒速の残像', e: '👤', g: '影', cats: ['speed', 'move', 'ter'], base: 2,
       text: '【得点】この局で自分の場にカードが出入りした回数×2（最大+10）。', flavor: '本体はもう3部屋先にいる。',
       score: (g, p) => Math.min(10, g.moves(p) * 2) },
     { id: 'sneaker', name: '秒速のスニーカー', e: '👟', g: '靴', cats: ['speed', 'move'], base: 3,
@@ -27,7 +27,7 @@ TJ.registerSet({
     { id: 'penguin', name: 'ペンギンター', e: '🐧', g: '鳥', cats: ['animal', 'move', 'ter'], base: 2,
       text: '【捨てられたとき】お腹で滑って、捨て札にならず捨てた人の場に入る（+2）。', flavor: '廊下は、よく滑る。',
       onCut: (g, p, c, entry) => { if (g.revive(entry, p)) { K.addPts(c, 2); g.log(`★ ペンギンターが${g.name(p)}の場に滑り込んだ。`, true); } } },
-    { id: 'iruka', name: 'イルカーム', e: '🐬', g: '海豚', cats: ['animal', 'move'], base: 3,
+    { id: 'iruka', name: 'イルカーム', e: '🐬', g: '海豚', cats: ['animal', 'move'], base: 4,
       text: '【常時】どこかでカードが移動するたびに+1（最大+6）。', flavor: 'ター湯で、ジャンプの練習をしている。',
       onAnyMove: (g, o, c, moved) => { if (moved !== c) c.x.pts = Math.min(6, (c.x.pts || 0) + 1); } }
   ]

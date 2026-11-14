@@ -10,7 +10,7 @@ TJ.registerSet({
     { id: 'tanuki', name: 'ターヌキ', e: '🦝', g: '狸', cats: ['animal', 'ter'], base: 2,
       text: '【得点】自分の場の〈食べ物〉1枚につき+2。', flavor: '葉っぱを頭にのせると、ター宿の札に化ける。',
       score: (g, p) => g.cnt(p, 'food') * 2 },
-    { id: 'kitsune', name: 'キターツネ', e: '🦊', g: '狐', cats: ['animal', 'ter'], base: 2,
+    { id: 'kitsune', name: 'キターツネ', e: '🦊', g: '狐', cats: ['animal', 'ter'], base: 3,
       text: '【取ったとき】左右で点の高いほうの人の、一番素点の高いカードを化かす（素点と効果が0になる。ティアの補正は残る）。', flavor: 'こんこん。化かされた札は、自分が何Tierか忘れる。',
       onPick: (g, p) => {
         const q = g.richer(p);

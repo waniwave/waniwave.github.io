@@ -96,7 +96,8 @@ TJ.newGame = function (o) {
     phase: 'pick', sets: [], tiers: {}, carry: {}, t8: 0, dir: 1,
     players: [0, 1, 2, 3].map(() => ({ hand: [], table: [], cut: [], rp: 0, raw: 0, hist: [], act: null, ok: false, intro: 0, bonus: 0, block: 0, gauge: 0, mv: 0, noPick: 0 })),
     discard: [], log: [], ev: [], evSeq: 0, uid: 1, results: [], final: null,
-    timer: o.timer || 0, turnTierers: [], ghosts: [], recap: null
+    timer: o.timer || 0, rounds: o.rounds || TJ.ROUNDS, tut: !!o.tut, turnTierers: [], ghosts: [], recap: null,
+    stats: { moves: {}, lost: [0, 0, 0, 0], hits: [0, 0, 0, 0], tierOps: [0, 0, 0, 0], stolen: [0, 0, 0, 0] }
   };
   TJ.startRound(st);
   return st;
@@ -230,6 +231,7 @@ TJ.cardScore = function (st, p, c) {
   if (!d.noTier) {
     TJ.catsOf(c).forEach(k => {
       let m = TJ.modOf(st, st.tiers[k] != null ? st.tiers[k] : TJ.START) * (d.tierX || 1);
+      if (d.invert || c.x.invert) m = -m;   // 逆張り：補正が逆になる
       m = TJ.hook(st, 'tierMod', m, c, k, p);
       tier += m; parts.push([k, m]);
     });
@@ -320,8 +322,9 @@ TJ.api = function (st) {
         }
       }
       P(o).table.splice(P(o).table.indexOf(c), 1);
-      st.discard.push({ c, p: o, how: 'kill' });
+      st.discard.push({ c, p: o, how: 'kill', src });
       c.x.killedBy = src;
+      if (st.stats) { st.stats.lost[o]++; if (src && src.p >= 0 && src.p !== o) st.stats.hits[src.p]++; }
       push(st, { k: 'kill', u: c.u, id: c.id, p: o, src });
       st.ghosts.push({ c: JSON.parse(JSON.stringify(c)), p: o, src, why: 'kill', round: st.round, turn: st.turn });
       if (why) log(st, why);
@@ -344,6 +347,7 @@ TJ.api = function (st) {
       st.ghosts.push({ c: JSON.parse(JSON.stringify(c)), p: o, to, src, why: 'move', round: st.round, turn: st.turn });
       if (why) log(st, why);
       P(o).mv++; P(to).mv++;
+      if (st.stats && src && src.p === to && o !== to) st.stats.stolen[to]++;
       fire(st, 'onAnyMove', c, o, to);
       st.sets.forEach(sid => { const R = TJ.SETS[sid].rules; if (R && R.onMove) runRule(st, sid, () => R.onMove(g, c, o, to)); });
       return true;
@@ -416,6 +420,7 @@ function fire(st, name, ...args) {
 }
 let tierDepth = 0;
 function afterTier(st, cat, from, to) {
+  if (st.stats) { const n = from === TJ.KESU || to === TJ.KESU ? 1 : Math.abs(to - from); st.stats.moves[cat] = (st.stats.moves[cat] || 0) + n; }
   if (tierDepth > 3) return;
   tierDepth++;
   try { fire(st, 'onTierChange', cat, from, to); } finally { tierDepth--; }
@@ -516,6 +521,7 @@ function resolveInner(st, g) {
     const i = P.hand.findIndex(c => c.u === a.u); if (i < 0) return;
     const c = P.hand.splice(i, 1)[0];
     c.o = p; P.cut.push(c);
+    if (st.stats) st.stats.tierOps[p]++;
     const entry = { c, p, how: 'cut' }; st.discard.push(entry);
     push(st, { k: 'cut', u: c.u, id: c.id, p });
     const d = DEF(c);
@@ -575,13 +581,15 @@ TJ.endRound = function (st) {
     rows: detail.map((d, p) => d.rows.map(([u, r]) => { const c = st.players[p].table.find(x => x.u === u); return { u, id: c ? c.id : '', r }; })),
     tiers: Object.assign({}, st.tiers), reversed: !!TJ.hook(st, 'rankReverse', false)
   };
+  try { res.story = TJ.roundStory(st, res); } catch (e) { console.error(e); res.story = []; }
+  res.lost = [0, 1, 2, 3].map(p => st.discard.filter(e => e.how === 'kill' && e.p === p).length);
   st.results.push(res);
   Object.keys(st.tiers).forEach(k => { if (TJ.CATS[k] && TJ.CATS[k].common) st.carry[k] = st.tiers[k]; });
   // 局をまたぐカード
   st.players.forEach((P, p) => P.table.forEach(c => { const d = DEF(c); if (d.carry && d.carry(g, p, c)) c.x.keep = 1; }));
   push(st, { k: 'roundEnd', res });
   log(st, `${TJ.ROUND_NAMES[st.round]}終了：` + [0, 1, 2, 3].sort((a, b) => place[a] - place[b]).map(p => `${place[p]}位 ${g.name(p)}（${scores[p]}点）`).join('　'), 0, 'sys');
-  if (st.round >= TJ.ROUNDS - 1) TJ.endGame(st);
+  if (st.round >= (st.rounds || TJ.ROUNDS) - 1) TJ.endGame(st);
   else st.phase = 'roundEnd';
 };
 
@@ -601,6 +609,44 @@ TJ.endGame = function (st) {
   st.final = order;
   st.phase = 'gameEnd';
   push(st, { k: 'gameEnd', order });
+};
+
+// ===== 局の「決め手」 =====
+// 局の終わりに、勝敗を分けた出来事を大きい順に3つまで選んで文章にする
+function tierName(pos) { if (pos === TJ.KESU) return '欠番'; const t = TJ.TIERS[pos]; return t ? (t.k === 'G' ? 'God' : 'Tier' + t.k) : '?'; }
+TJ.roundStory = function (st, res) {
+  const g = TJ.api(st); const out = [];
+  const fmt = v => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v);
+  // 1) ティアの効き：カテゴリごと・人ごとのティア補正の合計
+  const byCat = {};
+  res.rows.forEach((rows, p) => rows.forEach(x => (x.r.parts || []).forEach(([k, m]) => { if (!m) return; const key = k + ':' + p; byCat[key] = (byCat[key] || 0) + m; })));
+  Object.entries(byCat).forEach(([key, v]) => {
+    const [k, p] = key.split(':'); const n = res.rows[+p].filter(x => (x.r.parts || []).some(q => q[0] === k)).length;
+    if (Math.abs(v) >= 4) out.push({ type: 'tier', w: Math.abs(v), p: +p, cat: k, t: `〈${TJ.catName(k)}〉が${tierName(st.tiers[k])}で、${g.name(+p)}の${n > 1 ? n + '枚が合わせて' : 'カードが'}${fmt(v)}点` });
+  });
+  // 2) 一番点を取ったカード
+  let best = null;
+  res.rows.forEach((rows, p) => rows.forEach(x => { if (!best || x.r.total > best.v) best = { v: x.r.total, p, id: x.id }; }));
+  if (best && best.v >= 8 && TJ.CARD[best.id]) out.push({ type: 'card', w: best.v, p: best.p, t: `${g.name(best.p)}の「${TJ.CARD[best.id].short || TJ.CARD[best.id].name}」が1枚で${best.v}点` });
+  // 3) セットのルールの加点
+  [0, 1, 2, 3].forEach(p => {
+    try { TJ.explainTotal(st, p).rules.forEach(r => { if (Math.abs(r.d) >= 3) { const R = TJ.SETS[r.sid]; const m = R.rules.text.match(/^【(.+?)】/); out.push({ type: 'rule', w: Math.abs(r.d) * 1.2, p, t: `${m ? '【' + m[1] + '】' : R.name}で${g.name(p)}が${fmt(r.d)}点` }); } }); } catch (e) { /* noop */ }
+  });
+  // 4) 他人の効果で消されたカード
+  [0, 1, 2, 3].forEach(p => {
+    const ks = st.discard.filter(e => e.how === 'kill' && e.p === p && e.src && e.src.p !== p);
+    if (!ks.length) return;
+    const lost = ks.reduce((a, e) => a + Math.max(1, g.baseOf(e.c)), 0);
+    const s0 = ks[0].src; const sd = s0 && TJ.CARD[s0.id];
+    out.push({ type: 'kill', w: lost * 1.3, p, t: `${g.name(p)}は場のカードを${ks.length}枚消された${sd && s0.p >= 0 ? `（${g.name(s0.p)}の「${sd.short || sd.name}」${ks.length > 1 ? 'など' : ''}）` : ''}` });
+  });
+  out.sort((a, b) => b.w - a.w);
+  const pick = []; const seen = {};
+  out.forEach(x => { if (pick.length >= 3) return; const lim = x.type === 'tier' ? 2 : 1; if ((seen[x.type] || 0) >= lim) return; seen[x.type] = (seen[x.type] || 0) + 1; pick.push(x); });
+  // 5) 僅差
+  const sorted = res.scores.slice().sort((a, b) => b - a);
+  if (sorted[0] - sorted[1] <= 3) pick.push({ type: 'close', w: 0, p: res.place.indexOf(1), t: sorted[0] === sorted[1] ? '1位は同点で、順位点を分け合った' : `1位と2位の差は、わずか${sorted[0] - sorted[1]}点` });
+  return pick.map(x => ({ t: x.t, p: x.p, type: x.type }));
 };
 
 // ===== 影響元の説明 =====
@@ -641,6 +687,7 @@ TJ.catCounts = function (st, cat) {
 
 // ===== カードを作る道具（セットの作り手向け） =====
 // 例： score: K.per('ham', 2)  …自分の場の他の〈ハーム〉1枚につき+2
+TJ.catName = k => (TJ.CATS[k] && TJ.CATS[k].name) || k;
 TJ.K = {
   per: (cat, n) => (g, p, c) => g.cnt(p, cat, c) * n,                    // 他の〈cat〉1枚につき+n
   perAny: (cats, n) => (g, p, c) => g.count(p, x => x !== c && cats.some(k => g.hasCat(x, k))) * n,

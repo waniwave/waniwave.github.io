@@ -13,7 +13,7 @@ TJ.registerSet({
     { id: 'joen', name: '『ターム　』の助演ターマー', short: '助演ターマー', e: '🎭', g: '助', cats: ['cast', 'ter'], base: 2,
       text: '【得点】自分の場に「主演ターマー」がいれば+3。', flavor: '主演より目立ってはいけない。空白より目立ってもいけない。',
       score: (g, p) => g.has(p, 'shuen') ? 3 : 0 },
-    { id: 'sequel', name: '『ターム　 』（続編）', short: '続編', e: '🔁', g: '続', cats: ['cast'], base: 1,
+    { id: 'sequel', name: '『ターム　 』（続編）', short: '続編', e: '🔁', g: '続', cats: ['cast'], base: 2,
       text: '空白が1つ長い。【取ったとき】捨て札にある〈『ターム　』〉をすべて自分の場に戻す。', flavor: '前作で死んだ人も、続編では普通にいる。',
       onPick: (g, p) => { const es = g.discard().filter(e => g.hasCat(e.c, 'cast')); let n = 0; es.forEach(e => { if (g.revive(e, p)) n++; }); if (n) g.log(`★ 続編で${n}人が復活した！`, true); } },
     { id: 'poster', name: 'タームのポスター', e: '🖼️', g: '貼', cats: ['cast'], base: 0,

@@ -12,7 +12,7 @@ TJ.registerSet({
     { id: 'kame', name: 'カメーム', e: '🐢', g: '亀', cats: ['animal'], base: 4,
       text: '【常時】甲羅があるので、捨て札にも移動にもならない。【手番の終わり】+1（最大+3）。', flavor: '万年生きる。この局も、たぶん生き残る。',
       hooks: { protect: (g, o, c, v, card) => card === c ? true : v }, onTurnEnd: K.grow(1, 3) },
-    { id: 'rakko', name: 'ラッコーム', e: '🦦', g: '獺', cats: ['animal'], base: 2,
+    { id: 'rakko', name: 'ラッコーム', e: '🦦', g: '獺', cats: ['animal'], base: 3,
       text: '【取ったとき】貝を割る。自分の場の一番素点の低い他のカードを+3。', flavor: 'お気に入りの石を、脇の下にしまっている。',
       onPick: (g, p, c) => { const t = K.worstOf(g, [p], x => x !== c); if (t) { K.addPts(t, 3); g.log(`ラッコームが「${g.cardName(t)}」の貝を割った。+3`); } } },
     { id: 'fukurou', name: 'フクロウター', e: '🦉', g: '梟', cats: ['animal', 'ter'], base: 3,
@@ -26,7 +26,7 @@ TJ.registerSet({
     { id: 'namakemono', name: 'ナマケモノター', e: '🦥', g: '懶', cats: ['animal', 'ter'], base: 0,
       text: '【得点】動くのは最後だけ。7手番目に取っていれば+10、それ以外は+1。', flavor: '動くのは、最終手番だけ。',
       score: (g, p, c) => c.t === TJ.TURNS ? 10 : 1 },
-    { id: 'ferret', name: 'フェレッター', e: '🦡', g: '鼬', cats: ['animal', 'steal', 'ter'], base: 1,
+    { id: 'ferret', name: 'フェレッター', e: '🦡', g: '鼬', cats: ['animal', 'steal', 'ter'], base: 2,
       text: '【取ったとき】手札をくれる人の場から、一番新しいカードをくすねる（自分の場へ）。', flavor: '靴下が、片方ない。',
       onPick: (g, p) => { const q = g.prev(p); const t = g.newest(q); if (t && g.moveTo(t, p)) g.log(`★ フェレッターが${g.name(q)}の「${g.cardName(t)}」をくすねた。`, true); } }
   ]
