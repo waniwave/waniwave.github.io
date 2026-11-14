@@ -4,10 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ター宿のほとり</title>
-<meta property="og:type" content="website"><meta property="og:title" content="ター宿のほとり">
-<meta property="og:description" content="強さ議論スレの宿で、4人で札を取りあう。ティアを動かして点を競うドラフト型カードゲーム。">
-<meta property="og:url" content="https://waniwave.com/games/hotori/"><meta property="og:image" content="https://waniwave.com/games/hotori/thumb.jpg">
-<meta name="twitter:card" content="summary_large_image"><link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
@@ -316,12 +312,13 @@ div.sp-i{cursor:default}
 <script src="js/ai.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/net.js"></script>
-<script src="sets/_list.js"></script>
+<script>window.TJ_LOAD_ERRORS = [];</script>
+<script src="sets/list.js" onerror="window.TJ_LOAD_ERRORS.push('sets/list.js')"></script>
 <script>
 // カードセットを順に読み込んでから画面を起動する
 (function () {
   var files = window.TJ_SET_FILES || [], i = 0;
-  function add(src, cb) { var s = document.createElement('script'); s.src = src; s.onload = cb; s.onerror = function () { console.warn('読み込み失敗:', src); cb(); }; document.body.appendChild(s); }
+  function add(src, cb) { var s = document.createElement('script'); s.src = src; s.onload = cb; s.onerror = function () { console.warn('読み込み失敗:', src); window.TJ_LOAD_ERRORS.push(src); cb(); }; document.body.appendChild(s); }
   function next() { if (i >= files.length) return add('js/ui.js', function () {}); add('sets/' + files[i++], next); }
   next();
 })();

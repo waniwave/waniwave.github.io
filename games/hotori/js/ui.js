@@ -544,8 +544,19 @@ function renderMenu() {
       <button class="btn" data-a="catalog" type="button">カード図鑑</button>
       <button class="btn ghost" data-a="mute" type="button">${TJ.audio.muted ? '音：OFF' : '音：ON'}</button>
     </div>
+    ${loadErrorHTML()}
     <p class="mute" style="font-size:12px">収録 ${TJ.SET_ORDER.length} セット ／ ${Object.values(TJ.CARD).filter(c => !c.token).length} 種</p>
   </div></div>`;
+}
+
+// 読み込めなかったファイルがあれば、理由とともに表示する
+function loadErrorHTML() {
+  const errs = window.TJ_LOAD_ERRORS || [];
+  if (!errs.length && TJ.SET_ORDER.length) return '';
+  const list = errs.length ? errs.map(f => `<li><code>${esc(f)}</code></li>`).join('') : '<li>カードセットが1つも登録されていません</li>';
+  return `<div class="panel" style="border-color:var(--shu);text-align:left;font-size:13.5px"><b style="color:#ffb3a6">カードセットを読み込めませんでした</b>
+    <ul style="margin:6px 0;padding-left:1.4em">${list}</ul>
+    <p class="mute" style="font-size:12.5px">index.html と同じ場所に <code>js</code> フォルダと <code>sets</code> フォルダがあるか、ファイル名が一覧と同じか（大文字・小文字も）を確かめてください。</p></div>`;
 }
 
 // ===== 画面：ルール =====
