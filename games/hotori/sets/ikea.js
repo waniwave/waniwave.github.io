@@ -20,9 +20,9 @@ TJ.registerSet({
       text: '【捨てられたとき】捨てた人の場に「家具（未組立）」が2つ届く（返品のおまけ）。', flavor: 'レシートは不要です。',
       onCut: (g, p) => { g.token(p, 'kagu'); g.token(p, 'kagu'); g.log(`返品したら、${g.name(p)}に家具が2つ届いた。`); } },
     { id: 'irobot', name: 'アイロボット', e: '🤖', g: '掃', cats: ['celeb'], base: 6,
-      text: '【取ったとき】左右の場にある、素点1以下のカードをすべて掃除する（捨て札へ）。', flavor: 'ターマーとセレブ婚した。家事は全部やる。',
+      text: '【取ったとき】左右の場にある素点1以下のカードを、1枚ずつ掃除する（捨て札へ）。', flavor: 'ターマーとセレブ婚した。家事は全部やる。',
       onPick: (g, p) => {
-        let n = 0; g.neighbors(p).forEach(q => g.table(q).slice().forEach(x => { if (g.baseOf(x) <= 1 && g.kill(x)) n++; }));
+        let n = 0; g.neighbors(p).forEach(q => { const x = TJ.K.worstOf(g, [q], y => g.baseOf(y) <= 1); if (x && g.kill(x)) n++; });
         if (n) g.log(`★ アイロボットが隣の場を掃除した。${n}枚が片づいた。`, true);
       } },
     { id: 'tamar', name: 'アイロボットとセレブ婚したターマー', short: 'セレブ婚ターマー', e: '💍', g: '婚', cats: ['celeb', 'ter'], base: 4,

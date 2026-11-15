@@ -3,8 +3,8 @@ TJ.registerSet({
   desc: 'EOとOEは揃えば10倍。秒速5タームメートルは場から場へ通り過ぎていく。',
   categories: { eo: { name: 'EO', color: '#b9bccb' } },
   rules: {
-    text: '【秒速】この局では、手番が終わるたびに、手札を回す向きが入れ替わる。',
-    onTurnEnd: (g) => g.reverse('秒速：手札を回す向きが入れ替わった。', true)
+    text: '【秒速】4手番目が終わると、手札が秒速でもう1人先まで飛ぶ（向かいの人の手札が届く）。',
+    onTurnEnd: (g) => { if (g.turn === 4) { g.passHands(1); g.log('★ 秒速！ 手札がもう1人先まで飛んだ。向かいの人の手札が届く。', true); } }
   },
   cards: [
     { id: 'eo', name: 'EO', e: '🔤', g: 'EO', cats: ['eo'], base: 3,

@@ -240,6 +240,14 @@ function onState(lobby, st, local) {
   const evs = (st.ev || []).filter(e => e.seq > A.lastSeq);
   const first = A.lastSeq === 0;
   if (evs.length) A.lastSeq = Math.max(...evs.map(e => e.seq));
+  // 点の動き：手番が進んだら、前の手番の終わりと比べて「何が原因で何点動いたか」を出す
+  const snapKey = st.round + ':' + st.turn + ':' + (st.phase === 'pick' ? 'p' : 'e');
+  if (A.snapKey !== snapKey) {
+    const cur = snapScores(st);
+    try { A.turnDelta = A.snap && A.snap.round === st.round && !first ? diffScores(A.snap, cur, evs) : null; } catch (e) { console.error(e); A.turnDelta = null; }
+    if (A.turnDelta) A.turnDelta.fresh = true;
+    A.snap = cur; A.snapKey = snapKey;
+  }
   A.newCards = {}; A.moved = {};
   if (!first) evs.forEach(e => {
     if (e.k === 'take' || e.k === 'token' || e.k === 'move' || e.k === 'revive') A.newCards[e.u] = 1;
@@ -265,6 +273,12 @@ function banner(text, sound) {
   const b = document.createElement('div'); b.className = 'banner'; b.textContent = text;
   $('#fx').appendChild(b); setTimeout(() => b.remove(), 1600);
   if (sound !== false) TJ.audio.play('banner');
+}
+function fxBanner(texts, p, ms) {
+  const b = document.createElement('div'); b.className = 'banner fxb'; b.style.setProperty('--sc', SEATC[p] || 'var(--andon)');
+  b.innerHTML = texts.map(t => esc(t.replace(/^★\s*/, ''))).join('<br>');
+  b.style.animationDuration = ms + 'ms';
+  $('#fx').appendChild(b); setTimeout(() => b.remove(), ms);
 }
 function alertBanner(text) {
   const b = document.createElement('div'); b.className = 'banner alert'; b.textContent = text;
@@ -336,10 +350,16 @@ function cutIn(gr, ms) {
   const lines = gr.banners.map(t => `<div class="ci-l">${esc(t.replace(/^★\s*/, ''))}</div>`).join('');
   const c = (findCard(e.u) || {}).c || { id: e.id, u: e.u, x: {} };
   el.innerHTML = `<div class="ci-h" style="--sc:${SEATC[e.p]}"><b>${esc(who)}</b>の<span>【${KIND_LABEL[e.kind] || '効果'}】</span></div>
-    <div class="ci-c">${cardHTML(c, {})}</div>${lines}`;
+    ${lines}<div class="ci-c">${cardHTML(c, {})}</div>`;
   el.style.left = pos.x + 'px'; el.style.top = pos.y + 'px';
   el.style.animationDuration = ms + 'ms';
   $('#fx').appendChild(el);
+  // 画面からはみ出さないように内側へずらす
+  const w = el.offsetWidth, h = el.offsetHeight;
+  el.style.left = Math.max(w / 2 + 8, Math.min(window.innerWidth - w / 2 - 8, pos.x)) + 'px';
+  el.style.top = Math.max(h / 2 + 8, Math.min(window.innerHeight - h / 2 - 8, pos.y)) + 'px';
+  // 何が起きたかは、画面中央の帯でも出す
+  if (gr.banners.length) fxBanner(gr.banners, e.p, Math.max(1200, ms));
   TJ.audio.play('banner');
   setTimeout(() => drawArrows(centerOf(el), targetsOf(gr.items), SEATHEX[e.p], Math.max(500, ms - 250)), 220);
   setTimeout(() => el.remove(), ms);
@@ -380,62 +400,275 @@ function passAnim(dir, ms) {
   }
   TJ.audio.play('cut');
 }
+// ===== 手番の再生（実況） =====
+// 解決した手番の出来事を、1つずつ順番に「テロップ＋画面の動き」で見せる。
+// 再生が終わるまで次の手番のカードは選べない。全体の長さには上限があり、「とばす」で即終了できる。
+function cardNm(e) { const id = e.id || ((findCard(e.u) || {}).c || {}).id; return id ? `「${cardShort(id)}」` : 'カード'; }
+function itemText(e) {
+  switch (e.k) {
+    case 'kill': return `${whoName(e.p)}の${cardNm(e)}を捨て札へ`;
+    case 'move': return `${cardNm(e)}を${whoName(e.from)}の場から${whoName(e.to)}の場へ`;
+    case 'tier': return `〈${catName(e.cat)}〉を${tierLabel(e.from)}→${tierLabel(e.to)}`;
+    case 'zero': return e.stun ? `${cardNm(e)}を気絶させた` : `${cardNm(e)}を0点にした`;
+    case 'token': return `${whoName(e.p)}の場に${cardNm(e)}が出た`;
+    case 'revive': return `${cardNm(e)}が捨て札から${whoName(e.to)}の場へ戻った`;
+    case 'dir': return '手札を回す向きが逆になった';
+    case 'swap': return `${whoName(e.a)}と${whoName(e.b)}の手札が入れ替わった`;
+    case 'guard': return e.reflect ? '効果を跳ね返した' : '効果を防いだ';
+    case 'pass2': return '手札がもう1人先まで飛んだ';
+    default: return '';
+  }
+}
+function telop(html, cls) {
+  let t = document.getElementById('telop');
+  if (!t) { t = document.createElement('div'); t.id = 'telop'; document.body.appendChild(t); }
+  t.className = 'telop show ' + (cls || '');
+  t.innerHTML = `<div class="tl-b">${html}</div><button type="button" class="tl-skip" data-a="pbSkip" title="演出をとばす">▶▶ とばす</button>`;
+  const felt = document.querySelector('.felt');
+  if (felt && window.innerWidth >= 1100) { const r = felt.getBoundingClientRect(); t.style.left = (r.left + r.width / 2) + 'px'; t.style.top = (r.top + 6) + 'px'; t.style.width = Math.min(r.width - 16, 760) + 'px'; }
+  else { t.style.left = '50%'; t.style.top = '8px'; t.style.width = 'calc(100% - 16px)'; }
+}
+function hideTelop() { const t = document.getElementById('telop'); if (t) t.classList.remove('show'); }
+function pulse(els, ms) { els.forEach(el => { el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), ms); }); }
 function playEvents(evs) {
-  const st = A.st; const S = spf();
+  const st = A.st; const S = spf(); const steps = [];
+  const nm = p => `<b style="color:${SEATC[p]}">${esc(whoName(p))}</b>`;
   const alerts = myAlerts(evs);
+  // 1) 公開
   const rev = evs.find(e => e.k === 'reveal');
   if (rev) {
-    fx(() => {
-      TJ.audio.play('reveal');
-      const lines = [];
-      [0, 1, 2, 3].map(i => (st.oya + i) % 4).forEach((p, n) => {
-        const take = evs.find(e => e.k === 'take' && e.p === p);
-        const cut = evs.find(e => e.k === 'cut' && e.p === p);
-        const a = rev.acts[p];
-        let s = '';
-        if (cut) s = `<span class="cut">「${esc(cardShort(cut.id))}」を捨てて〈${esc(catName(a.cat))}〉を${fmt(a.d)}</span>`;
-        else if (take) s = `「${esc(cardShort(take.id))}」を取った` + (a && a.cat ? `　＋〈${esc(catName(a.cat))}〉${fmt(a.d)}` : '');
-        lines.push(`<div class="rvl" style="animation-delay:${n * 0.18}s"><span class="who" style="color:${SEATC[p]}">${esc(st.seats[p].name)}</span><span>${s}</span></div>`);
-      });
-      const d = document.createElement('div'); d.className = 'reveal';
-      d.innerHTML = `<div class="rv"><h3>公開！</h3>${lines.join('')}</div>`;
-      d.style.animationDuration = Math.max(900, 2000 * (S || 0.45)) + 'ms';
-      $('#fx').appendChild(d); setTimeout(() => d.remove(), Math.max(900, 2000 * (S || 0.45)));
-    }, Math.max(850, 1900 * (S || 0.45)));
+    const lines = [0, 1, 2, 3].map(i => (st.oya + i) % 4).map(p => {
+      const take = evs.find(e => e.k === 'take' && e.p === p); const cut = evs.find(e => e.k === 'cut' && e.p === p); const a = rev.acts[p];
+      if (cut) return `${nm(p)}：<span class="tl-cut">「${esc(cardShort(cut.id))}」を捨てて〈${esc(catName(a.cat))}〉${fmt(a.d)}</span>`;
+      if (take) return `${nm(p)}：「${esc(cardShort(take.id))}」を取った${a && a.cat ? `＋〈${esc(catName(a.cat))}〉${fmt(a.d)}` : ''}`;
+      return '';
+    }).filter(Boolean);
+    steps.push({ k: 'reveal', dur: 1400, run: () => {
+      TJ.audio.play('reveal'); telop(`<div class="tl-h">公開！</div><div class="tl-grid">${lines.map(l => `<span>${l}</span>`).join('')}</div>`, 'rev');
+      pulse(evs.filter(e => e.k === 'take').map(e => document.querySelector(`[data-u="${e.u}"]`)).filter(Boolean), 1500);
+    } });
   }
-  // 効果を「発動」ごとにまとめる（発動したカード＋起きたこと＋その文）
+  // 2) 議論（ティア操作）の結果
+  const r = st.recap;
+  if (rev && r && r.votes && r.votes.length) {
+    const ls = r.votes.map(v => {
+      const who = v.voters.map(x => `${esc(whoName(x.p))}${fmt(x.d)}`).join('・');
+      if (!v.sum) return `〈${esc(catName(v.cat))}〉<b>平行線</b>（${who}）`;
+      if (!v.moved) return `〈${esc(catName(v.cat))}〉これ以上動けない（${who}）`;
+      const up = v.to < v.from || v.from === TJ.KESU;
+      return `〈${esc(catName(v.cat))}〉${tierLabel(v.from)}→<b class="${up ? 'p' : 'n'}">${tierLabel(v.to)}</b>（${who}）`;
+    });
+    steps.push({ k: 'vote', dur: 1200, run: () => {
+      TJ.audio.play(r.votes.some(v => v.moved && (v.to < v.from)) ? 'up' : 'down');
+      telop(`<div class="tl-h">🗳️ 議論の結果</div><div class="tl-grid">${ls.map(l => `<span>${l}</span>`).join('')}</div>`, 'vote');
+      pulse(r.votes.map(v => document.querySelector(`.chip[data-cat="${v.cat}"]`)).filter(Boolean), 1400);
+    } });
+  }
+  // 3) 効果とルール（発動ごとに1つ）
   const groups = []; let grp = null;
   evs.forEach(e => {
     if (e.k === 'fx' && e.kind !== 'hook') { grp = { fx: e, items: [], banners: [] }; groups.push(grp); return; }
     if (e.k === 'rule' && !e.hook) { grp = { rule: e, items: [], banners: [] }; groups.push(grp); return; }
     if (e.k === 'turn' || e.k === 'roundEnd' || e.k === 'round' || e.k === 'reveal') { grp = null; return; }
     if (grp && e.k === 'banner') { grp.banners.push(e.text); return; }
-    if (grp && ['kill', 'move', 'zero', 'token', 'revive', 'tier', 'dir', 'swap', 'guard'].includes(e.k)) grp.items.push(e);
+    if (grp && ['kill', 'move', 'zero', 'token', 'revive', 'tier', 'dir', 'swap', 'guard', 'pass2'].includes(e.k)) { grp.items.push(e); return; }
     if (!grp && e.k === 'banner') groups.push({ banner: e.text });
-    if ((e.k === 'fx' && e.kind === 'hook') || (e.k === 'rule' && e.hook) || e.k === 'guard' || e.k === 'sealed') groups.push({ ping: e });
+    if ((e.k === 'fx' && e.kind === 'hook') || (e.k === 'rule' && e.hook) || e.k === 'sealed') groups.push({ ping: e });
   });
   groups.forEach(g => {
-    if (g.fx) { if (S) fx(() => cutIn(g, 1700 * S), 1700 * S + 120); else g.banners.forEach(t => fx(() => banner(t), 600)); }
-    else if (g.rule) fx(() => ruleFlash(g, 1500 * (S || 0.5)), 1500 * (S || 0.5) + 100);
-    else if (g.banner) fx(() => banner(g.banner), 1300 * (S || 0.5));
-    else if (g.ping) fx(() => ping(g.ping), 380 * (S || 0.5));
+    if (g.fx) {
+      const e = g.fx; const d = TJ.CARD[e.id] || {};
+      let body = g.items.map(itemText).filter(Boolean);
+      g.banners.forEach(t => { const x = t.replace(/^★\s*/, ''); if (!body.includes(x)) body.unshift(x); });
+      if (!body.length) body = [(d.text || '').replace(/^【.+?】/, '').slice(0, 60)];
+      steps.push({ k: 'fx', dur: 1300, run: (ms) => {
+        cutIn({ fx: e, items: g.items, banners: [] }, ms);
+        telop(`<div class="tl-h">${nm(e.p)}の「${esc(cardShort(e.id))}」<span class="tl-k">【${KIND_LABEL[e.kind] || '効果'}】</span></div><div class="tl-x">${body.map(esc).join('<br>')}</div>`, 'fx');
+        setTimeout(() => pulse(targetsOf(g.items), Math.max(600, ms - 200)), 250);
+        if (g.items.some(x => x.k === 'pass2') && S) passAnim(st.dir, Math.max(500, ms * 0.6));
+      } });
+    } else if (g.rule) {
+      const R = TJ.SETS[g.rule.sid]; if (!R) return;
+      const m = (R.rules.text || '').match(/^【(.+?)】/);
+      let body = g.items.map(itemText).filter(Boolean);
+      g.banners.forEach(t => { const x = t.replace(/^★\s*/, ''); if (!body.includes(x)) body.unshift(x); });
+      if (!body.length) body = [(R.rules.text || '').replace(/^【.+?】/, '').slice(0, 60)];
+      steps.push({ k: 'rule', dur: 1300, run: (ms) => {
+        const rc = document.querySelector(`.rcard[data-rule="${g.rule.sid}"]`);
+        if (rc) { rc.classList.add('flash'); setTimeout(() => rc.classList.remove('flash'), ms); setTimeout(() => drawArrows(centerOf(rc), targetsOf(g.items), '#d9c8ff', Math.max(500, ms - 250)), 200); }
+        TJ.audio.play('up');
+        telop(`<div class="tl-h">📜 ルール発動 <span class="tl-k">${m ? '【' + esc(m[1]) + '】' : esc(R.name)}</span></div><div class="tl-x">${body.map(esc).join('<br>')}</div>`, 'rule');
+        setTimeout(() => pulse(targetsOf(g.items), Math.max(600, ms - 200)), 250);
+        if (g.items.some(x => x.k === 'pass2') && S) passAnim(st.dir, Math.max(500, ms * 0.6));
+      } });
+    } else if (g.banner) {
+      steps.push({ k: 'banner', dur: 1200, run: () => { TJ.audio.play('banner'); telop(`<div class="tl-x big">${esc(g.banner.replace(/^★\s*/, ''))}</div>`, 'ban'); } });
+    } else if (g.ping) {
+      // 常時の効果は小さな札だけ（直前の手順に重ねる）
+      const last = steps[steps.length - 1];
+      const run0 = last ? last.run : null;
+      if (last) last.run = (ms) => { run0(ms); setTimeout(() => ping(g.ping), 300); };
+      else steps.push({ k: 'ping', dur: 600, run: () => ping(g.ping) });
+    }
   });
-  if (evs.some(e => e.k === 'tier' && e.from != null)) fx(() => TJ.audio.play(Object.values(A.moved).includes('up') ? 'up' : 'down'), 120);
-  if (evs.some(e => e.k === 'take')) fx(() => TJ.audio.play('pick'), 50);
-  alerts.forEach(t => fx(() => alertBanner(t), 2000 * (S || 0.6)));
+  // 4) 自分への被害
+  if (alerts.length) steps.push({ k: 'alert', dur: 1500, run: () => { TJ.audio.play('alert'); telop(`<div class="tl-h">⚠ あなたへの影響</div><div class="tl-x">${alerts.map(esc).join('<br>')}</div>`, 'alert'); } });
+  // 5) 点の動きのまとめ
+  const T = A.turnDelta;
+  if (T && T.fresh && rev) {
+    T.fresh = false;
+    const order = [0, 1, 2, 3].sort((x, y) => (x === A.me ? -1 : y === A.me ? 1 : 0) || y - x).sort((x, y) => (x === A.me ? -1 : y === A.me ? 1 : 0));
+    const ls = order.map(p => { const D = T.per[p]; const top = D.lines[0]; return `${nm(p)} <b class="${D.d > 0 ? 'p' : D.d < 0 ? 'n' : ''}">${fmt(D.d)}</b>${top && D.d ? `<small>（${esc(top.t)}${D.lines.length > 1 ? 'ほか' : ''}）</small>` : ''}`; });
+    steps.push({ k: 'score', dur: 1300, run: () => { deltaFloats(); telop(`<div class="tl-h">📊 この手番の点の動き</div><div class="tl-grid">${ls.map(l => `<span>${l}</span>`).join('')}</div>`, 'score'); } });
+  }
+  // 6) 手札を回す → 次の手番
   const tr = evs.find(e => e.k === 'turn');
   if (tr) {
-    if (S) fx(() => passAnim(st.dir, 750 * S), 750 * S + 100);
-    fx(() => {
-      TJ.audio.music(tr.turn >= 6 ? 'tense' : 'game');
-      if (tr.turn === TJ.datTurn(st) && !TJ.canTier(st, A.me >= 0 ? A.me : 0)) banner('スレがdat落ちした（ここからティア操作禁止）');
-      else if (st.players[A.me] && TJ.hasBonus(st, A.me)) banner('スレ主の権限：取りながらティアも動かせる');
-    }, 300);
+    const toward = A.me >= 0 ? whoName((A.me + st.dir + 4) % 4) : '';
+    let note = '';
+    if (tr.turn === TJ.datTurn(st) && !TJ.canTier(st, A.me >= 0 ? A.me : 0)) note = 'スレがdat落ちした（ここからティア操作禁止）';
+    else if (A.me >= 0 && TJ.hasBonus(st, A.me)) note = 'スレ主の権限：取りながらティアも動かせる';
+    steps.push({ k: 'pass', dur: 1000, run: (ms) => { if (S) passAnim(st.dir, ms * 0.8); TJ.audio.music(tr.turn >= 6 ? 'tense' : 'game'); telop(`<div class="tl-x big">手札を${st.dir === 1 ? '左' : '右'}隣へ回して ${tr.turn}手番目へ</div><div class="tl-n">${toward ? `あなたの残りの手札は${esc(toward)}へ。` : ''}${esc(note)}</div>`, 'turn'); } });
   }
   const rd = evs.find(e => e.k === 'round');
-  if (rd) fx(() => { TJ.audio.play('round'); TJ.audio.music('game'); banner(`${TJ.ROUND_NAMES[rd.round]}　親（スレ主）：${st.seats[rd.oya].name}`, false); }, 1600);
-  if (evs.some(e => e.k === 'roundEnd')) fx(() => { TJ.audio.play('round'); A.roundOpen = true; render(); }, 100);
-  if (evs.some(e => e.k === 'gameEnd')) fx(() => showFinal(), 100);
+  if (rd) steps.push({ k: 'round', dur: 1500, run: () => { TJ.audio.play('round'); TJ.audio.music('game'); telop(`<div class="tl-x big">${TJ.ROUND_NAMES[rd.round]}　親（スレ主）：${esc(st.seats[rd.oya].name)}</div>`, 'turn'); } });
+  const after = [];
+  if (evs.some(e => e.k === 'roundEnd')) after.push(() => { TJ.audio.play('round'); A.roundOpen = true; render(); });
+  if (evs.some(e => e.k === 'gameEnd')) after.push(() => showFinal());
+  if (evs.some(e => e.k === 'take')) TJ.audio.play('pick');
+  runPlayback(steps, after);
+}
+// 全体の長さを速さに合わせて決める（多すぎるときは1つずつ短くする）
+const PB_BUDGET = 7000;
+function runPlayback(steps, after) {
+  const S = spf();
+  if (A.playing && !steps.length) { A.pbAfter = (A.pbAfter || []).concat(after); return; }
+  if (!S || !steps.length) { (A.pbAfter || []).concat(after).forEach(f => f()); A.pbAfter = []; if (A.playing) endPlayback(); return; }
+  steps.forEach(x => { x.ms = x.dur * S; });
+  const total = steps.reduce((a, x) => a + x.ms, 0); const cap = PB_BUDGET * S;
+  if (total > cap) { const k = cap / total; steps.forEach(x => { x.ms = Math.max(550, x.ms * k); }); }
+  A.pbQ = (A.playing ? A.pbQ : []).concat(steps); A.pbAfter = (A.pbAfter || []).concat(after);
+  if (!A.playing) { A.playing = true; render(); pbNext(); }
+}
+function pbNext() {
+  clearTimeout(A.pbT);
+  const s = A.pbQ.shift();
+  if (!s) { endPlayback(); return; }
+  try { s.run(s.ms); } catch (e) { console.error(e); }
+  A.pbT = setTimeout(pbNext, s.ms);
+}
+function endPlayback() {
+  clearTimeout(A.pbT); A.pbQ = []; A.playing = false; hideTelop();
+  const af = A.pbAfter || []; A.pbAfter = [];
+  render(); af.forEach(f => { try { f(); } catch (e) { console.error(e); } });
+}
+// テロップを押すと、次の出来事へ進む
+document.addEventListener('click', e => { if (A.playing && e.target.closest && e.target.closest('.telop .tl-b')) pbNext(); });
+function skipPlayback() {
+  document.querySelectorAll('#fx .cutin, #fx .arrows, #fx .flyhand, #fx .reveal, #fx .banner').forEach(el => el.remove());
+  endPlayback();
+}
+// ===== 点の動き（直前の手番との差と、その原因） =====
+function snapScores(st) {
+  const clone = JSON.parse(JSON.stringify(st));
+  const ps = [0, 1, 2, 3].map(p => {
+    const ex = TJ.explainTotal(clone, p); const cards = {};
+    ex.rows.forEach(([u, r]) => { const c = clone.players[p].table.find(x => x.u === u); cards[u] = { id: c ? c.id : null, total: r.total, base: r.base, eff: r.eff, acc: r.acc || 0, tier: r.tier, parts: r.parts || [], zero: c && c.x && (c.x.zero || c.x.stun) }; });
+    const rules = {}; ex.rules.forEach(x => { rules[x.sid] = x.d; });
+    return { tot: ex.tot, cards, rules, rest: ex.rest };
+  });
+  return { round: st.round, turn: st.turn, tiers: Object.assign({}, st.tiers), t8: st.t8, st: clone, ps };
+}
+function whoName(p) { return p === A.me ? 'あなた' : A.st.seats[p].name; }
+function tierMoveCause(cat) {
+  const r = A.st.recap; if (!r) return '';
+  const out = [];
+  (r.votes || []).forEach(v => { if (v.cat === cat && v.moved) v.voters.forEach(x => out.push(`${whoName(x.p)}の議論（${fmt(x.d)}）`)); });
+  (r.fx || []).forEach(x => { if (x.cat === cat) out.push(srcText(x.src)); });
+  return out.join('・');
+}
+function diffScores(a, b, evs) {
+  const st = A.st;
+  const all = (snap) => { const m = {}; snap.ps.forEach((P, p) => Object.keys(P.cards).forEach(u => { m[u] = p; })); return m; };
+  const before = all(a), after = all(b);
+  const newU = Object.keys(after).filter(u => before[u] == null), goneU = Object.keys(before).filter(u => after[u] == null);
+  const ev = (k, u) => evs.find(e => e.k === k && String(e.u) === String(u));
+  const per = [0, 1, 2, 3].map(p => {
+    const A0 = a.ps[p], B0 = b.ps[p]; const lines = []; const tierAgg = {}; const cardD = {};
+    Object.entries(B0.cards).forEach(([u, x]) => {
+      const y = A0.cards[u]; const nm = `「${cardShort(x.id)}」`;
+      if (!y) {
+        const mv = ev('move', u), tk = ev('token', u), rv = ev('revive', u);
+        const t = mv ? `${nm}が${whoName(mv.from)}の場から来た` : tk ? `${nm}が出た` : rv ? `${nm}が捨て札から戻った` : `${nm}を取った`;
+        lines.push({ t, v: x.total, k: 'new', why: mv && mv.src ? srcText(mv.src) : rv ? '' : '' }); cardD[u] = x.total; return;
+      }
+      let left = x.total - y.total; if (!left) return; cardD[u] = left;
+      // ティアの分
+      const pa = {}, pb = {}; y.parts.forEach(([k, m]) => { pa[k] = (pa[k] || 0) + m; }); x.parts.forEach(([k, m]) => { pb[k] = (pb[k] || 0) + m; });
+      new Set([...Object.keys(pa), ...Object.keys(pb)]).forEach(k => { const dv = (pb[k] || 0) - (pa[k] || 0); if (dv) { const g = tierAgg[k] || (tierAgg[k] = { v: 0, n: 0 }); g.v += dv; g.n++; left -= dv; } });
+      if (!left) return;
+      if (x.zero && !y.zero) { const z = ev('zero', u); lines.push({ t: `${nm}が${z && z.stun ? '気絶させられた' : '0点にされた'}`, v: left, k: 'hit', why: z && z.src ? srcText(z.src) : '' }); return; }
+      if (x.acc !== y.acc) { const dv = x.acc - y.acc; lines.push({ t: `${nm}に点が積み上がった`, v: dv, k: 'eff' }); left -= dv; if (!left) return; }
+      if (x.base !== y.base) { const dv = x.base - y.base; lines.push({ t: `${nm}の素点が変わった`, v: dv, k: 'eff' }); left -= dv; if (!left) return; }
+      // 効果の増減：新しく来たカード／いなくなったカードのせいかを、カードを1枚ずつ外して確かめる
+      const why = [];
+      try {
+        const nowEx = TJ.explain(st, p, isNaN(+u) ? u : +u) || TJ.explain(st, p, u);
+        if (nowEx) nowEx.infl.forEach(i => { if (newU.includes(String(i.u))) why.push(`「${cardShort(i.id)}」が来た（${fmt(i.d)}）`); });
+        const preEx = TJ.explain(a.st, p, isNaN(+u) ? u : +u) || TJ.explain(a.st, p, u);
+        if (preEx) preEx.infl.forEach(i => { if (goneU.includes(String(i.u))) why.push(`「${cardShort(i.id)}」がいなくなった（${fmt(-i.d)}）`); });
+      } catch (e) { /* noop */ }
+      lines.push({ t: `${nm}の効果`, v: left, k: 'eff', why: why.join('・') });
+    });
+    Object.entries(A0.cards).forEach(([u, y]) => {
+      if (B0.cards[u]) return; const nm = `「${cardShort(y.id)}」`;
+      const kl = ev('kill', u), mv = ev('move', u);
+      if (!kl && !mv) return;
+      lines.push(kl ? { t: `${nm}が消された`, v: -y.total, k: 'hit', why: kl.src ? srcText(kl.src) : '' } : { t: `${nm}を${whoName(mv.to)}の場へ持っていかれた`, v: -y.total, k: 'hit', why: mv.src ? srcText(mv.src) : '' });
+      cardD[u] = -y.total;
+    });
+    Object.entries(tierAgg).forEach(([k, g]) => {
+      if (!g.v) return;
+      const f = a.tiers[k], t = b.tiers[k];
+      const mv = f !== t ? `${tierLabel(f)}→${tierLabel(t)}` : (TJ.TIERS[t] && String(TJ.TIERS[t].k) === '8' ? 'Tier8の振り直し' : 'ティアの補正');
+      lines.push({ t: `〈${catName(k)}〉${mv}（${g.n}枚）`, v: g.v, k: 'tier', cat: k, why: f !== t ? tierMoveCause(k) : '' });
+    });
+    new Set([...Object.keys(A0.rules), ...Object.keys(B0.rules)]).forEach(sid => {
+      const dv = (B0.rules[sid] || 0) - (A0.rules[sid] || 0); if (!dv) return;
+      const R = TJ.SETS[sid]; const m = R && R.rules.text.match(/^【(.+?)】/);
+      lines.push({ t: `ルール${m ? '【' + m[1] + '】' : ''}`, v: dv, k: 'rule' });
+    });
+    const known = lines.reduce((s0, l) => s0 + l.v, 0); const d = B0.tot - A0.tot;
+    if (d - known) lines.push({ t: 'そのほか', v: d - known, k: 'eff' });
+    lines.sort((x, y) => Math.abs(y.v) - Math.abs(x.v));
+    return { d, lines, cardD };
+  });
+  return { round: b.round, turn: a.turn, per };
+}
+function deltaLinesHTML(D, max) {
+  const ls = max ? D.lines.slice(0, max) : D.lines;
+  const more = max && D.lines.length > max ? `<div class="dl more">ほか${D.lines.length - max}件（点数にマウスを乗せると全部）</div>` : '';
+  return ls.map(l => `<div class="dl k-${l.k}"><b class="${l.v > 0 ? 'p' : 'n'}">${fmt(l.v)}</b><span>${esc(l.t)}${l.why ? `<small>← ${esc(l.why)}</small>` : ''}</span></div>`).join('') + more;
+}
+function deltaInfoHTML(p) {
+  const T = A.turnDelta; if (!T) return '';
+  const D = T.per[p];
+  return `<div class="cinfo"><span class="ce">📊</span><div style="flex:1;min-width:0"><div class="ch"><b style="color:${SEATC[p]}">${esc(whoName(p))}</b><span class="cset">直前の手番（${T.turn}手番目）の点の動き</span></div>
+    <div class="dsum">合計 <b class="${D.d > 0 ? 'p' : D.d < 0 ? 'n' : ''}">${fmt(D.d)}</b>点</div>
+    <div class="dlines">${D.lines.length ? deltaLinesHTML(D) : '<div class="dl">点は動かなかった</div>'}</div></div></div>`;
+}
+function deltaFloats() {
+  const T = A.turnDelta; if (!T) return;
+  T.per.forEach((D, p) => {
+    Object.entries(D.cardD).forEach(([u, v]) => { if (!v) return; const el = document.querySelector(`.seat [data-u="${u}"]`); if (el) floatNum(el, v, 'sm'); });
+    if (D.d) { const el = document.querySelector(`[data-score="${p}"]`); if (el) floatNum(el, D.d, 'lg'); }
+  });
+}
+function floatNum(el, v, size) {
+  const r = el.getBoundingClientRect(); const f = document.createElement('div');
+  f.className = `fnum ${size} ${v > 0 ? 'p' : 'n'}`; f.textContent = fmt(v);
+  f.style.left = (r.left + r.width / 2) + 'px'; f.style.top = (r.top + (size === 'lg' ? 0 : r.height / 2)) + 'px';
+  $('#fx').appendChild(f); setTimeout(() => f.remove(), 1600);
 }
 // ゲーム全体のまとめ（表彰）
 function finalSummaryHTML() {
@@ -661,6 +894,8 @@ function setGlow(sid) {
 document.addEventListener('mouseover', e => {
   if (A.screen !== 'game' || !A.st) return;
   const rc = e.target.closest('[data-rule]');
+  const dl = e.target.closest && e.target.closest('[data-dlt]');
+  if (dl) { const bx = $('#cinfo'); if (bx) bx.innerHTML = deltaInfoHTML(+dl.dataset.dlt); A.hoverU = null; A.hoverScore = null; A.glow = null; return; }
   if (rc) { if (A.glow !== rc.dataset.rule) { A.glow = rc.dataset.rule; setGlow(A.glow); const bx = $('#cinfo'); if (bx) bx.innerHTML = ruleInfoHTML(A.glow); A.hoverU = null; A.hoverScore = null; } return; }
   if (A.glow) { A.glow = null; setGlow(null); }
   const er = e.target.closest('[data-cat-row]');
@@ -690,7 +925,7 @@ const TUT = [
   { t: 1, sel: '.hand', h: 'カードを取ってみよう', x: '好きなカードを1枚押して、右の<b>「このカードを取る」</b>を押してください。全員が選び終わると一斉に公開されます。', wait: (st, P) => !!P.act },
   { t: 2, sel: '.dirind', h: '手札は隣へ回る', x: '取り終わった残りの手札は、矢印の向きの隣の人へ渡ります。相手の場（取ったカード）は全員に見えています。誰が何を集めているか、見ておきましょう。' },
   { t: 2, sel: '.actbar', h: 'ティアを動かしてみよう', x: '<b>「捨ててティアを動かす」</b>を押し、①ティア表のカテゴリ ②段数 ③捨てるカード の順に選んで決定。カードは1枚減りますが、自分の得意なカテゴリを上げたり、相手のを下げたりできます。', wait: (st, P) => !!P.act && A.lastActType === 'tier' },
-  { t: 3, sel: '.ftabs', h: '直前の議論とティアの効き目', x: '「直前の議論」で、誰がどのカテゴリを動かしたか分かります。<b>「ティアの効き目」</b>タブでは、各カテゴリを1段動かすと4人それぞれが何点変わるかが見られます。' },
+  { t: 3, sel: '.ftabs', h: '直前の手番とティアの効き目', x: '「直前の手番」で、誰の点が何のせいで何点動いたか、誰がどのカテゴリを動かしたかが分かります。名札の横の +5 のような数字に乗せても出ます。<b>「ティアの効き目」</b>タブでは、各カテゴリを1段動かすと4人それぞれが何点変わるかが見られます。' },
   { t: 3, sel: '.hand', h: '✂ はカット候補', x: 'カードの ✂ の印は、あなたが手札を渡す人がそのカードで得をする印です。赤く光るものは特に危険。捨ててティアを動かせば、相手に渡さずに済みます（カット）。' },
   { t: 4, sel: '.rcards', h: 'ルール札', x: 'カードセットごとに、その局だけの追加ルールがあります。札にマウスを乗せると全文が出て、関係するカードが光ります。' },
   { t: 6, sel: '.pips', h: 'もうすぐ dat落ち', x: '最後の7手番目は、スレがdat落ちしてティアを動かせません。動かすなら今のうちです。' },
@@ -700,7 +935,7 @@ function tutUpdate() {
   document.querySelectorAll('.coach-hl').forEach(el => el.classList.remove('coach-hl'));
   let box = document.getElementById('coach');
   const st = A.st; const T = A.tut;
-  if (!T || A.screen !== 'game' || !st || !st.tut || A.me < 0) { if (box) box.remove(); return; }
+  if (!T || A.screen !== 'game' || !st || !st.tut || A.me < 0 || A.playing) { if (box) box.remove(); return; }
   const P = st.players[A.me];
   let step = TUT[T.i];
   // 過ぎた場面の案内は飛ばす
@@ -830,6 +1065,7 @@ function rulesHTML() {
     <li><b class="kw">⚙</b>：場にあるあいだ、ずっと効いている効果（常時・ルールの書き換え）。</li>
     <li><b class="kw">⏳</b>：手番の終わりや局の終わりなどに、あとから動く効果。</li>
     <li><b class="kw">📦 箱</b>：箱に入ったカードは、捨て札にも移動にもならない。<b class="kw">🛡 守り</b>：一度だけ相手の効果を防ぐ。<b class="kw">↩ 返し</b>：一度だけ、相手の効果をそのカードへ跳ね返す。</li>
+    <li><b class="kw">⇄ 交換</b>：相手のカードを自分の場へ持ってくる効果は、すべて交換。かわりに自分の場の一番素点の低いカードを相手へ渡す。カードを捨て札へ送る効果の多くは、一番素点の<b>低い</b>カードを狙う。</li>
     <li><b class="kw">☆</b>：気絶中。そのカードの【得点】や常時の効果が働かない（基本の点とティアの補正は残る）。<b class="kw">封じる</b>：封じられた手番に取ったカードは【取ったとき】が起きない。</li>
     <li><b class="kw">逆張り</b>：ティアの補正がプラスとマイナス逆になるカード（カテゴリが下の段にあるほど強い）。<b class="kw">予言</b>：取ったときに書いたカテゴリが、局の終わりに上の段にあれば点になる。<b class="kw">ティア崩し</b>：一番上のカテゴリを引きずり下ろす。</li>
     <li><b class="kw">🔋 ゲージ</b>：セットのルールでたまる数。<b class="kw">ワイルド</b>：取ったとき、自分の場で一番多いカテゴリが仲間に加わるカード。</li>
@@ -838,7 +1074,7 @@ function rulesHTML() {
     <li><b class="kw">ティアの効き目</b>（卓の中央のタブ）：各カテゴリを1段上げた／下げたら、4人の点がそれぞれ何点動くかの表。色がついたマスが一番得をする人、赤い数字が一番損をする人です。行にマウスを乗せると、ティア表のそのカテゴリが光ります。</li>
     <li><b class="kw">カット候補</b>：手札のカードには ✂ の印が付きます（赤く光るのが一番のカット候補）。カードにマウスを乗せる（スマホは選ぶ）と、手札を渡す相手（「あなたの手札が行く」人）がそれを取ったら何点得をするかが、拡大表示に出ます。捨ててティアを動かすときの目安にしてください。</li>
     <li><b class="kw">点の内訳</b>：カードや点数にマウスを乗せる（スマホは選ぶ）と、手札の横の拡大表示に効果の全文と点数の内訳が出て、影響しているカードやティアが盤面で光ります。ルール札に乗せると、そのルールの全文が出ます。</li>
-    <li><b class="kw">直前の議論</b>：直前の手番で、誰がどのティアをどう動かしたか、どの効果が起きたかの振り返り。<b class="kw">記録</b>のタブには、この局で起きたことが全部残ります。</li></ul></div>
+    <li><b class="kw">直前の手番</b>（卓の中央のタブ）：直前の手番で<b class="kw">誰の点が何点動いたか、その原因</b>（取ったカード、動いたティアと動かした人、消されたカード、効果の増減とそのきっかけになったカード）と、誰がどのティアをどう動かしたかの振り返り。名札の横の <b class="kw">+5</b> のような数字にマウスを乗せると、その人の点の動きが全部出ます。<b class="kw">記録</b>のタブには、この局で起きたことが全部残ります。</li></ul></div>
   <div class="panel"><h3>はじめての人へ・途中で抜けたとき</h3><ul>
     <li>CPU戦の準備画面で<b class="kw">「チュートリアルで遊ぶ」</b>にチェックを入れると、案内を見ながら1局だけ遊べます。</li>
     <li>オンライン対戦の途中で誰かが抜けると、その席は<b class="kw">代打ちCPU</b>が引き継ぎます。同じ部屋に戻ってくれば席を返します（部屋主が抜けると対局は終わります）。</li></ul></div>
@@ -930,7 +1166,15 @@ function tierboardHTML() {
     <div class="trow kesurow"><div class="tlab" style="background:#7a6a9a;color:#fff"><b>欠番</b><small>±0</small></div><div class="tchips">${kes.map(chip).join('') || '<span class="mute" style="font-size:11px;padding:4px">理由は聞かない</span>'}</div></div>
   </div>`;
 }
+function deltaSectionHTML() {
+  const T = A.turnDelta; if (!T) return '';
+  const order = [0, 1, 2, 3].sort((x, y) => (x === A.me ? -1 : y === A.me ? 1 : 0) || Math.abs(T.per[y].d) - Math.abs(T.per[x].d));
+  return `<div class="dsec"><div class="rc-h">【点の動き】${T.turn}手番目の結果</div>${order.map(p => { const D = T.per[p]; return `<div class="dpl" data-dlt="${p}"><div class="dph"><b style="color:${SEATC[p]}">${esc(whoName(p))}</b><b class="${D.d > 0 ? 'p' : D.d < 0 ? 'n' : ''}">${fmt(D.d)}</b></div>${D.lines.length ? deltaLinesHTML(D, 3) : '<div class="dl">点は動かなかった</div>'}</div>`; }).join('')}</div>`;
+}
 function recapHTML() {
+  return deltaSectionHTML() + recapVotesHTML();
+}
+function recapVotesHTML() {
   const st = A.st; const r = st.recap;
   const head = `<div class="rc-h">【直前の手番の議論】${r ? `${esc(TJ.ROUND_NAMES[r.round] || '')} ${r.turn}手番目` : ''}</div>`;
   if (!r || (!r.votes.length && !(r.fx || []).length)) return `<div class="recap">${head}<div class="rc-none">${r ? 'この手番は、誰もティアを動かさなかった。' : 'まだ議論はない。'}</div></div>`;
@@ -968,7 +1212,7 @@ function seatHTML(p, pos) {
   const backs = isMe ? '' : `<div class="stack" data-stack="${p}" title="手札 ${P.hand.length}枚">${P.hand.map(() => '<i></i>').join('')}<span>${P.hand.length}</span></div>`;
   return `<section class="seat pos-${pos} ${lead ? 'lead' : ''}" style="--sc:${SEATC[p]}" data-seat="${p}" aria-label="${esc(st.seats[p].name)}の席">
     ${isMe ? '<div class="me-main">' : ''}<div class="np"><span class="wind" title="${wind}家">${wind}</span><span class="nm">${isMe ? 'あなた（' + esc(st.seats[p].name) + '）' : esc(st.seats[p].name)}</span>${tags.join('')}</div>
-    <div class="pp-s"><span class="sc" data-score="${p}" title="点数の内訳">${tot[p]}<small>点</small></span><span class="rp">順位点 <b>${P.rp}</b></span>${backs}</div>
+    <div class="pp-s"><span class="sc" data-score="${p}" title="点数の内訳">${tot[p]}<small>点</small></span>${A.turnDelta && A.turnDelta.per[p].d && !A.playing ? `<span class="dlt ${A.turnDelta.per[p].d > 0 ? 'p' : 'n'}" data-dlt="${p}" tabindex="0" title="直前の手番の点の動き（乗せると原因が出ます）">${fmt(A.turnDelta.per[p].d)}</span>` : ''}<span class="rp">順位点 <b>${P.rp}</b></span>${backs}</div>
     <div class="tbl">${cards || '<span class="mute" style="font-size:12px">まだ何も取っていない</span>'}</div>
     ${isMe ? (A._meExtra || '') + '</div>' + `<div class="me-side">${A._meSide || ''}</div>` : ''}
   </section>`;
@@ -1018,7 +1262,7 @@ function centerHTML() {
     <div class="fboard">${tierboardHTML()}</div>
     <div class="fside">
     <div class="rcards" aria-label="この局のカードセットとルール">${rcards}</div>
-    <div class="ftabs" role="tablist"><button type="button" role="tab" data-a="ctab" data-t="recap" aria-selected="${tab === 'recap'}">直前の議論</button><button type="button" role="tab" data-a="ctab" data-t="eff" aria-selected="${tab === 'eff'}">ティアの効き目</button><button type="button" role="tab" data-a="ctab" data-t="log" aria-selected="${tab === 'log'}">記録</button></div>
+    <div class="ftabs" role="tablist"><button type="button" role="tab" data-a="ctab" data-t="recap" aria-selected="${tab === 'recap'}">直前の手番</button><button type="button" role="tab" data-a="ctab" data-t="eff" aria-selected="${tab === 'eff'}">ティアの効き目</button><button type="button" role="tab" data-a="ctab" data-t="log" aria-selected="${tab === 'log'}">記録</button></div>
     <div class="fpane" id="fpane">${tab === 'eff' ? effectHTML() : tab === 'log' ? `<div class="logbox inpane">${logLines()}</div>` : recapHTML()}</div>
     </div>
     <p class="tb-foot">チップの数字は、そのカテゴリのカードを各自が場に何枚持っているか（色＝席）。カードの ⚙ は常時効いている効果、⏳ は手番の終わりなどに変化する効果、✂ はカット候補。</p>
@@ -1095,7 +1339,7 @@ function renderGame() {
   A._meExtra = ''; A._meSide = '';
   if (!spect) {
     const P = st.players[me];
-    const active = st.phase === 'pick' && !P.act;
+    const active = st.phase === 'pick' && !P.act && !A.playing;
     const pv = active ? previewTakes() : {};
     const cut = active && st.turn < TJ.TURNS ? cutCandidates() : {};
     const hand = P.hand.map(c => cardHTML(c, {
@@ -1106,8 +1350,9 @@ function renderGame() {
       cut: cut[c.u] && (A.sel.mode === 'tier' || cut[c.u].top) ? cut[c.u] : null,
       cls: A.sel.u === c.u ? (A.sel.mode === 'tier' ? 'cutsel' : 'sel') : (P.act ? 'dim' : '')
     })).join('');
-    A._meExtra = `${actbarHTML()}
-      <div class="hand" data-stack="${me}" aria-label="手札">${hand || '<span class="mute">手札はありません</span>'}</div>`;
+    const waiting = A.playing && st.phase === 'pick';
+    A._meExtra = `${waiting ? `<div class="actbar playbar"><span class="pb-dot"></span><span>この手番で起きたことを再生中… 終わるとカードを選べます</span><button type="button" class="btn sm" data-a="pbSkip">▶▶ とばす</button></div>` : actbarHTML()}
+      <div class="hand ${waiting ? 'waiting' : ''}" data-stack="${me}" aria-label="手札">${waiting ? P.hand.map(() => '<div class="card back"></div>').join('') : (hand || '<span class="mute">手札はありません</span>')}</div>`;
     A._meSide = `<div id="cinfo" aria-live="polite">${A.glow ? ruleInfoHTML(A.glow) : infoHTML(A.sel.u != null ? A.sel.u : A.hoverU)}</div>`;
   }
   const logs = logLines();
@@ -1220,6 +1465,7 @@ async function startSession(sess) {
   if (!sess.isHost) { A.screen = 'lobby'; A.lobby = A.lobby || { seats: [], sets: [], code: sess.code, online: true }; render(); }
 }
 function doSubmit() {
+  if (A.playing) return;
   const st = A.st; const s = A.sel; const me = A.me;
   let a = null;
   if (s.mode === 'take') {
@@ -1283,6 +1529,7 @@ function clickAction(a, ds) {
     case 'setsRand': if (H) { H.lobby.sets = TJ.util.shuffle(TJ.SET_ORDER.slice()).slice(0, 8); H.push(); } break;
     case 'kick': if (H) { const i = +ds.i; H.lobby.seats[i] = { name: CPU_NAMES[i], cpu: true }; H.push(); } break;
     case 'start': if (H) { TJ.audio.play('round'); H.startGame(); } break;
+    case 'pbSkip': skipPlayback(); break;
     case 'tutNext': if (A.tut) { if (TUT[A.tut.i] && TUT[A.tut.i].end) A.tut = null; else A.tut.i++; tutUpdate(); } break;
     case 'tutSkip': A.tut = null; tutUpdate(); break;
     case 'again': if (H) { closeFinal(); A.finalShown = false; H.backToLobby(); TJ.audio.music('menu'); } break;

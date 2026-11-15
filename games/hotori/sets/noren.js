@@ -19,7 +19,7 @@ TJ.registerSet({
       text: '【取ったとき】判定。〈麺〉のティアを、自分の場の〈麺〉の枚数ぶん上げる（最大2段）。', flavor: '同じ一杯には、いつも同じ点がつく。',
       onPick: (g, p) => { const n = Math.min(2, g.cnt(p, 'men')); if (n) { g.move('men', n, p); g.log(`WALKERの判定：〈麺〉+${n}段。`); } } },
     { id: 'yonhonude', name: '四本腕の老人', e: '👴', g: '腕', cats: ['old', 'robo'], base: 3,
-      text: '【取ったとき】持ち帰りを届けてもらう。手札をくれる人の場から〈麺〉か〈食べ物〉を1枚（素点の高いもの）受け取る。', flavor: '十九日かけて、油そばが届いた。',
+      text: '【取ったとき】持ち帰りを届けてもらう。手札をくれる人の場から〈麺〉か〈食べ物〉を1枚（素点の高いもの）受け取る。（⇄交換：かわりに自分の場の一番素点の低いカードを相手へ渡す）', flavor: '十九日かけて、油そばが届いた。',
       onPick: (g, p) => { const q = g.prev(p); const t = K.bestOf(g, [q], x => g.hasCat(x, 'men') || g.hasCat(x, 'food')); if (t && g.moveTo(t, p)) g.log(`★ ${g.name(q)}の「${g.cardName(t)}」が、四本の腕で届けられた。`, true); } },
     { id: 'holochashu', name: 'ホログラムのチャーシュー', short: 'ホログラムのチャーシュー', e: '🥩', g: '幻', cats: ['food', 'robo'], base: 5, noTier: 1,
       text: '【常時】召し上がった気分だけ。ティアの補正を受けない。【得点】自分の場の本物の〈食べ物〉1枚につき−1。', flavor: '召し上がった気分だけを、確実にお届けする。',

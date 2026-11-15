@@ -27,7 +27,7 @@ TJ.registerSet({
       text: '【得点】動くのは最後だけ。7手番目に取っていれば+10、それ以外は+1。', flavor: '動くのは、最終手番だけ。',
       score: (g, p, c) => c.t === TJ.TURNS ? 10 : 1 },
     { id: 'ferret', name: 'フェレッター', e: '🦡', g: '鼬', cats: ['animal', 'steal', 'ter'], base: 2,
-      text: '【取ったとき】手札をくれる人の場から、一番新しいカードをくすねる（自分の場へ）。', flavor: '靴下が、片方ない。',
+      text: '【取ったとき】手札をくれる人の場から、一番新しいカードをくすねる（自分の場へ）。（⇄交換：かわりに自分の場の一番素点の低いカードを相手へ渡す）', flavor: '靴下が、片方ない。',
       onPick: (g, p) => { const q = g.prev(p); const t = g.newest(q); if (t && g.moveTo(t, p)) g.log(`★ フェレッターが${g.name(q)}の「${g.cardName(t)}」をくすねた。`, true); } }
   ]
 });

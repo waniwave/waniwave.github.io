@@ -26,7 +26,7 @@ TJ.registerSet({
       text: '【取ったとき】カメラ位置を変えます。このカードと、手札をくれる人の場の一番新しいカードを入れ替える。', flavor: '被写体ごと。',
       onPick: (g, p, c) => {
         const q = g.prev(p); const t = g.newest(q);
-        if (t && !g.protected(t)) { g.moveTo(t, p); g.moveTo(c, q); g.log(`★ 撮影クルーが${g.name(q)}の「${g.cardName(t)}」と入れ替わった。`, true); }
+        if (t && !g.protected(t)) { g.moveTo(t, p, null, { noSwap: 1 }); g.moveTo(c, q, null, { noSwap: 1 }); g.log(`★ 撮影クルーが${g.name(q)}の「${g.cardName(t)}」と入れ替わった。`, true); }
       } }
   ]
 });

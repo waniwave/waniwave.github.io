@@ -13,7 +13,7 @@ TJ.registerSet({
       text: '【取ったとき】自分の場のカードをすべて箱に入れる（この局のあいだ、捨て札にも移動にもならない）。', flavor: '外の様子は見ていないので知らない。',
       onPick: (g, p) => { let n = 0; g.table(p).forEach(x => { if (!x.x.boxed) { x.x.boxed = 1; n++; } }); g.log(`${g.name(p)}の場の${n}枚が箱に入った。もう壊れない。`); } },
     { id: 'karabox', name: '空のボックス', e: '📭', g: '空', cats: ['box', 'steal'], base: 4,
-      text: '【取ったとき】左右で点の高いほうの人の、一番素点の高いカードを箱に入れて持ち去る（自分の場へ）。', flavor: 'ジョン・ボックスが出ていったあとの箱。',
+      text: '【取ったとき】左右で点の高いほうの人の、一番素点の高いカードを箱に入れて持ち去る（自分の場へ）。（⇄交換：かわりに自分の場の一番素点の低いカードを相手へ渡す）', flavor: 'ジョン・ボックスが出ていったあとの箱。',
       onPick: (g, p) => { const q = g.richer(p); const t = K.bestOf(g, [q]); if (t && g.moveTo(t, p)) g.log(`★ 空のボックスが${g.name(q)}の「${g.cardName(t)}」を持ち去った。`, true); } },
     { id: 'kakunokake', name: 'ター角の欠片', e: '🔺', g: '片', cats: ['kaku', 'ter'], base: 4,
       text: '【取ったとき】〈角〉のティアを2段上げる。【得点】「ター角」がいれば+4。', flavor: '角から欠けた。欠けても、角は角。',

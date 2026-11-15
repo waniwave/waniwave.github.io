@@ -21,6 +21,7 @@ TJ.KESU = -1;            // 欠番（Tier6・7）。補正0で固定、投票で
 TJ.START = 4;            // Tier3
 TJ.TURNS = 7;
 TJ.ROUNDS = 4;
+TJ.PLAY_GRACE = 9000;
 TJ.HAND = 7;
 TJ.RANK_PTS = [4, 2, 1, 0];
 TJ.T8_RANGE = [-3, 5];
@@ -335,7 +336,7 @@ TJ.api = function (st) {
       return true;
     },
     // 場のカードを別の人の場へ
-    moveTo: (c, to, why) => {
+    moveTo: (c, to, why, opts) => {
       const o = g.owner(c); if (o < 0 || o === to) return false;
       if (g.protected(c)) { log(st, `「${g.cardName(c)}」は守られた。`); push(st, { k: 'guard', u: c.u, p: o }); return false; }
       if (c.x.shield && curSrc(st) && curSrc(st).p !== o) { c.x.shield = 0; log(st, `「${g.cardName(c)}」は守りで防いだ。`); push(st, { k: 'guard', u: c.u, p: o }); return false; }
@@ -348,6 +349,11 @@ TJ.api = function (st) {
       if (why) log(st, why);
       P(o).mv++; P(to).mv++;
       if (st.stats && src && src.p === to && o !== to) st.stats.stolen[to]++;
+      // 奪う効果はすべて「交換」：奪った人は、自分の場の一番素点の低いカードを相手に渡す
+      if (src && src.p === to && o !== to && !(opts && opts.noSwap) && !st._swap) {
+        const give = P(to).table.filter(x => x !== c && x.u !== src.u && !g.protected(x)).sort((a, b) => g.baseOf(a) - g.baseOf(b) || a.t - b.t)[0];
+        if (give) { st._swap = 1; try { g.moveTo(give, o, null, { noSwap: 1 }); } finally { st._swap = 0; } log(st, `⇄ 交換：かわりに「${g.cardName(give)}」を${g.name(o)}へ渡した。`); }
+      }
       fire(st, 'onAnyMove', c, o, to);
       st.sets.forEach(sid => { const R = TJ.SETS[sid].rules; if (R && R.onMove) runRule(st, sid, () => R.onMove(g, c, o, to)); });
       return true;
@@ -389,6 +395,8 @@ TJ.api = function (st) {
     // 手番まわり
     reverse: (why, quiet) => { st.dir *= -1; push(st, { k: 'dir', dir: st.dir }); log(st, why || `★ 手札を回す向きが逆になった！`, quiet ? 0 : 1); fire(st, 'onReverse'); },
     later: fn => { (st._later = st._later || []).push({ fn, src: curSrc(st) }); },
+    // 手札を回す向きに、余分に n 回回す（このあと通常の回しも行われる）
+    passHands: (n) => { n = n || 1; for (let k = 0; k < n; k++) { const h = st.players.map(P => P.hand); st.players.forEach((P, i) => { st.players[(i + st.dir + 4) % 4].hand = h[i]; }); } push(st, { k: 'pass2', n, dir: st.dir }); },
     swapHands: (a, b) => { const t = P(a).hand; P(a).hand = P(b).hand; P(b).hand = t; push(st, { k: 'swap', a, b }); },
     grantBonus: (p, turn) => { P(p).bonus = turn != null ? turn : st.turn + 1; },
     blockTier: (p, turn) => { P(p).block = turn != null ? turn : st.turn + 1; },
@@ -561,7 +569,7 @@ function resolveInner(st, g) {
   st.turn++;
   rollT8(st);
   push(st, { k: 'turn', turn: st.turn, t8: st.t8 });
-  if (st.timer) st.deadline = Date.now() + st.timer * 1000;
+  if (st.timer) st.deadline = Date.now() + st.timer * 1000 + TJ.PLAY_GRACE;  // 画面で手番の再生を見る時間を足す
   st.v++;
 };
 

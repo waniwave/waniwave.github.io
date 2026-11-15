@@ -14,7 +14,7 @@ TJ.registerSet({
       text: '【得点】7手番目（最後）に取っていれば+9。それ以外なら+2。', flavor: '向かってすらいないタム。',
       score: (g, p, c) => c.t === TJ.TURNS ? 9 : 2 },
     { id: 'bus', name: '金武町行きのバス', e: '🚌', g: 'バス', cats: ['kin'], base: 2,
-      text: '【取ったとき】左右の場にいる〈金武町〉を1枚、自分の場に乗せる（点の高い人から）。', flavor: '今向かってるバス。',
+      text: '【取ったとき】左右の場にいる〈金武町〉を1枚、自分の場に乗せる（点の高い人から）。（⇄交換：かわりに自分の場の一番素点の低いカードを相手へ渡す）', flavor: '今向かってるバス。',
       onPick: (g, p) => {
         const r = g.richer(p); const order = [r, g.neighbors(p).find(x => x !== r)];
         for (const q of order) { const t = g.table(q).find(x => g.hasCat(x, 'kin')); if (t && g.moveTo(t, p)) { g.log(`★ ${g.name(q)}の「${g.cardName(t)}」がバスに乗った。`, true); return; } }

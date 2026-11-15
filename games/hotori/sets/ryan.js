@@ -14,7 +14,7 @@ TJ.registerSet({
       text: '【得点】自分の場の他の〈ライアン〉1枚につき+3。〈ライアン〉が3枚以上そろっていれば、さらに+3。', flavor: '「ゴ」が1つ多い。たぶん誤字。',
       score: (g, p, c) => g.cnt(p, 'ryan', c) * 3 + (g.cnt(p, 'ryan') >= 3 ? 3 : 0) },
     { id: 'meishi', name: 'ライアン・ゴゴゴーグの名刺', short: 'ライアンの名刺', e: '📇', g: '刺', cats: ['ryan'], base: 4,
-      text: '【取ったとき】名刺交換。左右の場にいる〈ライアン〉を1枚、自分の場へ連れてくる（点の高い人から）。', flavor: '名刺にもゴが3つ。',
+      text: '【取ったとき】名刺交換。左右の場にいる〈ライアン〉を1枚、自分の場へ連れてくる（点の高い人から）。（⇄交換：かわりに自分の場の一番素点の低いカードを相手へ渡す）', flavor: '名刺にもゴが3つ。',
       onPick: (g, p) => {
         const from = [g.richer(p), g.neighbors(p).find(x => x !== g.richer(p))];
         for (const q of from) { const t = g.table(q).find(x => g.hasCat(x, 'ryan')); if (t) { if (g.moveTo(t, p)) { g.log(`★ 名刺交換！ ${g.name(q)}の「${g.cardName(t)}」が${g.name(p)}についてきた。`, true); return; } } }

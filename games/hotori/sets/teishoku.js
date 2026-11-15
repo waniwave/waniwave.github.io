@@ -24,11 +24,11 @@ TJ.registerSet({
       text: '【得点】自分の場で一番素点の高い他の〈食べ物〉の素点と同じだけ+。', flavor: '無料です。',
       score: (g, p, c) => { let m = 0; g.table(p).forEach(x => { if (x !== c && g.hasCat(x, 'food')) m = Math.max(m, g.baseOf(x)); }); return m; } },
     { id: 'foodfighter', name: 'フードファイター', e: '🍽️', g: '食', cats: ['death'], base: 2,
-      text: '【取ったとき】左右の場から〈食べ物〉を1枚ずつ（素点の高いもの）食べて捨て札へ送る。1枚につき+3。', flavor: '大食いTier God。',
+      text: '【取ったとき】左右の場から〈食べ物〉を1枚ずつ（素点の低いもの）食べて捨て札へ送る。1枚につき+3。', flavor: '大食いTier God。',
       onPick: (g, p, c) => {
         let n = 0;
         g.neighbors(p).forEach(q => {
-          const f = g.table(q).filter(x => g.hasCat(x, 'food')).sort((a, b) => g.baseOf(b) - g.baseOf(a))[0];
+          const f = g.table(q).filter(x => g.hasCat(x, 'food') && !g.protected(x)).sort((a, b) => g.baseOf(a) - g.baseOf(b))[0];
           if (f && g.kill(f)) n++;
         });
         if (n) { c.x.pts = (c.x.pts || 0) + n * 3; g.log(`★ フードファイターが隣の食卓から${n}品たいらげた！ +${n * 3}`, true); }

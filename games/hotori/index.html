@@ -448,6 +448,48 @@ button.chip:hover:not(:disabled){border-color:var(--andon)}
 @keyframes pulse{50%{opacity:.45}}
 .coach-hl{outline:3px solid var(--andon)!important;outline-offset:3px;box-shadow:0 0 0 6px rgba(242,182,72,.25),0 0 24px rgba(242,182,72,.6)!important;border-radius:8px;animation:coachhl 1.6s ease-in-out infinite}
 @keyframes coachhl{50%{outline-color:#fff6c9}}
+.dlt{font-family:var(--f-disp);font-size:13px;padding:0 6px;border-radius:5px;margin-left:4px;cursor:help;align-self:center}
+.dlt.p{background:#1f5e3a;color:#b8ffd2}.dlt.n{background:#6b2418;color:#ffc8bc}
+.dsec{padding:6px 8px;border-bottom:1px solid #d8d0b8;background:#f6f1e2;color:var(--sumi)}
+.dpl{padding:3px 0;border-bottom:1px dashed #d8d0b8;cursor:help}
+.dpl:last-child{border-bottom:0}
+.dph{display:flex;justify-content:space-between;font-size:13px}
+.dph b.p,.dsum b.p,.dl b.p{color:#1f7a42}.dph b.n,.dsum b.n,.dl b.n{color:#b0301e}
+.dl{display:flex;gap:6px;font-size:12px;line-height:1.4;align-items:baseline}
+.dl b{font-family:var(--f-disp);font-weight:400;min-width:2.6em;text-align:right;flex:none}
+.dl small{display:block;color:#7a6e86;font-size:11px}
+.dl.more{color:#8a8494;padding-left:3em}
+.dl.k-tier span{color:#5a4a1a}.dl.k-hit span{color:#8a2a1a}
+.dsum{font-size:14px;margin:2px 0 4px}
+.dlines{display:flex;flex-direction:column;gap:2px}
+.fnum{position:fixed;z-index:66;transform:translate(-50%,-50%);font-family:var(--f-disp);pointer-events:none;animation:fnum 1.6s ease-out forwards;text-shadow:0 2px 0 rgba(0,0,0,.5),0 0 8px rgba(0,0,0,.6)}
+.fnum.sm{font-size:17px}.fnum.lg{font-size:26px}
+.fnum.p{color:#7dffa8}.fnum.n{color:#ff8a78}
+@keyframes fnum{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-60%) scale(1.15)}70%{opacity:1}100%{opacity:0;transform:translate(-50%,-160%)}}
+.banner.fxb{top:46%;background:var(--washi);color:var(--sumi);border:3px solid var(--sc);font-family:var(--f-body);font-weight:700;font-size:clamp(15px,2.2vw,21px);line-height:1.5;padding:8px 20px;z-index:66}
+.ci-l{margin-bottom:2px}
+.seat .pp-s{flex-wrap:wrap;row-gap:2px}
+.g-left .pp-s .sc,.g-right .pp-s .sc{white-space:nowrap}
+/* 手番の再生（実況テロップ） */
+.telop{position:fixed;z-index:70;transform:translate(-50%,-14px);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;display:flex;gap:8px;align-items:flex-start;background:rgba(14,16,34,.94);border:2px solid var(--andon);border-radius:12px;padding:8px 10px 8px 14px;box-shadow:0 10px 30px rgba(0,0,0,.6);color:#f3ead3}
+.telop.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.telop .tl-b{flex:1;min-width:0;line-height:1.5}
+.tl-h{font-weight:700;font-size:15px}
+.tl-k{color:var(--andon);font-weight:700}
+.tl-x{font-size:16px;font-weight:700;color:#fff}
+.tl-x.big{font-family:var(--f-disp);font-weight:400;font-size:clamp(17px,2vw,22px)}
+.tl-n{font-size:13px;color:var(--andon);margin-top:2px}
+.tl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1px 14px;font-size:14px}
+.tl-grid small{color:#b8b0c8;font-size:12px}
+.telop b.p{color:#7dffa8}.telop b.n{color:#ff8a78}
+.tl-cut{color:#ffcf8a}
+.telop.rule{border-color:#b39cff}.telop.alert{border-color:#ff6a50;background:rgba(60,14,10,.95)}
+.telop.fx{border-color:var(--andon)}.telop.score{border-color:#7dffa8}
+.tl-skip{flex:none;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:#ddd;border-radius:6px;font-size:12px;padding:3px 8px;cursor:pointer}
+.tl-skip:hover{background:rgba(255,255,255,.2)}
+.playbar{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--andon)}
+.pb-dot{width:10px;height:10px;border-radius:50%;background:var(--andon);animation:pulse 1s ease-in-out infinite}
+.hand.waiting .card.back{background:repeating-linear-gradient(45deg,#3a4280 0 6px,#2c3263 6px 12px);border:2px solid #6d76c0;border-radius:10px;aspect-ratio:5/5.5;opacity:.75}
 /* ===== 演出 ===== */
 .banner{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:60;font-family:var(--f-disp);font-size:clamp(18px,3.4vw,30px);color:var(--sumi);background:var(--andon);padding:12px 24px;border-radius:8px;box-shadow:0 6px 0 rgba(0,0,0,.4);pointer-events:none;max-width:calc(100% - 32px);text-align:center;text-wrap:balance;animation:ban 1.5s ease-out forwards}
 @keyframes ban{0%{transform:translate(-50%,-50%) scale(1.6) rotate(-3deg);opacity:0}12%{transform:translate(-50%,-50%) scale(1) rotate(0);opacity:1}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-62%)}}
@@ -513,18 +555,20 @@ div.sp-i{cursor:default}
 <body>
 <div id="app" class="wrap"></div>
 <div id="fx"></div>
-<script src="js/engine.js"></script>
-<script src="js/ai.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/net.js"></script>
-<script>window.TJ_LOAD_ERRORS = [];</script>
-<script src="sets/list.js" onerror="window.TJ_LOAD_ERRORS.push('sets/list.js')"></script>
 <script>
-// カードセットを順に読み込んでから画面を起動する
+window.TJ_BUILD = '20261115-4';
+window.TJ_LOAD_ERRORS = [];
 (function () {
-  var files = window.TJ_SET_FILES || [], i = 0;
-  function add(src, cb) { var s = document.createElement('script'); s.src = src; s.onload = cb; s.onerror = function () { console.warn('読み込み失敗:', src); window.TJ_LOAD_ERRORS.push(src); cb(); }; document.body.appendChild(s); }
-  function next() { if (i >= files.length) return add('js/ui.js', function () {}); add('sets/' + files[i++], next); }
+  // ?v= を付けて、更新したときに古いファイルがキャッシュから読まれないようにする
+  var V = '?v=' + window.TJ_BUILD;
+  function add(src, cb) { var s = document.createElement('script'); s.src = src + V; s.onload = cb; s.onerror = function () { console.warn('読み込み失敗:', src); window.TJ_LOAD_ERRORS.push(src); cb(); }; document.body.appendChild(s); }
+  var core = ['js/engine.js', 'js/ai.js', 'js/audio.js', 'js/net.js', 'sets/list.js'], i = 0, files = null;
+  function next() {
+    if (i < core.length) return add(core[i++], next);
+    if (!files) { files = window.TJ_SET_FILES || []; i = 0; core = []; }
+    if (i >= files.length) return add('js/ui.js', function () {});
+    add('sets/' + files[i++], next);
+  }
   next();
 })();
 </script>
