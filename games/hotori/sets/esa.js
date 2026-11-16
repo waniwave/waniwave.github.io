@@ -4,10 +4,6 @@ TJ.registerSet({
   id: 'esa', name: '動物と餌', e: '🐹',
   desc: '動物は食べ物を食べて強くなる。自分の餌か、隣の餌か。',
   categories: {},
-  rules: {
-    text: '【餌の時間】局の終わりに、〈動物〉と〈食べ物〉の少ないほうの枚数×2点。',
-    hooks: { playerScore: (g, v, p) => v + Math.min(g.cnt(p, 'animal'), g.cnt(p, 'food')) * 2 }
-  },
   cards: [
     { id: 'hamster', name: 'ハムスター', e: '🐹', g: '鼠', cats: ['animal'], base: 2,
       text: '【取ったとき】ほお袋から、自分の場に「ひまわりの種」（素点1の〈食べ物〉）を2つ出す。', flavor: 'ほお袋に、ター宿の半分が入っている。',

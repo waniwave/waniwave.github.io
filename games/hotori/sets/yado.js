@@ -2,10 +2,6 @@ TJ.registerSet({
   id: 'yado', name: '女将の宿', e: '🏮',
   desc: '女将マープと番頭たち。手帳とそろばんで、ティア操作の権利を動かす。',
   categories: { kaku: { name: '角', color: '#d0d0d0' } },
-  rules: {
-    text: '【チェックイン】局の始めに、〈宿〉はTier2から始まる。',
-    onRoundStart: (g) => { if (g.pos('inn') != null && g.pos('inn') > 3) g.setPos('inn', 3); }
-  },
   cards: [
     { id: 'maap', name: 'マープ', e: '👘', g: 'マ', cats: ['inn'], base: 5,
       text: '【取ったとき】〈宿〉のティアを1段上げる。', flavor: 'ター宿の女将。宿の地図はすべて彼女の頭の中にある。',

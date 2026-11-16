@@ -4,10 +4,6 @@ TJ.registerSet({
   id: 'oogui', name: '大食い', e: '🍜',
   desc: '食べ物を並べ、辛さで隣を黙らせる。デザートは別腹。',
   categories: {},
-  rules: {
-    text: '【大食い大会】局の終わりに、〈食べ物〉を一番多く持っている人は+5（同数なら全員。0枚は対象外）。',
-    hooks: { playerScore: (g, v, p) => { const c = [0, 1, 2, 3].map(i => g.cnt(i, 'food')); const m = Math.max(...c); return m > 0 && c[p] === m ? v + 5 : v; } }
-  },
   cards: [
     { id: 'ramen', name: 'ラーメーン', e: '🍜', g: '麺', cats: ['food', 'men'], base: 3,
       text: '【得点】自分の場の他の〈食べ物〉1枚につき+1。', flavor: 'スープはター油ベース。', score: K.per('food', 1) },

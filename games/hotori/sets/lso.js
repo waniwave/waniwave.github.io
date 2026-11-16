@@ -4,10 +4,6 @@ TJ.registerSet({
   id: 'lso', name: 'リミナル・スペース・オペラ', e: '🚀',
   desc: '賞金稼ぎリロイと寸胴型の相棒MEN-Boiler。ラー油弾と酢弾で、失われた味覚を叩き起こす。',
   categories: { uchu: { name: '宇宙', color: '#4a5ad8' } },
-  rules: {
-    text: '【胃袋ゲージ】局の終わりに、〈食べ物〉と〈麺〉を合わせて7枚以上持っている人は−4（食べすぎ）。',
-    hooks: { playerScore: (g, v, p) => g.count(p, x => g.hasCat(x, 'food') || g.hasCat(x, 'men')) >= 7 ? v - 4 : v }
-  },
   cards: [
     { id: 'reroi', name: 'リロイ', e: '🤠', g: 'リ', cats: ['men', 'uchu'], base: 4,
       text: '【得点】相棒。自分の場に「MEN-Boiler」がいれば+5。', flavor: '「俺は行くぞ」', score: K.with('menboiler', 5) },

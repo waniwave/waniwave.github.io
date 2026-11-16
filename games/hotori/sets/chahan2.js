@@ -4,10 +4,6 @@ TJ.registerSet({
   id: 'chahan2', name: 'マンカン・ホールディングス', e: '🏢',
   desc: '会長は全人類にあの一皿の実感を配ろうとしている。常務と部長と歩行要塞。それに抗う空腹同盟。',
   categories: { mankan: { name: 'マンカン', color: '#c84a3a' }, memo: { name: 'メモリ', color: '#5ce0c8' } },
-  rules: {
-    text: '【満漢全席号】局の終わりに、〈マンカン〉を一番多く持っている人は+3（同数なら全員。0枚は対象外）。',
-    hooks: { playerScore: (g, v, p) => { const c = [0, 1, 2, 3].map(i => g.cnt(i, 'mankan')); const m = Math.max(...c); return m > 0 && c[p] === m ? v + 3 : v; } }
-  },
   cards: [
     { id: 'kaichou', name: 'マンカン会長', e: '👔', g: '会', cats: ['mankan', 'old'], base: 5,
       text: '【取ったとき】全人類同時配信。自分以外の全員の、一番素点の高いカードの素点−2。', flavor: '若い頃、遠くから朗々飯店へ通った客。',

@@ -4,10 +4,6 @@ TJ.registerSet({
   id: 'mizube', name: '水辺と夜の動物', e: '🦉',
   desc: '甲羅は壊れない。針は刺し返す。夜に取れば強くなる動物たち。',
   categories: {},
-  rules: {
-    text: '【夜の動物園】この局では、6手番目以降に取った〈動物〉はそれぞれ+2。',
-    hooks: { cardScore: (g, v, c) => c.t >= 6 && g.hasCat(c, 'animal') ? v + 2 : v }
-  },
   cards: [
     { id: 'kame', name: 'カメーム', e: '🐢', g: '亀', cats: ['animal'], base: 4,
       text: '【常時】甲羅があるので、捨て札にも移動にもならない。【手番の終わり】+1（最大+3）。', flavor: '万年生きる。この局も、たぶん生き残る。',

@@ -4,11 +4,6 @@ TJ.registerSet({
   id: 'okizeme', name: '起き攻めとゲージ', e: '🔋',
   desc: '〈格ゲー〉を取るたびにゲージがたまる。溜めて、吐く。中段と下段の二択。',
   categories: {},
-  rules: {
-    text: '【ゲージ】この局では、〈格ゲー〉のカードを取るたびに、その人のゲージが1たまる。局の終わりに、残ったゲージ1につき+1。',
-    onAnyPick: (g, p, c) => { if (g.hasCat(c, 'fgc')) g.addGauge(p, 1); },
-    hooks: { playerScore: (g, v, p) => v + g.gauge(p) }
-  },
   cards: [
     { id: 'okizeme', name: '起き攻め', e: '🛌', g: '起', cats: ['fgc'], base: 4,
       text: '【常時】左右の人の場のカードが捨て札に送られるたびに+2（倒れた相手に重ねる）。', flavor: '倒れた相手に、重ねる。',

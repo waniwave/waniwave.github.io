@@ -71,7 +71,7 @@ TJ.ai = {
     let best = takes[0];
     const bonus = TJ.hasBonus(st, p);
     const canTier = TJ.canTier(st, p);
-    if (canTier && lv >= 1) {
+    if (canTier && (lv >= 1 || bonus)) {
       // ティアだけ動かした場合の差分
       const cats = TJ.tierCats(st);
       const moves = [];
@@ -82,7 +82,7 @@ TJ.ai = {
       moves.sort((a, b) => b.v - a.v);
       if (bonus) {
         const m = moves[0];
-        if (m && m.v > 0.5) best = { a: { type: 'take', u: best.a.u, tier: { cat: m.cat, d: m.d } }, v: best.v + m.v };
+        if (m) best = { a: { type: 'take', u: best.a.u, tier: { cat: m.cat, d: m.d } }, v: best.v + m.v };   // ボーナス手番はティア操作が必須
       } else {
         // 捨てるカードは、相手に渡したくないものや【捨てられたとき】が得なもの
         const top = moves.slice(0, 3);
@@ -103,6 +103,7 @@ TJ.ai = {
       const cats = TJ.tierCats(st); const cat = cats[Math.floor(Math.random() * cats.length)];
       return { type: 'tier', u: c.u, cat, d: [2, -2, 1, -1][Math.floor(Math.random() * 4)] };
     }
+    if (TJ.hasBonus(st, p) && TJ.canTier(st, p) && TJ.tierCats(st).length) { const cats = TJ.tierCats(st); return { type: 'take', u: c.u, tier: { cat: cats[Math.floor(Math.random() * cats.length)], d: 1 } }; }
     return { type: 'take', u: c.u };
   },
   // 画面のプレビュー用：ティア操作をしたら各自の点がどう変わるか
@@ -111,6 +112,21 @@ TJ.ai = {
     const s = clone(st); doTier(s, p, cat, d);
     const after = TJ.allScores(s);
     return after.map((v, i) => v - before[i]);
+  },
+  // ティアを1段動かしたら、各自の点がどう変わるか（誰の操作でもない中立の計算）
+  tierEffect(st, cat, d) {
+    const before = TJ.allScores(st);
+    const s = clone(st); TJ.moveTier(s, cat, d, {});
+    return TJ.allScores(s).map((v, i) => v - before[i]);
+  },
+  // 自分の手札のカードを、別の人 q が取ったら q の点がどう変わるか（カット候補）
+  valueFor(st, from, q, u) {
+    const s = clone(st);
+    const i = s.players[from].hand.findIndex(x => x.u === u); if (i < 0) return 0;
+    const c = s.players[from].hand.splice(i, 1)[0]; s.players[q].hand.push(c);
+    const before = TJ.allScores(s)[q];
+    doTake(s, q, u);
+    return TJ.allScores(s)[q] - before + future(s, q, c) * 0.5;
   },
   explainTake(st, p, u) {
     const s = clone(st); doTake(s, p, u);

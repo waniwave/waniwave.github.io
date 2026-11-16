@@ -2,10 +2,6 @@ TJ.registerSet({
   id: 'taam', name: 'TAAM', e: '⚰️',
   desc: 'おばあさんは最初に死に、おじいさんは最後に死ぬ。捨て札が増えるほど強くなる一家。',
   categories: {},
-  rules: {
-    text: '【お通夜】この局では、捨て札にある「自分が捨てた（または自分の場から死んだ）〈死〉」1枚につき+2。',
-    hooks: { playerScore: (g, v, p) => v + 2 * g.discard().filter(e => e.p === p && g.hasCat(e.c, 'death')).length }
-  },
   cards: [
     { id: 'obaasan', name: 'TAAMで最初に死んだおばあさん', short: '最初に死んだおばあさん', e: '👵', g: '婆', cats: ['death', 'old'], base: 0,
       text: '【取ったとき】すぐに死ぬ（捨て札へ）。〈死〉のティアを2段上げる。', flavor: '最初に死ぬ。それが彼女の役目。',

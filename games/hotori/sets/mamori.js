@@ -4,7 +4,6 @@ TJ.registerSet({
   id: 'mamori', name: '守りの宿', e: '🪞',
   desc: '鏡は跳ね返し、浴衣は身代わりになり、過去ログは残る。除去への答え。',
   categories: {},
-  rules: null,
   cards: [
     { id: 'm_kagami', name: '合わせ鏡', e: '🪞', g: '鏡', cats: ['inn'], base: 5, reflect: 1,
       text: '【常時】他の人の効果で捨て札に送られそうになると、かわりにその効果を出したカードが捨て札へ（跳ね返す）。', flavor: '洗面所の鏡と、廊下の鏡が向かい合っている。' },

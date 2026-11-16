@@ -4,10 +4,6 @@ TJ.registerSet({
   id: 'hanyou3', name: '汎用の魔導書', e: '📖',
   desc: 'ファイアボール、ライトニングボルト、暗殺者。素直に強い除去。',
   categories: { gen: { name: '汎用', color: '#9a9a9a' } },
-  rules: TJ.GEN_RULE || {
-    text: '【汎用への批判】この局では、〈汎用〉は局の始めにTier4から始まる（スレの住人は汎用に厳しい）。',
-    onRoundStart: (g) => { if (g.pos('gen') != null && g.pos('gen') < 5) g.setPos('gen', 5); }
-  },
   cards: [
     { id: 'g_book', name: '知識の書', e: '📖', g: '書', cats: ['gen'], base: 3,
       text: '【得点】捨て札の枚数（全員ぶん）2枚につき+1（最大+5）。', flavor: 'カードを2枚引く。以上。',

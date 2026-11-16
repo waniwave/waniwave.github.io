@@ -4,10 +4,6 @@ TJ.registerSet({
   id: 'chahan4', name: 'ネオヨコハマの昼', e: '🎡',
   desc: '情報屋、闘技場の王者、船乗りと飛行士、給仕。仲間を多く連れていると、デートに行ける。',
   categories: { memo: { name: 'メモリ', color: '#5ce0c8' } },
-  rules: {
-    text: '【デート】局の終わりに、自分の場の〈メモリ〉が3枚以上なら+3。',
-    hooks: { playerScore: (g, v, p) => g.cnt(p, 'memo') >= 3 ? v + 3 : v }
-  },
   cards: [
     { id: 'lin', name: 'リン', e: '🕵️', g: '情', cats: ['memo'], base: 2,
       text: '【取ったとき】情報屋。次の手番、カードを取りつつティアも動かせる。', flavor: '売り先が決まってから、ノゲで会う。',

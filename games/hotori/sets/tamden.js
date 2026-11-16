@@ -4,13 +4,6 @@ TJ.registerSet({
   id: 'tamden', name: 'タムデンとタムボイス', e: '🍵',
   desc: 'いつも少しだけ先回りする二人と、置いておくだけで積み上がる制度。',
   categories: { tam: { name: 'タムデン', color: '#6aa86a' } },
-  rules: {
-    text: '【タムボイス】この局では、手番の終わりに〈タムデン〉を一番多く持っている人の〈タムデン〉のカードが、それぞれ+1。',
-    onTurnEnd: (g) => {
-      const c = [0, 1, 2, 3].map(i => g.cnt(i, 'tam')); const m = Math.max(...c); if (!m) return;
-      [0, 1, 2, 3].forEach(i => { if (c[i] === m) g.table(i).forEach(x => { if (g.hasCat(x, 'tam')) K.addPts(x, 1); }); });
-    }
-  },
   cards: [
     { id: 'tamden', name: 'タームデン・ボーイ', e: '👦', g: 'デ', cats: ['tam', 'ter'], base: 2,
       text: '【取ったとき】〈タムデン〉のティアを1段上げる。【得点】「タームデン・ガール」がいれば+5。', flavor: 'いつも少しだけ先回りしている。',

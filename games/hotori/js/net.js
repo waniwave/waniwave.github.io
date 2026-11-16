@@ -61,8 +61,8 @@ async function openPeer(code, isHost, onMsg, onStatus) {
       peer.on('open', () => { if (!done) { done = true; onStatus && onStatus('connected'); resolve(api); } });
       peer.on('connection', (c) => {
         conns.push(c);
-        c.on('data', (d) => onMsg(d));
-        c.on('close', () => { const i = conns.indexOf(c); if (i >= 0) conns.splice(i, 1); });
+        c.on('data', (d) => { if (d && d.from) c._cid = d.from; onMsg(d); });
+        c.on('close', () => { const i = conns.indexOf(c); if (i >= 0) conns.splice(i, 1); if (c._cid) onStatus && onStatus('left', c._cid); });
       });
     } else {
       peer.on('open', () => {

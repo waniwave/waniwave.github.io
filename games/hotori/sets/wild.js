@@ -4,10 +4,6 @@ TJ.registerSet({
   id: 'wild', name: 'ワイルドとごった煮', e: '🍲',
   desc: '〈ワイルド〉のカードは、取ったときに自分の場で一番多いカテゴリの仲間にもなる。種類が多いほど強いカードも。',
   categories: {},
-  rules: {
-    text: '【ごった煮】局の終わりに、自分の場のカテゴリの種類が一番多い人は+3（同数なら全員）。',
-    hooks: { playerScore: (g, v, p) => { const c = [0, 1, 2, 3].map(i => g.catsCount(i)); const m = Math.max(...c); return m > 0 && c[p] === m ? v + 3 : v; } }
-  },
   cards: [
     { id: 'x_surameshi', name: '実況スレの出前', e: '🍕', g: '出', cats: ['thread', 'food'], base: 2,
       text: '【得点】自分の場のカテゴリが5種類以上なら+5。', flavor: '「ピザきた」「うp」「はよ」',

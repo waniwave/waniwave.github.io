@@ -4,10 +4,6 @@ TJ.registerSet({
   id: 'noren', name: '暖簾の外側', e: '🏮',
   desc: 'ネオ・トーキョー第七到着ゲートの裏。カウンター六席の店で、審査AIが一杯を判定する。',
   categories: {},
-  rules: {
-    text: '【開店】局の始めに、〈麺〉はTier2から始まる。',
-    onRoundStart: (g) => { if (g.pos('men') != null && g.pos('men') > 3) g.setPos('men', 3); }
-  },
   cards: [
     { id: 'gravity', name: '麺処グラヴィティ・ウェル', short: 'グラヴィティ・ウェル', e: '🏮', g: '店', cats: ['men', 'inn'], base: 3,
       text: '【得点】カウンター六席。自分の場の他の〈麺〉1枚につき+2（最大+12）。', flavor: '換気扇は三百年もの。',

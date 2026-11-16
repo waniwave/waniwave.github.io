@@ -5,10 +5,6 @@ TJ.registerSet({
   id: 'chahan3', name: 'ネオヨコハマの夜', e: '🌃',
   desc: 'ノゲ横丁、中華街跡、ハコネの足湯。組になる仲間がそろうと絆が生まれる。',
   categories: { memo: { name: 'メモリ', color: '#5ce0c8' } },
-  rules: {
-    text: '【絆】局の終わりに、ワンと小籠、ガンテツと湯守、ペダルとナナシの組がそろっていれば、1組につき+2。',
-    hooks: { playerScore: (g, v, p) => v + PAIRS.filter(([a, b]) => g.has(p, a) && g.has(p, b)).length * 2 }
-  },
   cards: [
     { id: 'hongjie', name: '紅姐', e: '💃', g: '紅', cats: ['memo', 'old'], base: 3,
       text: '【得点】自分の場の他の〈メモリ〉1枚につき+2。', flavor: 'ノゲのスナック「止まり木」で、往診を受けている。', score: K.per('memo', 2) },

@@ -4,10 +4,6 @@ TJ.registerSet({
   id: 'idou', name: '移動の旅', e: '🐧',
   desc: 'カードが場から場へ渡り歩く。押しつけ、投げ飛ばし、滑り込む。',
   categories: { move: { name: '移動', color: '#4aa8a0' } },
-  rules: {
-    text: '【旅の宿】この局では、よその場へ移ったカードは、移った先で+2。',
-    onMove: (g, c) => K.addPts(c, 2)
-  },
   cards: [
     { id: 'backstep', name: 'バクステ', e: '🔙', g: '←←', cats: ['fgc', 'move'], base: 3,
       text: '【取ったとき】とりあえず下がる。自分の場の一番素点の低い他のカードを、手札をくれる人の場へ押しつける。', flavor: '←←。とりあえず下がる。',

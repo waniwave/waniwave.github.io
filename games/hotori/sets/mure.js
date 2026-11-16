@@ -4,10 +4,6 @@ TJ.registerSet({
   id: 'mure', name: '群れ', e: '🐺',
   desc: '動物は群れるほど強い。ゾウは踏み、キリンは隣を見る。',
   categories: {},
-  rules: {
-    text: '【群れの掟】局の終わりに、〈動物〉を一番多く持っている人は+4（同数なら全員。0枚は対象外）。',
-    hooks: { playerScore: (g, v, p) => { const c = [0, 1, 2, 3].map(i => g.cnt(i, 'animal')); const m = Math.max(...c); return m > 0 && c[p] === m ? v + 4 : v; } }
-  },
   cards: [
     { id: 'shiba', name: 'シバターヌ', e: '🐕', g: '柴', cats: ['animal', 'ter'], base: 3,
       text: '【得点】自分の場の他の〈動物〉1枚につき+1。', flavor: '柴犬とたぬきの、どちらでもある。', score: K.per('animal', 1) },

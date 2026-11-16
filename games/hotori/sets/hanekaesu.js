@@ -4,7 +4,6 @@ TJ.registerSet({
   id: 'hanekaesu', name: '跳ね返す食卓と獣', e: '🦔',
   desc: '菓子折りとヤマアラシは跳ね返す。群れのボスがいる間、群れには手が出せない。',
   categories: {},
-  rules: null,
   cards: [
     { id: 'f_juubako', name: '重箱', e: '🍱', g: '重', cats: ['food'], base: 5,
       text: '【取ったとき】三段重ね。自分の場の〈食べ物〉すべてに「守り」をつける。', flavor: '三段重ねは、崩れない。',

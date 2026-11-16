@@ -4,7 +4,6 @@ TJ.registerSet({
   id: 'shinri', name: '守りと心理戦', e: '🧠',
   desc: 'リードしたら守る。タイムアップで議論を早めに打ち切る。屈伸で煽る。',
   categories: {},
-  rules: null,
   cards: [
     { id: 'tairyoku', name: '体力リード', e: '❤️', g: '体', cats: ['fgc'], base: 4,
       text: '【手番の終わり】そのとき自分の点が一番高ければ+2（最大+6）。', flavor: 'リードしたら、守る。',

@@ -5,10 +5,6 @@ TJ.registerSet({
   id: 'tayu', name: 'ター湯とカレー', e: '♨️',
   desc: 'ター油は湯に浮く。栓を抜けば全部流れる。ターメリックとライスがそろえばカレー。',
   categories: { kare: { name: 'カレー', color: '#d8a020' } },
-  rules: {
-    text: '【湯けむり】局の終わりに、〈湯〉を一番多く持っている人は+3（同数なら全員。0枚は対象外）。',
-    hooks: { playerScore: (g, v, p) => { const c = [0, 1, 2, 3].map(i => g.cnt(i, 'yu')); const m = Math.max(...c); return m > 0 && c[p] === m ? v + 3 : v; } }
-  },
   cards: [
     { id: 'taayu', name: 'ター油', e: '🫙', g: '油', cats: ['food', 'yu', 'ter'], base: 3,
       text: '【得点】自分の場の他の〈湯〉と〈食べ物〉1枚につき+1。', flavor: '湯船に浮いている。湯には溶けない。溶けないことが強さだ。',

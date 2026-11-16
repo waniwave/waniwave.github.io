@@ -4,10 +4,6 @@ TJ.registerSet({
   id: 'chahan1', name: 'プロトコルチャーハン', e: '🍳',
   desc: '舌部端子から「実感」を書き込む規格。メモリは挿したまま戦うほど浸透していく。',
   categories: { memo: { name: 'メモリ', color: '#5ce0c8' } },
-  rules: {
-    text: '【浸透】この局では、手番の終わりに、〈メモリ〉のカードはそれぞれ+1（1枚につき最大+3）。',
-    onTurnEnd: (g) => [0, 1, 2, 3].forEach(i => g.table(i).forEach(x => { if (g.hasCat(x, 'memo') && (x.x.shin || 0) < 3) { x.x.shin = (x.x.shin || 0) + 1; K.addPts(x, 1); } }))
-  },
   cards: [
     { id: 'chanker', name: 'チャンカー', e: '🧑‍🎤', g: '挿', cats: ['memo'], base: 3,
       text: '【取ったとき】メモリを挿す。自分の場の一番素点の高い他のカードを+2し、〈メモリ〉の仲間にする（カテゴリが3つ未満のとき）。', flavor: '名前はない。「チャンカー」と呼ばれている。',

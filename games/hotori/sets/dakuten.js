@@ -4,7 +4,6 @@ TJ.registerSet({
   id: 'dakuten', name: '濁点とスレ立て', e: '💧',
   desc: '手札を濁らせて次の人に渡す。スレを立てればレスがつき、土は自己紹介をする。',
   categories: { vyu: { name: '濁点', color: '#5a8aa8' } },
-  rules: null,
   cards: [
     { id: 'vyu', name: 'う゛ゅ゛', e: '💧', g: 'ゅ', cats: ['vyu'], base: 4,
       text: '【取ったとき】次に渡す手札をすべて濁らせる（それぞれ素点−1）。', flavor: 'う゛ゅ゛。',

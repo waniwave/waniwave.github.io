@@ -4,10 +4,6 @@ TJ.registerSet({
   id: 'taikuu', name: '対空と読み', e: '🐉',
   desc: 'ティアを動かした瞬間、先に取った瞬間を狩る。読み勝てば一撃。',
   categories: {},
-  rules: {
-    text: '【確定反撃】この局では、手番の効果を解決する順番が「親から」ではなく「点の低い人から」になる（読み合いの後出しが逆転側に回る）。',
-    hooks: { order: (g, v) => v.slice().sort((a, b) => g.score(a) - g.score(b)) }
-  },
   cards: [
     { id: 'hadou', name: '波動拳コマンド', e: '🌊', g: '波', cats: ['fgc'], base: 4,
       text: '【取ったとき】飛び道具。向かいの人の一番素点の高いカードの素点−3。', flavor: '↓↘→＋P。遠くから撃つのが基本。',

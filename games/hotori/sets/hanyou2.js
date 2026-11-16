@@ -4,10 +4,6 @@ TJ.registerSet({
   id: 'hanyou2', name: '汎用の城塞', e: '🏰',
   desc: '歩兵、盾兵、城壁、ゴーレム、ドラゴン。重くて固い汎用札。',
   categories: { gen: { name: '汎用', color: '#9a9a9a' } },
-  rules: TJ.GEN_RULE || {
-    text: '【汎用への批判】この局では、〈汎用〉は局の始めにTier4から始まる（スレの住人は汎用に厳しい）。',
-    onRoundStart: (g) => { if (g.pos('gen') != null && g.pos('gen') < 5) g.setPos('gen', 5); }
-  },
   cards: [
     { id: 'g_soldier', name: '歩兵', e: '🗡️', g: '兵', cats: ['gen'], base: 5, text: '（能力なし）', flavor: 'どのゲームにもいる。' },
     { id: 'g_shield', name: '盾兵', e: '🛡️', g: '盾', cats: ['gen'], base: 5,

@@ -4,10 +4,6 @@ TJ.registerSet({
   id: 'hako', name: '箱と角', e: '📦',
   desc: '箱に入れば壊れない。空の箱は持ち去る。角と丸、名札、白線。',
   categories: { box: { name: '箱', color: '#b08a4a' }, kaku: { name: '角', color: '#d0d0d0' } },
-  rules: {
-    text: '【箱詰め】この局では、場のカードを捨て札に送られた人は、かわりに「空き箱」（素点1の〈箱〉）を1つ場に得る。',
-    onKill: (g, c, owner) => { if (c.id !== 'akibako') g.token(owner, 'akibako'); }
-  },
   cards: [
     { id: 'johnbox', name: 'ジョン・ボックス', e: '📦', g: '箱', cats: ['box'], base: 5,
       text: '【取ったとき】自分の場のカードをすべて箱に入れる（この局のあいだ、捨て札にも移動にもならない）。', flavor: '外の様子は見ていないので知らない。',

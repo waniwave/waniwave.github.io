@@ -4,10 +4,6 @@ TJ.registerSet({
   id: 'matagi', name: '系統またぎ', e: '🐈',
   desc: '動物で格ゲー、食べ物で格ゲー。カテゴリを2つ持つカードがそろう。',
   categories: {},
-  rules: {
-    text: '【異種格闘技】この局では、カテゴリを2つ以上持つカードはそれぞれ+1。',
-    hooks: { cardScore: (g, v, c) => g.catsOf(c).length >= 2 ? v + 1 : v }
-  },
   cards: [
     { id: 'x_nekopunch', name: '猫パンチ', e: '🐈', g: '拳', cats: ['animal', 'fgc'], base: 2,
       text: '【取ったとき】左右の場で一番素点の高いカードの素点−2（自分の場に他の〈動物〉がいれば−4）。', flavor: 'フレーム有利がとれる猫。',
