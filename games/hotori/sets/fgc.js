@@ -7,21 +7,21 @@ TJ.registerSet({
     hooks: { tierMod: (g, m, c, cat) => cat === 'fgc' ? m * 2 : m }
   },
   cards: [
-    { id: 'shoryu', name: '昇龍拳コマンド', e: '🐉', g: '昇', cats: ['fgc'], base: 3,
-      text: '【取ったとき】無敵対空。左右の場の、素点4以上のカードのうち一番素点の低いもの1枚を捨て札へ送る。', flavor: '→↓↘＋P。出せるまで、宿に泊まり込みで練習した。',
+    { id: 'shoryu', name: '昇龍拳コマンド', e: '🐉', g: '昇', cats: ['fgc'], base: 2,
+      text: '【取ったとき】無敵対空。左右の場の、素点4以上のカードのうち一番素点の高いもの1枚を捨て札へ送る。', flavor: '→↓↘＋P。出せるまで、宿に泊まり込みで練習した。',
       onPick: (g, p) => {
         const cand = []; g.neighbors(p).forEach(q => g.table(q).forEach(x => { if (g.baseOf(x) >= 4 && !g.protected(x)) cand.push(x); }));
-        cand.sort((a, b) => g.baseOf(a) - g.baseOf(b));
+        cand.sort((a, b) => g.baseOf(b) - g.baseOf(a));
         if (cand[0]) { const n = g.cardName(cand[0]); if (g.kill(cand[0])) g.log(`★ 昇龍！「${n}」が撃ち落とされた。`, true); }
       } },
-    { id: 'kakuhan', name: '確定反撃', e: '⚡', g: '確', cats: ['fgc'], base: 3,
-      text: '【取ったとき】この手番にティアを動かした他の人全員の場から、一番新しいカードを1枚ずつ気絶させる。', flavor: '通称「確反」。動いたら、負け。',
+    { id: 'kakuhan', name: '確定反撃', e: '⚡', g: '確', cats: ['fgc'], base: 2,
+      text: '【取ったとき】この手番にティアを動かした他の人全員の場から、一番新しいカードを1枚ずつ捨て札へ送る。', flavor: '通称「確反」。動いたら、負け。',
       onPick: (g, p) => {
         const ts = g.tierersThisTurn().filter(q => q !== p); let n = 0;
-        ts.forEach(q => { const t = g.newest(q); if (t && g.stun(t)) n++; });
+        ts.forEach(q => { const t = g.newest(q); if (t && g.kill(t)) n++; });
         g.log(n ? `★ 確反！ ティアを動かした${n}人に刺さった。` : '確反をとれる隙がなかった。', !!n);
       } },
-    { id: 'nuke', name: '投げ抜け', e: '🙅', g: '抜', cats: ['fgc'], base: 3,
+    { id: 'nuke', name: '投げ抜け', e: '🙅', g: '抜', cats: ['fgc'], base: 2,
       text: '【常時】自分の場のカードは、捨て札に送られず、移動もさせられない。', flavor: 'つかまれたら、すぐ押す。',
       hooks: { protect: (g, o, c, v, card, owner) => owner === o ? true : v } },
     { id: 'matsu', name: '待ち', e: '🧘', g: '待', cats: ['fgc'], base: 3,

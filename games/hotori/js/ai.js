@@ -112,21 +112,6 @@ TJ.ai = {
     const after = TJ.allScores(s);
     return after.map((v, i) => v - before[i]);
   },
-  // ティアを1段動かしたら、各自の点がどう変わるか（誰の操作でもない中立の計算）
-  tierEffect(st, cat, d) {
-    const before = TJ.allScores(st);
-    const s = clone(st); TJ.moveTier(s, cat, d, {});
-    return TJ.allScores(s).map((v, i) => v - before[i]);
-  },
-  // 自分の手札のカードを、別の人 q が取ったら q の点がどう変わるか（カット候補）
-  valueFor(st, from, q, u) {
-    const s = clone(st);
-    const i = s.players[from].hand.findIndex(x => x.u === u); if (i < 0) return 0;
-    const c = s.players[from].hand.splice(i, 1)[0]; s.players[q].hand.push(c);
-    const before = TJ.allScores(s)[q];
-    doTake(s, q, u);
-    return TJ.allScores(s)[q] - before + future(s, q, c) * 0.5;
-  },
   explainTake(st, p, u) {
     const s = clone(st); doTake(s, p, u);
     const e = TJ.explain(s, p, u);

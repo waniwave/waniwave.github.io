@@ -54,7 +54,7 @@ function Host(online) {
 }
 Host.prototype.isHost = true;
 Host.prototype.open = async function () {
-  if (this.online) this.conn = await TJ.net.open(this.code, true, m => this.onMsg(m), (s, e) => { if (s === 'error') toast('通信：' + (e && e.message || e || 'エラー')); if (s === 'left') this.drop(e, '接続が切れた'); });
+  if (this.online) this.conn = await TJ.net.open(this.code, true, m => this.onMsg(m), (s, e) => { if (s === 'error') toast('通信：' + (e && e.message || e || 'エラー')); });
   this.iv = setInterval(() => this.tick(), 1000);
   this.push();
 };
@@ -67,11 +67,6 @@ Host.prototype.onMsg = function (m) {
   if (!m || m.from === CID) return;
   this.seen[m.from] = Date.now();
   const i = this.seatOf(m.from);
-  // 抜けた人が戻ってきたら、CPUから席を返す
-  if (i > 0 && m.t !== 'bye' && this.lobby.started && this.st && this.lobby.seats[i].dropped && this.st.seats[i].cpu) {
-    this.st.seats[i].cpu = false; this.lobby.seats[i].dropped = false;
-    this.st.log.push({ t: `${this.st.seats[i].name}が戻ってきた。席を返した。`, k: 'sys' }); toast(`${this.st.seats[i].name} が戻ってきました`); this.push();
-  }
   if (m.t === 'hello') {
     if (!this.lobby.started) {
       if (i < 0) {
@@ -95,17 +90,7 @@ Host.prototype.onMsg = function (m) {
     } else this.push();
   } else if (m.t === 'bye') {
     if (i > 0 && !this.lobby.started) { this.lobby.seats[i] = { name: CPU_NAMES[i], cpu: true }; this.push(); }
-    else if (i > 0) this.drop(m.from, '退出した');
   }
-};
-// 対局中に抜けた人の席をCPUに入れ替える（戻ってきたら返す）
-Host.prototype.drop = function (cid, why) {
-  const i = this.seatOf(cid); const st = this.st; const s = this.lobby.seats[i];
-  if (i <= 0 || !s || !this.lobby.started || !st || st.seats[i].cpu) return;
-  st.seats[i].cpu = true; s.dropped = true;
-  st.log.push({ t: `★ ${s.name}が${why || '抜けた'}。この席はCPUが代わりに打つ。`, k: 'sys', b: 1 });
-  toast(`${s.name} が抜けたので、CPUに交代しました`);
-  this.changed();
 };
 Host.prototype.tick = function () {
   const now = Date.now(); const st = this.st;
@@ -113,7 +98,10 @@ Host.prototype.tick = function () {
   if (!st) return;
   // 回線落ち → CPUが代打ち
   if (this.online && this.lobby.started) this.lobby.seats.forEach((s, i) => {
-    if (s.cid && s.cid !== CID && !st.seats[i].cpu && now - (this.seen[s.cid] || now) > 15000) this.drop(s.cid, '応答しなくなった');
+    if (s.cid && s.cid !== CID && !st.seats[i].cpu && now - (this.seen[s.cid] || now) > 25000) {
+      st.seats[i].cpu = true; s.dropped = true;
+      st.log.push({ t: `${s.name}の回線が落ちた。CPUが代打ちする。`, k: 'sys' }); this.changed();
+    }
   });
   // 手番の制限時間
   if (st.phase === 'pick' && st.timer && st.deadline && now > st.deadline) {
@@ -150,7 +138,7 @@ Host.prototype.cpuMoves = function () {
     setTimeout(() => {
       this.pending[i] = 0;
       if (this.st !== st || st.phase !== 'pick' || st.players[i].act || !st.seats[i].cpu || (st.round + ':' + st.turn) !== key) return;
-      const a = TJ.ai.choose(st, i, st.tut ? 1 : this.lobby.lv);
+      const a = TJ.ai.choose(st, i, this.lobby.lv);
       if (a) { const err = TJ.submit(st, i, a); if (err) TJ.submit(st, i, { type: 'take', u: st.players[i].hand[0].u }); }
       this.changed();
     }, 650 + Math.random() * 1100);
@@ -165,11 +153,7 @@ Host.prototype.act = function (a) {
 Host.prototype.startGame = function () {
   const L = this.lobby;
   if (!L.sets.length) { toast('カードセットを1つ以上選んでください'); return; }
-  const tut = !L.online && L.tut;
-  this.st = tut
-    ? TJ.newGame({ seats: L.seats.map(s => ({ name: s.name, cpu: s.cpu, lv: 1 })), pool: TUT_SETS.filter(id => TJ.SETS[id]), timer: 0, rounds: 1, start: 1, tut: true })
-    : TJ.newGame({ seats: L.seats.map(s => ({ name: s.name, cpu: s.cpu, lv: L.lv })), pool: L.sets.slice(), timer: L.timer });
-  A.tut = tut ? { i: 0 } : null;
+  this.st = TJ.newGame({ seats: L.seats.map(s => ({ name: s.name, cpu: s.cpu, lv: L.lv })), pool: L.sets.slice(), timer: L.timer });
   L.started = true; A.lastSeq = 0; A.finalShown = false;
   this.changed();
 };
@@ -240,14 +224,6 @@ function onState(lobby, st, local) {
   const evs = (st.ev || []).filter(e => e.seq > A.lastSeq);
   const first = A.lastSeq === 0;
   if (evs.length) A.lastSeq = Math.max(...evs.map(e => e.seq));
-  // 点の動き：手番が進んだら、前の手番の終わりと比べて「何が原因で何点動いたか」を出す
-  const snapKey = st.round + ':' + st.turn + ':' + (st.phase === 'pick' ? 'p' : 'e');
-  if (A.snapKey !== snapKey) {
-    const cur = snapScores(st);
-    try { A.turnDelta = A.snap && A.snap.round === st.round && !first ? diffScores(A.snap, cur, evs) : null; } catch (e) { console.error(e); A.turnDelta = null; }
-    if (A.turnDelta) A.turnDelta.fresh = true;
-    A.snap = cur; A.snapKey = snapKey;
-  }
   A.newCards = {}; A.moved = {};
   if (!first) evs.forEach(e => {
     if (e.k === 'take' || e.k === 'token' || e.k === 'move' || e.k === 'revive') A.newCards[e.u] = 1;
@@ -274,12 +250,6 @@ function banner(text, sound) {
   $('#fx').appendChild(b); setTimeout(() => b.remove(), 1600);
   if (sound !== false) TJ.audio.play('banner');
 }
-function fxBanner(texts, p, ms) {
-  const b = document.createElement('div'); b.className = 'banner fxb'; b.style.setProperty('--sc', SEATC[p] || 'var(--andon)');
-  b.innerHTML = texts.map(t => esc(t.replace(/^★\s*/, ''))).join('<br>');
-  b.style.animationDuration = ms + 'ms';
-  $('#fx').appendChild(b); setTimeout(() => b.remove(), ms);
-}
 function alertBanner(text) {
   const b = document.createElement('div'); b.className = 'banner alert'; b.textContent = text;
   $('#fx').appendChild(b); setTimeout(() => b.remove(), 2600);
@@ -304,394 +274,44 @@ function myAlerts(evs) {
   });
   return out.slice(0, 3);
 }
-// ===== 効果の見える化 =====
-const SPEED = { fast: 0.55, normal: 1, slow: 1.6, off: 0 };
-A.speed = store.get('tjgod-speed', 'normal');
-const spf = () => SPEED[A.speed] == null ? 1 : SPEED[A.speed];
-const KIND_LABEL = { pick: '取ったとき', cut: '捨てられたとき', death: '捨て札へ送られたとき', turn: '手番の終わり', other: '常時', hook: '常時' };
-function centerOf(el) { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
-function targetsOf(items) {
-  const out = [];
-  const q = sel => { const el = document.querySelector(sel); if (el) out.push(el); };
-  items.forEach(e => {
-    if (e.k === 'kill') q(`[data-gu="${e.u}"]`);
-    else if (e.k === 'move' || e.k === 'zero' || e.k === 'token' || e.k === 'revive' || e.k === 'guard') q(`[data-u="${e.u}"],[data-hu="${e.u}"]`);
-    else if (e.k === 'tier') q(`.chip[data-cat="${e.cat}"]`);
-    else if (e.k === 'dir') q('.dirind');
-    else if (e.k === 'swap') { q(`[data-stack="${e.a}"]`); q(`[data-stack="${e.b}"]`); }
-  });
-  return [...new Set(out)].slice(0, 8);
-}
-function drawArrows(from, targets, color, ms) {
-  if (!targets.length) return;
-  const W = window.innerWidth, H = window.innerHeight;
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('class', 'arrows'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  const id = 'ah' + Math.random().toString(36).slice(2, 7);
-  let html = `<defs><marker id="${id}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${color}"/></marker></defs>`;
-  targets.forEach(t => {
-    const b = centerOf(t); const mx = (from.x + b.x) / 2, my = Math.min(from.y, b.y) - 60;
-    html += `<path d="M${from.x} ${from.y} Q${mx} ${my} ${b.x} ${b.y}" stroke="${color}" stroke-width="4" fill="none" stroke-linecap="round" marker-end="url(#${id})" class="ar"/>`;
-    t.classList.add('hit'); setTimeout(() => t.classList.remove('hit'), ms);
-  });
-  svg.innerHTML = html; $('#fx').appendChild(svg); setTimeout(() => svg.remove(), ms);
-}
-function seatAnchor(p) {
-  const el = document.querySelector(`.seat[data-seat="${p}"]`);
-  if (!el) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-  const r = el.getBoundingClientRect();
-  return { x: Math.min(window.innerWidth - 200, Math.max(200, r.left + r.width / 2)), y: Math.min(window.innerHeight - 160, Math.max(150, r.top + Math.min(r.height, 260) / 2)) };
-}
-function cutIn(gr, ms) {
-  const st = A.st; const e = gr.fx; const d = TJ.CARD[e.id]; if (!d) return;
-  const pos = seatAnchor(e.p);
-  const el = document.createElement('div'); el.className = 'cutin';
-  const who = e.p === A.me ? 'あなた' : st.seats[e.p].name;
-  const lines = gr.banners.map(t => `<div class="ci-l">${esc(t.replace(/^★\s*/, ''))}</div>`).join('');
-  const c = (findCard(e.u) || {}).c || { id: e.id, u: e.u, x: {} };
-  el.innerHTML = `<div class="ci-h" style="--sc:${SEATC[e.p]}"><b>${esc(who)}</b>の<span>【${KIND_LABEL[e.kind] || '効果'}】</span></div>
-    ${lines}<div class="ci-c">${cardHTML(c, {})}</div>`;
-  el.style.left = pos.x + 'px'; el.style.top = pos.y + 'px';
-  el.style.animationDuration = ms + 'ms';
-  $('#fx').appendChild(el);
-  // 画面からはみ出さないように内側へずらす
-  const w = el.offsetWidth, h = el.offsetHeight;
-  el.style.left = Math.max(w / 2 + 8, Math.min(window.innerWidth - w / 2 - 8, pos.x)) + 'px';
-  el.style.top = Math.max(h / 2 + 8, Math.min(window.innerHeight - h / 2 - 8, pos.y)) + 'px';
-  // 何が起きたかは、画面中央の帯でも出す
-  if (gr.banners.length) fxBanner(gr.banners, e.p, Math.max(1200, ms));
-  TJ.audio.play('banner');
-  setTimeout(() => drawArrows(centerOf(el), targetsOf(gr.items), SEATHEX[e.p], Math.max(500, ms - 250)), 220);
-  setTimeout(() => el.remove(), ms);
-}
-function ruleFlash(gr, ms) {
-  const S = TJ.SETS[gr.rule.sid]; if (!S) return;
-  const rc = document.querySelector(`.rcard[data-rule="${gr.rule.sid}"]`);
-  if (rc) { rc.classList.add('flash'); setTimeout(() => rc.classList.remove('flash'), ms + 400); }
-  const b = document.createElement('div'); b.className = 'banner rule';
-  b.innerHTML = `<small>${S.e || ''} セットのルール発動</small>${esc((S.rules && S.rules.text || '').replace(/^【(.+?)】.*/, '【$1】'))}${gr.banners.length ? '<br>' + gr.banners.map(t => esc(t.replace(/^★\s*/, ''))).join('<br>') : ''}`;
-  b.style.animationDuration = ms + 'ms';
-  $('#fx').appendChild(b); setTimeout(() => b.remove(), ms);
-  TJ.audio.play('up');
-  if (rc) setTimeout(() => drawArrows(centerOf(rc), targetsOf(gr.items), '#d9c8ff', Math.max(500, ms - 250)), 200);
-}
-function ping(e) {
-  let el = null, txt = '';
-  if (e.k === 'guard') { el = document.querySelector(`[data-u="${e.u}"],[data-hu="${e.u}"]`); txt = e.reflect ? '↩ 跳ね返した' : '🛡 守った'; }
-  else if (e.k === 'sealed') { el = document.querySelector(`[data-u="${e.u}"]`); txt = '🚫 封じられた'; }
-  else if (e.k === 'fx' && e.kind === 'hook') { el = document.querySelector(`[data-u="${e.u}"]`); txt = { protect: '🛡 守った', tierPower: '⚙ 段数が変わった', blockPick: '🚫 封じた', triggerTimes: '⚙ 2回', datOchi: '⏳ dat落ちしない', order: '⚙ 順番', rankPts: '🔌 回線切断' }[e.hook] || '⚙ 発動'; }
-  else if (e.k === 'rule' && e.hook) { el = document.querySelector(`.rcard[data-rule="${e.sid}"]`); txt = '⚙ ルール発動'; if (el) { el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1400); } }
-  if (!el) return;
-  const c = centerOf(el); const f = document.createElement('div'); f.className = 'pingt'; f.textContent = txt;
-  f.style.left = c.x + 'px'; f.style.top = c.y + 'px'; $('#fx').appendChild(f); setTimeout(() => f.remove(), 1300);
-  el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 1200);
-}
-// 手札の束が席から席へ移る
-function passAnim(dir, ms) {
-  for (let p = 0; p < 4; p++) {
-    const a = document.querySelector(`[data-stack="${p}"]`), b = document.querySelector(`[data-stack="${(p + dir + 4) % 4}"]`);
-    if (!a || !b) continue;
-    const s = centerOf(a), t = centerOf(b);
-    const f = document.createElement('div'); f.className = 'flyhand'; f.innerHTML = '<i></i><i></i><i></i>';
-    f.style.left = s.x + 'px'; f.style.top = s.y + 'px'; f.style.transitionDuration = ms + 'ms';
-    $('#fx').appendChild(f);
-    requestAnimationFrame(() => requestAnimationFrame(() => { f.style.transform = `translate(${t.x - s.x}px, ${t.y - s.y}px) rotate(${dir * 25}deg)`; f.style.opacity = '0.9'; }));
-    setTimeout(() => f.remove(), ms + 120);
-  }
-  TJ.audio.play('cut');
-}
-// ===== 手番の再生（実況） =====
-// 解決した手番の出来事を、1つずつ順番に「テロップ＋画面の動き」で見せる。
-// 再生が終わるまで次の手番のカードは選べない。全体の長さには上限があり、「とばす」で即終了できる。
-function cardNm(e) { const id = e.id || ((findCard(e.u) || {}).c || {}).id; return id ? `「${cardShort(id)}」` : 'カード'; }
-function itemText(e) {
-  switch (e.k) {
-    case 'kill': return `${whoName(e.p)}の${cardNm(e)}を捨て札へ`;
-    case 'move': return `${cardNm(e)}を${whoName(e.from)}の場から${whoName(e.to)}の場へ`;
-    case 'tier': return `〈${catName(e.cat)}〉を${tierLabel(e.from)}→${tierLabel(e.to)}`;
-    case 'zero': return e.stun ? `${cardNm(e)}を気絶させた` : `${cardNm(e)}を0点にした`;
-    case 'token': return `${whoName(e.p)}の場に${cardNm(e)}が出た`;
-    case 'revive': return `${cardNm(e)}が捨て札から${whoName(e.to)}の場へ戻った`;
-    case 'dir': return '手札を回す向きが逆になった';
-    case 'swap': return `${whoName(e.a)}と${whoName(e.b)}の手札が入れ替わった`;
-    case 'guard': return e.reflect ? '効果を跳ね返した' : '効果を防いだ';
-    case 'pass2': return '手札がもう1人先まで飛んだ';
-    default: return '';
-  }
-}
-function telop(html, cls) {
-  let t = document.getElementById('telop');
-  if (!t) { t = document.createElement('div'); t.id = 'telop'; document.body.appendChild(t); }
-  t.className = 'telop show ' + (cls || '');
-  t.innerHTML = `<div class="tl-b">${html}</div><button type="button" class="tl-skip" data-a="pbSkip" title="演出をとばす">▶▶ とばす</button>`;
-  const felt = document.querySelector('.felt');
-  if (felt && window.innerWidth >= 1100) { const r = felt.getBoundingClientRect(); t.style.left = (r.left + r.width / 2) + 'px'; t.style.top = (r.top + 6) + 'px'; t.style.width = Math.min(r.width - 16, 760) + 'px'; }
-  else { t.style.left = '50%'; t.style.top = '8px'; t.style.width = 'calc(100% - 16px)'; }
-}
-function hideTelop() { const t = document.getElementById('telop'); if (t) t.classList.remove('show'); }
-function pulse(els, ms) { els.forEach(el => { el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), ms); }); }
 function playEvents(evs) {
-  const st = A.st; const S = spf(); const steps = [];
-  const nm = p => `<b style="color:${SEATC[p]}">${esc(whoName(p))}</b>`;
+  const st = A.st;
   const alerts = myAlerts(evs);
-  // 1) 公開
   const rev = evs.find(e => e.k === 'reveal');
   if (rev) {
-    const lines = [0, 1, 2, 3].map(i => (st.oya + i) % 4).map(p => {
-      const take = evs.find(e => e.k === 'take' && e.p === p); const cut = evs.find(e => e.k === 'cut' && e.p === p); const a = rev.acts[p];
-      if (cut) return `${nm(p)}：<span class="tl-cut">「${esc(cardShort(cut.id))}」を捨てて〈${esc(catName(a.cat))}〉${fmt(a.d)}</span>`;
-      if (take) return `${nm(p)}：「${esc(cardShort(take.id))}」を取った${a && a.cat ? `＋〈${esc(catName(a.cat))}〉${fmt(a.d)}` : ''}`;
-      return '';
-    }).filter(Boolean);
-    steps.push({ k: 'reveal', dur: 1400, run: () => {
-      TJ.audio.play('reveal'); telop(`<div class="tl-h">公開！</div><div class="tl-grid">${lines.map(l => `<span>${l}</span>`).join('')}</div>`, 'rev');
-      pulse(evs.filter(e => e.k === 'take').map(e => document.querySelector(`[data-u="${e.u}"]`)).filter(Boolean), 1500);
-    } });
+    fx(() => {
+      TJ.audio.play('reveal');
+      const lines = [];
+      [0, 1, 2, 3].map(i => (st.oya + i) % 4).forEach((p, n) => {
+        const take = evs.find(e => e.k === 'take' && e.p === p);
+        const cut = evs.find(e => e.k === 'cut' && e.p === p);
+        const a = rev.acts[p];
+        let s = '';
+        if (cut) s = `<span class="cut">「${esc(cardShort(cut.id))}」を捨てて〈${esc(catName(a.cat))}〉を${fmt(a.d)}</span>`;
+        else if (take) s = `「${esc(cardShort(take.id))}」を取った` + (a && a.cat ? `　＋〈${esc(catName(a.cat))}〉${fmt(a.d)}` : '');
+        lines.push(`<div class="rvl" style="animation-delay:${n * 0.18}s"><span class="who" style="color:${SEATC[p]}">${esc(st.seats[p].name)}</span><span>${s}</span></div>`);
+      });
+      const d = document.createElement('div'); d.className = 'reveal';
+      d.innerHTML = `<div class="rv"><h3>公開！</h3>${lines.join('')}</div>`;
+      $('#fx').appendChild(d); setTimeout(() => d.remove(), 2000);
+    }, 1900);
   }
-  // 2) 議論（ティア操作）の結果
-  const r = st.recap;
-  if (rev && r && r.votes && r.votes.length) {
-    const ls = r.votes.map(v => {
-      const who = v.voters.map(x => `${esc(whoName(x.p))}${fmt(x.d)}`).join('・');
-      if (!v.sum) return `〈${esc(catName(v.cat))}〉<b>平行線</b>（${who}）`;
-      if (!v.moved) return `〈${esc(catName(v.cat))}〉これ以上動けない（${who}）`;
-      const up = v.to < v.from || v.from === TJ.KESU;
-      return `〈${esc(catName(v.cat))}〉${tierLabel(v.from)}→<b class="${up ? 'p' : 'n'}">${tierLabel(v.to)}</b>（${who}）`;
-    });
-    steps.push({ k: 'vote', dur: 1200, run: () => {
-      TJ.audio.play(r.votes.some(v => v.moved && (v.to < v.from)) ? 'up' : 'down');
-      telop(`<div class="tl-h">🗳️ 議論の結果</div><div class="tl-grid">${ls.map(l => `<span>${l}</span>`).join('')}</div>`, 'vote');
-      pulse(r.votes.map(v => document.querySelector(`.chip[data-cat="${v.cat}"]`)).filter(Boolean), 1400);
-    } });
-  }
-  // 3) 効果とルール（発動ごとに1つ）
-  const groups = []; let grp = null;
   evs.forEach(e => {
-    if (e.k === 'fx' && e.kind !== 'hook') { grp = { fx: e, items: [], banners: [] }; groups.push(grp); return; }
-    if (e.k === 'rule' && !e.hook) { grp = { rule: e, items: [], banners: [] }; groups.push(grp); return; }
-    if (e.k === 'turn' || e.k === 'roundEnd' || e.k === 'round' || e.k === 'reveal') { grp = null; return; }
-    if (grp && e.k === 'banner') { grp.banners.push(e.text); return; }
-    if (grp && ['kill', 'move', 'zero', 'token', 'revive', 'tier', 'dir', 'swap', 'guard', 'pass2'].includes(e.k)) { grp.items.push(e); return; }
-    if (!grp && e.k === 'banner') groups.push({ banner: e.text });
-    if ((e.k === 'fx' && e.kind === 'hook') || (e.k === 'rule' && e.hook) || e.k === 'sealed') groups.push({ ping: e });
+    if (e.k === 'tier' && e.from != null) fx(() => TJ.audio.play(A.moved[e.cat] === 'up' ? 'up' : 'down'), 120);
+    if (e.k === 'banner') fx(() => banner(e.text), 1400);
   });
-  groups.forEach(g => {
-    if (g.fx) {
-      const e = g.fx; const d = TJ.CARD[e.id] || {};
-      let body = g.items.map(itemText).filter(Boolean);
-      g.banners.forEach(t => { const x = t.replace(/^★\s*/, ''); if (!body.includes(x)) body.unshift(x); });
-      if (!body.length) body = [(d.text || '').replace(/^【.+?】/, '').slice(0, 60)];
-      steps.push({ k: 'fx', dur: 1300, run: (ms) => {
-        cutIn({ fx: e, items: g.items, banners: [] }, ms);
-        telop(`<div class="tl-h">${nm(e.p)}の「${esc(cardShort(e.id))}」<span class="tl-k">【${KIND_LABEL[e.kind] || '効果'}】</span></div><div class="tl-x">${body.map(esc).join('<br>')}</div>`, 'fx');
-        setTimeout(() => pulse(targetsOf(g.items), Math.max(600, ms - 200)), 250);
-        if (g.items.some(x => x.k === 'pass2') && S) passAnim(st.dir, Math.max(500, ms * 0.6));
-      } });
-    } else if (g.rule) {
-      const R = TJ.SETS[g.rule.sid]; if (!R) return;
-      const m = (R.rules.text || '').match(/^【(.+?)】/);
-      let body = g.items.map(itemText).filter(Boolean);
-      g.banners.forEach(t => { const x = t.replace(/^★\s*/, ''); if (!body.includes(x)) body.unshift(x); });
-      if (!body.length) body = [(R.rules.text || '').replace(/^【.+?】/, '').slice(0, 60)];
-      steps.push({ k: 'rule', dur: 1300, run: (ms) => {
-        const rc = document.querySelector(`.rcard[data-rule="${g.rule.sid}"]`);
-        if (rc) { rc.classList.add('flash'); setTimeout(() => rc.classList.remove('flash'), ms); setTimeout(() => drawArrows(centerOf(rc), targetsOf(g.items), '#d9c8ff', Math.max(500, ms - 250)), 200); }
-        TJ.audio.play('up');
-        telop(`<div class="tl-h">📜 ルール発動 <span class="tl-k">${m ? '【' + esc(m[1]) + '】' : esc(R.name)}</span></div><div class="tl-x">${body.map(esc).join('<br>')}</div>`, 'rule');
-        setTimeout(() => pulse(targetsOf(g.items), Math.max(600, ms - 200)), 250);
-        if (g.items.some(x => x.k === 'pass2') && S) passAnim(st.dir, Math.max(500, ms * 0.6));
-      } });
-    } else if (g.banner) {
-      steps.push({ k: 'banner', dur: 1200, run: () => { TJ.audio.play('banner'); telop(`<div class="tl-x big">${esc(g.banner.replace(/^★\s*/, ''))}</div>`, 'ban'); } });
-    } else if (g.ping) {
-      // 常時の効果は小さな札だけ（直前の手順に重ねる）
-      const last = steps[steps.length - 1];
-      const run0 = last ? last.run : null;
-      if (last) last.run = (ms) => { run0(ms); setTimeout(() => ping(g.ping), 300); };
-      else steps.push({ k: 'ping', dur: 600, run: () => ping(g.ping) });
-    }
-  });
-  // 4) 自分への被害
-  if (alerts.length) steps.push({ k: 'alert', dur: 1500, run: () => { TJ.audio.play('alert'); telop(`<div class="tl-h">⚠ あなたへの影響</div><div class="tl-x">${alerts.map(esc).join('<br>')}</div>`, 'alert'); } });
-  // 5) 点の動きのまとめ
-  const T = A.turnDelta;
-  if (T && T.fresh && rev) {
-    T.fresh = false;
-    const order = [0, 1, 2, 3].sort((x, y) => (x === A.me ? -1 : y === A.me ? 1 : 0) || y - x).sort((x, y) => (x === A.me ? -1 : y === A.me ? 1 : 0));
-    const ls = order.map(p => { const D = T.per[p]; const top = D.lines[0]; return `${nm(p)} <b class="${D.d > 0 ? 'p' : D.d < 0 ? 'n' : ''}">${fmt(D.d)}</b>${top && D.d ? `<small>（${esc(top.t)}${D.lines.length > 1 ? 'ほか' : ''}）</small>` : ''}`; });
-    steps.push({ k: 'score', dur: 1300, run: () => { deltaFloats(); telop(`<div class="tl-h">📊 この手番の点の動き</div><div class="tl-grid">${ls.map(l => `<span>${l}</span>`).join('')}</div>`, 'score'); } });
-  }
-  // 6) 手札を回す → 次の手番
+  if (evs.some(e => e.k === 'take')) fx(() => TJ.audio.play('pick'), 50);
+  alerts.forEach(t => fx(() => alertBanner(t), 2000));
   const tr = evs.find(e => e.k === 'turn');
-  if (tr) {
-    const toward = A.me >= 0 ? whoName((A.me + st.dir + 4) % 4) : '';
-    let note = '';
-    if (tr.turn === TJ.datTurn(st) && !TJ.canTier(st, A.me >= 0 ? A.me : 0)) note = 'スレがdat落ちした（ここからティア操作禁止）';
-    else if (A.me >= 0 && TJ.hasBonus(st, A.me)) note = 'スレ主の権限：取りながらティアも動かせる';
-    steps.push({ k: 'pass', dur: 1000, run: (ms) => { if (S) passAnim(st.dir, ms * 0.8); TJ.audio.music(tr.turn >= 6 ? 'tense' : 'game'); telop(`<div class="tl-x big">手札を${st.dir === 1 ? '左' : '右'}隣へ回して ${tr.turn}手番目へ</div><div class="tl-n">${toward ? `あなたの残りの手札は${esc(toward)}へ。` : ''}${esc(note)}</div>`, 'turn'); } });
-  }
+  if (tr) fx(() => {
+    TJ.audio.music(tr.turn >= 6 ? 'tense' : 'game');
+    if (tr.turn === TJ.TURNS) banner('最終手番：スレがdat落ちした（ティア操作禁止）');
+    else if (st.players[A.me] && TJ.hasBonus(st, A.me)) banner('スレ主の権限：取りながらティアも動かせる');
+  }, 300);
   const rd = evs.find(e => e.k === 'round');
-  if (rd) steps.push({ k: 'round', dur: 1500, run: () => { TJ.audio.play('round'); TJ.audio.music('game'); telop(`<div class="tl-x big">${TJ.ROUND_NAMES[rd.round]}　親（スレ主）：${esc(st.seats[rd.oya].name)}</div>`, 'turn'); } });
-  const after = [];
-  if (evs.some(e => e.k === 'roundEnd')) after.push(() => { TJ.audio.play('round'); A.roundOpen = true; render(); });
-  if (evs.some(e => e.k === 'gameEnd')) after.push(() => showFinal());
-  if (evs.some(e => e.k === 'take')) TJ.audio.play('pick');
-  runPlayback(steps, after);
-}
-// 全体の長さを速さに合わせて決める（多すぎるときは1つずつ短くする）
-const PB_BUDGET = 7000;
-function runPlayback(steps, after) {
-  const S = spf();
-  if (A.playing && !steps.length) { A.pbAfter = (A.pbAfter || []).concat(after); return; }
-  if (!S || !steps.length) { (A.pbAfter || []).concat(after).forEach(f => f()); A.pbAfter = []; if (A.playing) endPlayback(); return; }
-  steps.forEach(x => { x.ms = x.dur * S; });
-  const total = steps.reduce((a, x) => a + x.ms, 0); const cap = PB_BUDGET * S;
-  if (total > cap) { const k = cap / total; steps.forEach(x => { x.ms = Math.max(550, x.ms * k); }); }
-  A.pbQ = (A.playing ? A.pbQ : []).concat(steps); A.pbAfter = (A.pbAfter || []).concat(after);
-  if (!A.playing) { A.playing = true; render(); pbNext(); }
-}
-function pbNext() {
-  clearTimeout(A.pbT);
-  const s = A.pbQ.shift();
-  if (!s) { endPlayback(); return; }
-  try { s.run(s.ms); } catch (e) { console.error(e); }
-  A.pbT = setTimeout(pbNext, s.ms);
-}
-function endPlayback() {
-  clearTimeout(A.pbT); A.pbQ = []; A.playing = false; hideTelop();
-  const af = A.pbAfter || []; A.pbAfter = [];
-  render(); af.forEach(f => { try { f(); } catch (e) { console.error(e); } });
-}
-// テロップを押すと、次の出来事へ進む
-document.addEventListener('click', e => { if (A.playing && e.target.closest && e.target.closest('.telop .tl-b')) pbNext(); });
-function skipPlayback() {
-  document.querySelectorAll('#fx .cutin, #fx .arrows, #fx .flyhand, #fx .reveal, #fx .banner').forEach(el => el.remove());
-  endPlayback();
-}
-// ===== 点の動き（直前の手番との差と、その原因） =====
-function snapScores(st) {
-  const clone = JSON.parse(JSON.stringify(st));
-  const ps = [0, 1, 2, 3].map(p => {
-    const ex = TJ.explainTotal(clone, p); const cards = {};
-    ex.rows.forEach(([u, r]) => { const c = clone.players[p].table.find(x => x.u === u); cards[u] = { id: c ? c.id : null, total: r.total, base: r.base, eff: r.eff, acc: r.acc || 0, tier: r.tier, parts: r.parts || [], zero: c && c.x && (c.x.zero || c.x.stun) }; });
-    const rules = {}; ex.rules.forEach(x => { rules[x.sid] = x.d; });
-    return { tot: ex.tot, cards, rules, rest: ex.rest };
-  });
-  return { round: st.round, turn: st.turn, tiers: Object.assign({}, st.tiers), t8: st.t8, st: clone, ps };
-}
-function whoName(p) { return p === A.me ? 'あなた' : A.st.seats[p].name; }
-function tierMoveCause(cat) {
-  const r = A.st.recap; if (!r) return '';
-  const out = [];
-  (r.votes || []).forEach(v => { if (v.cat === cat && v.moved) v.voters.forEach(x => out.push(`${whoName(x.p)}の議論（${fmt(x.d)}）`)); });
-  (r.fx || []).forEach(x => { if (x.cat === cat) out.push(srcText(x.src)); });
-  return out.join('・');
-}
-function diffScores(a, b, evs) {
-  const st = A.st;
-  const all = (snap) => { const m = {}; snap.ps.forEach((P, p) => Object.keys(P.cards).forEach(u => { m[u] = p; })); return m; };
-  const before = all(a), after = all(b);
-  const newU = Object.keys(after).filter(u => before[u] == null), goneU = Object.keys(before).filter(u => after[u] == null);
-  const ev = (k, u) => evs.find(e => e.k === k && String(e.u) === String(u));
-  const per = [0, 1, 2, 3].map(p => {
-    const A0 = a.ps[p], B0 = b.ps[p]; const lines = []; const tierAgg = {}; const cardD = {};
-    Object.entries(B0.cards).forEach(([u, x]) => {
-      const y = A0.cards[u]; const nm = `「${cardShort(x.id)}」`;
-      if (!y) {
-        const mv = ev('move', u), tk = ev('token', u), rv = ev('revive', u);
-        const t = mv ? `${nm}が${whoName(mv.from)}の場から来た` : tk ? `${nm}が出た` : rv ? `${nm}が捨て札から戻った` : `${nm}を取った`;
-        lines.push({ t, v: x.total, k: 'new', why: mv && mv.src ? srcText(mv.src) : rv ? '' : '' }); cardD[u] = x.total; return;
-      }
-      let left = x.total - y.total; if (!left) return; cardD[u] = left;
-      // ティアの分
-      const pa = {}, pb = {}; y.parts.forEach(([k, m]) => { pa[k] = (pa[k] || 0) + m; }); x.parts.forEach(([k, m]) => { pb[k] = (pb[k] || 0) + m; });
-      new Set([...Object.keys(pa), ...Object.keys(pb)]).forEach(k => { const dv = (pb[k] || 0) - (pa[k] || 0); if (dv) { const g = tierAgg[k] || (tierAgg[k] = { v: 0, n: 0 }); g.v += dv; g.n++; left -= dv; } });
-      if (!left) return;
-      if (x.zero && !y.zero) { const z = ev('zero', u); lines.push({ t: `${nm}が${z && z.stun ? '気絶させられた' : '0点にされた'}`, v: left, k: 'hit', why: z && z.src ? srcText(z.src) : '' }); return; }
-      if (x.acc !== y.acc) { const dv = x.acc - y.acc; lines.push({ t: `${nm}に点が積み上がった`, v: dv, k: 'eff' }); left -= dv; if (!left) return; }
-      if (x.base !== y.base) { const dv = x.base - y.base; lines.push({ t: `${nm}の素点が変わった`, v: dv, k: 'eff' }); left -= dv; if (!left) return; }
-      // 効果の増減：新しく来たカード／いなくなったカードのせいかを、カードを1枚ずつ外して確かめる
-      const why = [];
-      try {
-        const nowEx = TJ.explain(st, p, isNaN(+u) ? u : +u) || TJ.explain(st, p, u);
-        if (nowEx) nowEx.infl.forEach(i => { if (newU.includes(String(i.u))) why.push(`「${cardShort(i.id)}」が来た（${fmt(i.d)}）`); });
-        const preEx = TJ.explain(a.st, p, isNaN(+u) ? u : +u) || TJ.explain(a.st, p, u);
-        if (preEx) preEx.infl.forEach(i => { if (goneU.includes(String(i.u))) why.push(`「${cardShort(i.id)}」がいなくなった（${fmt(-i.d)}）`); });
-      } catch (e) { /* noop */ }
-      lines.push({ t: `${nm}の効果`, v: left, k: 'eff', why: why.join('・') });
-    });
-    Object.entries(A0.cards).forEach(([u, y]) => {
-      if (B0.cards[u]) return; const nm = `「${cardShort(y.id)}」`;
-      const kl = ev('kill', u), mv = ev('move', u);
-      if (!kl && !mv) return;
-      lines.push(kl ? { t: `${nm}が消された`, v: -y.total, k: 'hit', why: kl.src ? srcText(kl.src) : '' } : { t: `${nm}を${whoName(mv.to)}の場へ持っていかれた`, v: -y.total, k: 'hit', why: mv.src ? srcText(mv.src) : '' });
-      cardD[u] = -y.total;
-    });
-    Object.entries(tierAgg).forEach(([k, g]) => {
-      if (!g.v) return;
-      const f = a.tiers[k], t = b.tiers[k];
-      const mv = f !== t ? `${tierLabel(f)}→${tierLabel(t)}` : (TJ.TIERS[t] && String(TJ.TIERS[t].k) === '8' ? 'Tier8の振り直し' : 'ティアの補正');
-      lines.push({ t: `〈${catName(k)}〉${mv}（${g.n}枚）`, v: g.v, k: 'tier', cat: k, why: f !== t ? tierMoveCause(k) : '' });
-    });
-    new Set([...Object.keys(A0.rules), ...Object.keys(B0.rules)]).forEach(sid => {
-      const dv = (B0.rules[sid] || 0) - (A0.rules[sid] || 0); if (!dv) return;
-      const R = TJ.SETS[sid]; const m = R && R.rules.text.match(/^【(.+?)】/);
-      lines.push({ t: `ルール${m ? '【' + m[1] + '】' : ''}`, v: dv, k: 'rule' });
-    });
-    const known = lines.reduce((s0, l) => s0 + l.v, 0); const d = B0.tot - A0.tot;
-    if (d - known) lines.push({ t: 'そのほか', v: d - known, k: 'eff' });
-    lines.sort((x, y) => Math.abs(y.v) - Math.abs(x.v));
-    return { d, lines, cardD };
-  });
-  return { round: b.round, turn: a.turn, per };
-}
-function deltaLinesHTML(D, max) {
-  const ls = max ? D.lines.slice(0, max) : D.lines;
-  const more = max && D.lines.length > max ? `<div class="dl more">ほか${D.lines.length - max}件（点数にマウスを乗せると全部）</div>` : '';
-  return ls.map(l => `<div class="dl k-${l.k}"><b class="${l.v > 0 ? 'p' : 'n'}">${fmt(l.v)}</b><span>${esc(l.t)}${l.why ? `<small>← ${esc(l.why)}</small>` : ''}</span></div>`).join('') + more;
-}
-function deltaInfoHTML(p) {
-  const T = A.turnDelta; if (!T) return '';
-  const D = T.per[p];
-  return `<div class="cinfo"><span class="ce">📊</span><div style="flex:1;min-width:0"><div class="ch"><b style="color:${SEATC[p]}">${esc(whoName(p))}</b><span class="cset">直前の手番（${T.turn}手番目）の点の動き</span></div>
-    <div class="dsum">合計 <b class="${D.d > 0 ? 'p' : D.d < 0 ? 'n' : ''}">${fmt(D.d)}</b>点</div>
-    <div class="dlines">${D.lines.length ? deltaLinesHTML(D) : '<div class="dl">点は動かなかった</div>'}</div></div></div>`;
-}
-function deltaFloats() {
-  const T = A.turnDelta; if (!T) return;
-  T.per.forEach((D, p) => {
-    Object.entries(D.cardD).forEach(([u, v]) => { if (!v) return; const el = document.querySelector(`.seat [data-u="${u}"]`); if (el) floatNum(el, v, 'sm'); });
-    if (D.d) { const el = document.querySelector(`[data-score="${p}"]`); if (el) floatNum(el, D.d, 'lg'); }
-  });
-}
-function floatNum(el, v, size) {
-  const r = el.getBoundingClientRect(); const f = document.createElement('div');
-  f.className = `fnum ${size} ${v > 0 ? 'p' : 'n'}`; f.textContent = fmt(v);
-  f.style.left = (r.left + r.width / 2) + 'px'; f.style.top = (r.top + (size === 'lg' ? 0 : r.height / 2)) + 'px';
-  $('#fx').appendChild(f); setTimeout(() => f.remove(), 1600);
-}
-// ゲーム全体のまとめ（表彰）
-function finalSummaryHTML() {
-  const st = A.st; const S = st.stats || {}; const nm = p => `<b style="color:${SEATC[p]}">${p === A.me ? 'あなた' : esc(st.seats[p].name)}</b>`;
-  const items = [];
-  let mvp = null; st.results.forEach(r => r.rows.forEach((rows, p) => rows.forEach(x => { if (TJ.CARD[x.id] && (!mvp || x.r.total > mvp.v)) mvp = { v: x.r.total, p, id: x.id, round: r.round }; })));
-  if (mvp) { const d = TJ.CARD[mvp.id]; items.push(['🏆', 'MVPカード', `${d.e || ''}「${esc(d.short || d.name)}」 ${mvp.v}点（${nm(mvp.p)}・${TJ.ROUND_NAMES[mvp.round]}）`]); }
-  let hi = null; st.results.forEach(r => r.scores.forEach((v, p) => { if (!hi || v > hi.v) hi = { v, p, round: r.round }; }));
-  if (hi) items.push(['🔥', '最高得点の局', `${nm(hi.p)} ${hi.v}点（${TJ.ROUND_NAMES[hi.round]}）`]);
-  const mv = Object.entries(S.moves || {}).sort((a, b) => b[1] - a[1])[0];
-  if (mv) items.push(['🎢', '一番議論が荒れたカテゴリ', `〈${esc(catName(mv[0]))}〉 合計${mv[1]}段動いた`]);
-  const top = (arr) => { if (!arr) return null; const m = Math.max(...arr); return m > 0 ? { p: arr.indexOf(m), v: m } : null; };
-  const h = top(S.hits); if (h) items.push(['💥', '破壊王', `${nm(h.p)} 他人のカードを${h.v}枚消した`]);
-  const l = top(S.lost); if (l) items.push(['🩹', '一番の被害者', `${nm(l.p)} 場のカードを${l.v}枚消された`]);
-  const t = top(S.tierOps); if (t) items.push(['🗳️', 'ティア議論王', `${nm(t.p)} ${t.v}回ティアを動かした`]);
-  const s = top(S.stolen); if (s) items.push(['🦝', '持ち去り名人', `${nm(s.p)} ${s.v}枚を自分の場へ持ってきた`]);
-  // 逆転劇
-  if (st.results.length >= 4) {
-    const rp3 = [0, 1, 2, 3].map(p => st.players[p].hist.slice(0, 3).reduce((a, x) => a + x.pts, 0));
-    const lead3 = rp3.indexOf(Math.max(...rp3)); const w = st.final[0];
-    if (w !== lead3 && rp3[w] < rp3[lead3]) items.push(['🔄', '大逆転', `${nm(w)} 東3局まで首位の${nm(lead3)}を最後にまくった`]);
-  }
-  return `<div class="fs-h">このゲームのまとめ</div><div class="fs-g">${items.map(([e, k, v]) => `<div class="fs-i"><span class="fs-e">${e}</span><div><small>${k}</small><div>${v}</div></div></div>`).join('')}</div>`;
+  if (rd) fx(() => { TJ.audio.play('round'); TJ.audio.music('game'); banner(`${TJ.ROUND_NAMES[rd.round]}　親（スレ主）：${st.seats[rd.oya].name}`, false); }, 1600);
+  if (evs.some(e => e.k === 'roundEnd')) fx(() => { TJ.audio.play('round'); A.roundOpen = true; render(); }, 100);
+  if (evs.some(e => e.k === 'gameEnd')) fx(() => showFinal(), 100);
 }
 function closeFinal() { const f = $('.final'); if (f) f.remove(); const c = $('.confetti'); if (c) c.remove(); }
 function showFinal() {
@@ -707,7 +327,6 @@ function showFinal() {
   });
   el.innerHTML = `<div class="thr">【結論】ター宿 強さ議論スレ 最終まとめ v${st.round + 1}.0</div><h2>強さ議論の結論が出ました</h2>
     <div class="flist">${rows.join('')}</div>
-    <div class="fsum" id="fsum" hidden>${finalSummaryHTML()}</div>
     <div class="row" style="justify-content:center;margin-top:8px" id="finalBtns" hidden>
       ${A.session && A.session.isHost ? '<button class="btn primary big" data-a="again">もう一度（同じ部屋で）</button>' : ''}
       <button class="btn big" data-a="tomenu">メニューへ</button></div>`;
@@ -717,7 +336,7 @@ function showFinal() {
     const r = el.querySelector(`.fr[data-k="${k}"]`); if (r) r.classList.add('on');
     TJ.audio.play(k === 0 ? 'god' : 'rank');
     if (k === 0) confetti();
-    if (i === 3) { const b = el.querySelector('#finalBtns'); if (b) b.hidden = false; const f = el.querySelector('#fsum'); if (f) f.hidden = false; tutUpdate(); }
+    if (i === 3) { const b = el.querySelector('#finalBtns'); if (b) b.hidden = false; }
   }, 900 + i * (k === 0 ? 1500 : 1100)));
 }
 function confetti() {
@@ -728,52 +347,42 @@ function confetti() {
 }
 
 // ===== カード表示 =====
-// 発動中（常時・育つ）の印
-function liveKind(d) {
-  if (d.onTurnEnd || d.carry) return { i: '⏳', t: '手番の終わりや局の終わりに変化する' };
-  if (d.hooks || d.reflect || d.onTierChange || d.onAnyDeath || d.onAnyMove || d.onReverse || d.onIntro || d.onAnyPick || d.noTier || d.tierX) return { i: '⚙', t: '場にある間、ずっと効いている（常時）' };
-  return null;
-}
 function cardHTML(c, o) {
   o = o || {}; const d = TJ.CARD[c.id]; const st = A.st;
-  const cats = (c.cats || d.cats).map(k => {
+  const cats = d.cats.map(k => {
     const pos = st && st.tiers[k] != null ? st.tiers[k] : null;
-    const m = pos == null ? null : TJ.modOf(st, pos) * (d.tierX || 1) * (d.invert || (c.x && c.x.invert) ? -1 : 1);
+    const m = pos == null ? null : TJ.modOf(st, pos) * (d.tierX || 1);
     return `<span class="cat" style="--catc:${catColor(k)}">${esc(catName(k))}${pos != null && !d.noTier ? `<i>${tierShort(pos)}${m ? ' ' + fmt(m) : ''}</i>` : ''}</span>`;
   }).join('');
   // 左上の大きな数字：このカードの点。手札なら「取ったら何点か」、場なら「いま何点か」、図鑑では基本の点
   const ptsVal = o.pts != null ? o.pts : (c.x && c.x.base != null ? c.x.base : d.base);
   const ptsLab = o.ptsLabel || (o.pts != null ? '' : '基本');
-  let foot = '';
-  if (o.total != null && o.total !== o.pts) foot += `<span>合計 <b class="${o.total > 0 ? 'p' : o.total < 0 ? 'n' : ''}">${fmt(o.total)}</b></span>`;
-  const cutm = o.cut ? `<span class="cutm ${o.cut.top ? 'top' : ''}" title="${o.cut.top ? 'カット候補：' : ''}${esc(o.cut.name)}が取ると${fmt(o.cut.v)}点（くわしくは拡大表示）">✂</span>` : '';
+  const pv = o.total != null && o.total !== o.pts ? `<div class="pv">合計 <b class="${o.total > 0 ? 'p' : o.total < 0 ? 'n' : ''}">${fmt(o.total)}</b></div>` : '';
   const tag = o.button ? 'button' : 'div';
-  const attrs = o.button ? `type="button" data-a="${o.button}" data-u="${c.u}" aria-label="${esc(d.name)}"` : (c.u ? `data-u="${c.u}"` : '');
-  const set = TJ.SETS[d.set]; const lv = liveKind(d);
-  return `<${tag} class="card ${o.cls || ''}" style="--cc:${catColor(d.cats[0])}" data-set="${d.set}" ${attrs}>
-    <div class="top"><span class="pts ${ptsVal > 0 ? 'p' : ptsVal < 0 ? 'n' : ''}" title="${ptsLab ? '基本の点' : 'このカードの点'}">${ptsLab ? `<small>${ptsLab}</small>` : ''}<b>${ptsVal}</b><small>点</small></span>${lv ? `<span class="live" title="${lv.t}">${lv.i}</span>` : ''}<span class="setb" title="${esc(set ? set.name : '')}">${set ? set.e : ''}</span></div>
-    <div class="art"><span class="em">${d.e || '🃏'}</span><span class="gl">${esc(d.g || '')}</span>${cutm}</div>
+  const attrs = o.button ? `type="button" data-a="${o.button}" data-u="${c.u}" aria-label="${esc(d.name)}"` : '';
+  const set = TJ.SETS[d.set];
+  return `<${tag} class="card ${o.cls || ''}" style="--cc:${catColor(d.cats[0])}" ${attrs}>
+    <div class="top"><span class="pts ${ptsVal > 0 ? 'p' : ptsVal < 0 ? 'n' : ''}" title="${ptsLab ? '基本の点' : 'このカードの点'}">${ptsLab ? `<small>${ptsLab}</small>` : ''}<b>${ptsVal}</b><small>点</small></span><span class="setb" title="${esc(set ? set.name : '')}">${set ? set.e : ''}</span></div>
+    <div class="art"><span class="em">${d.e || '🃏'}</span><span class="gl">${esc(d.g || '')}</span></div>
     <div class="nm">${esc(d.name)}</div>
     <div class="cats">${cats}</div>
     <div class="tx">${richText(d.text || '')}</div>
     ${o.flavor ? `<div class="fl">${esc(d.flavor || '')}</div>` : ''}
-    ${foot ? `<div class="pv">${foot}</div>` : ''}</${tag}>`;
+    ${pv}</${tag}>`;
 }
 function ghostHTML(gh) {
   const st = A.st; const d = TJ.CARD[gh.c.id];
   const hid = d.hidden && gh.p !== A.me;
   const what = gh.why === 'kill' ? '捨て札へ' : `→ ${gh.to === A.me ? 'あなた' : esc(st.seats[gh.to].name)}の場へ`;
-  return `<span class="mc ghost" data-gu="${gh.c.u}" title="${esc(srcText(gh.src))}"><span class="e">${hid ? '❔' : d.e || '🃏'}</span><span class="n">${hid ? '存在しない' : esc(d.short || d.name)}</span><span class="stp">${what}<small>${esc(srcText(gh.src))}</small></span></span>`;
+  return `<span class="mc ghost" title="${esc(srcText(gh.src))}"><span class="e">${hid ? '❔' : d.e || '🃏'}</span><span class="n">${hid ? '存在しない' : esc(d.short || d.name)}</span><span class="stp">${what}<small>${esc(srcText(gh.src))}</small></span></span>`;
 }
 function miniHTML(c, owner, val) {
   const d = TJ.CARD[c.id];
-  if (d.hidden && owner !== A.me) return `<span class="mc hid ${A.newCards[c.u] ? 'new' : ''}" data-hu="${c.u}"><span class="e">❔</span><span class="n">存在しない</span><span class="v">?</span></span>`;
+  if (d.hidden && owner !== A.me) return `<span class="mc hid ${A.newCards[c.u] ? 'new' : ''}"><span class="e">❔</span><span class="n">存在しない</span><span class="v">?</span></span>`;
   const st = A.st; const fr = c.x && c.x.from;
   const came = fr && fr.round === st.round && fr.turn >= st.turn - 1 ? `<span class="came">${fr.revive ? '復活' : '← ' + (fr.p === A.me ? 'あなた' : esc(st.seats[fr.p].name))}</span>` : '';
-  const marks = (c.x && c.x.zero ? '<span class="came z">化</span>' : '') + (c.x && c.x.stun ? '<span class="came z">☆</span>' : '');
-  const lv = liveKind(d);
-  const guard = c.x && (c.x.boxed || c.x.shield || c.x.kaeshi) ? `<span class="gd" title="${c.x.boxed ? '箱に入っている' : c.x.kaeshi ? '返しがついている' : '守りがついている'}">${c.x.boxed ? '📦' : c.x.kaeshi ? '↩' : '🛡'}</span>` : '';
-  return `<span class="mc ${A.newCards[c.u] ? 'new' : ''} ${c.x && c.x.zero ? 'zero' : ''}" style="--cc:${catColor((c.cats || d.cats)[0])}" data-a="zoom" data-u="${c.u}" data-o="${owner}" data-set="${d.set}">${came}${marks}<span class="e">${d.e || '🃏'}</span><span class="n">${esc(d.short || d.name)}</span>${lv ? `<span class="lv" title="${lv.t}">${lv.i}</span>` : ''}${guard}<span class="v ${val > 0 ? 'p' : val < 0 ? 'n' : ''}">${val}</span></span>`;
+  const zb = c.x && c.x.zero ? '<span class="came z">化</span>' : '';
+  return `<span class="mc ${A.newCards[c.u] ? 'new' : ''} ${c.x && c.x.zero ? 'zero' : ''}" style="--cc:${catColor(d.cats[0])}" data-a="zoom" data-u="${c.u}" data-o="${owner}">${came}${zb}<span class="e">${d.e || '🃏'}</span><span class="n">${esc(d.short || d.name)}</span><span class="v ${val > 0 ? 'p' : val < 0 ? 'n' : ''}">${val}</span></span>`;
 }
 
 function findCard(u) {
@@ -833,33 +442,10 @@ function infoHTML(u) {
   const marks = [];
   if (c.x && c.x.zeroBy) marks.push(`化かされている：${esc(srcText(c.x.zeroBy.src))}`);
   if (c.x && c.x.from && c.x.from.round === st.round) marks.push(c.x.from.revive ? `捨て札から戻ってきた：${esc(srcText(c.x.from.src))}` : `${c.x.from.p === A.me ? 'あなた' : esc(st.seats[c.x.from.p].name)}の場から来た：${esc(srcText(c.x.from.src))}`);
-  const lv = liveKind(d);
-  return `<div class="cinfo"><span class="ce">${d.e || '🃏'}</span><div style="flex:1;min-width:0"><div class="ch"><b>${esc(d.name)}</b>${cats}${lv ? `<span class="lvk" title="${lv.t}">${lv.i} ${lv.i === '⚙' ? '常時' : 'あとで動く'}</span>` : ''}<span class="cset">${set ? esc(set.e + ' ' + set.name) : ''}</span></div>
-    <div class="ctx">${richText(d.text || '')}</div><div class="cf">${esc(d.flavor || '')}</div>
+  return `<div class="cinfo"><span class="ce">${d.e || '🃏'}</span><div style="flex:1;min-width:0"><div class="ch"><b>${esc(d.name)}</b>${cats}<span style="font-size:12px;color:#6a6474">${set ? esc(set.e + ' ' + set.name) : ''}</span></div>
+    <div>${richText(d.text || '')}</div><div class="cf">${esc(d.flavor || '')}</div>
     ${marks.length ? `<div class="cm">${marks.join('<br>')}</div>` : ''}
-    ${handLines(f)}
     ${e ? breakdownHTML(e) : ''}</div>${head}</div>`;
-}
-// 手札のカード：取ったときの合計の変化と、カット候補（渡す相手が取ったら何点得か）
-function handLines(f) {
-  const st = A.st; const me = A.me;
-  if (me < 0 || f.o !== -1 || st.phase !== 'pick' || st.players[me].act || !st.players[me].hand.some(c => c.u === f.c.u)) return '';
-  const out = [];
-  const pv = previewTakes()[f.c.u];
-  if (pv && pv.total != null) out.push(`<span class="hl-t">取ると あなたの合計 <b class="${pv.total > 0 ? 'p' : pv.total < 0 ? 'n' : ''}">${fmt(pv.total)}</b>点</span>`);
-  if (st.turn < TJ.TURNS) {
-    const cu = cutCandidates()[f.c.u];
-    if (cu) out.push(`<span class="hl-c ${cu.top ? 'top' : ''}">✂ ${cu.top ? '<b>カット候補</b>：' : ''}手札を渡す相手の<b style="color:${SEATC[(me + st.dir + 4) % 4]}">${esc(cu.name)}</b>が取ると <b>${fmt(cu.v)}</b>点${cu.top ? '（手札の中で一番）' : ''}</span>`);
-  } else out.push('<span class="hl-c">最終手番：このあと手札は回らない</span>');
-  return out.length ? `<div class="hlines">${out.join('')}</div>` : '';
-}
-function ruleInfoHTML(sid) {
-  const S = TJ.SETS[sid]; if (!S) return '';
-  const r = S.rules && S.rules.text;
-  const st = A.st; const n = st ? [0, 1, 2, 3].map(p => st.players[p].table.filter(c => TJ.CARD[c.id].set === sid).length) : null;
-  return `<div class="cinfo"><span class="ce">${S.e || '📜'}</span><div style="flex:1;min-width:0"><div class="ch"><b>${esc(S.name)}</b><span class="cset">カードセット</span></div>
-    <div class="ctx">${r ? richText(r) : '独自ルールはありません。'}</div><div class="cf">${esc(S.desc || '')}</div>
-    ${n ? `<div class="hlines"><span>場にあるこのセットのカード：${n.map((x, i) => `<b style="color:${SEATC[i]}">${i === A.me ? 'あなた' : esc(st.seats[i].name)} ${x}</b>`).join('　')}（光っているカード）</span></div>` : ''}</div></div>`;
 }
 function totalInfoHTML(p) {
   const st = A.st; const t = TJ.explainTotal(st, p);
@@ -887,19 +473,8 @@ function highlightTotal(p) {
   t.rows.forEach(([u, r]) => { if (r.total) document.querySelectorAll(`.mc[data-u="${u}"]`).forEach(el => el.classList.add(r.total > 0 ? 'infp' : 'infn')); });
   t.rules.forEach(x => document.querySelectorAll(`.rule[data-rule="${x.sid}"]`).forEach(el => el.classList.add(x.d > 0 ? 'infp' : 'infn')));
 }
-function setGlow(sid) {
-  document.querySelectorAll('.setglow').forEach(el => el.classList.remove('setglow'));
-  if (sid) document.querySelectorAll(`[data-set="${sid}"]`).forEach(el => el.classList.add('setglow'));
-}
 document.addEventListener('mouseover', e => {
   if (A.screen !== 'game' || !A.st) return;
-  const rc = e.target.closest('[data-rule]');
-  const dl = e.target.closest && e.target.closest('[data-dlt]');
-  if (dl) { const bx = $('#cinfo'); if (bx) bx.innerHTML = deltaInfoHTML(+dl.dataset.dlt); A.hoverU = null; A.hoverScore = null; A.glow = null; return; }
-  if (rc) { if (A.glow !== rc.dataset.rule) { A.glow = rc.dataset.rule; setGlow(A.glow); const bx = $('#cinfo'); if (bx) bx.innerHTML = ruleInfoHTML(A.glow); A.hoverU = null; A.hoverScore = null; } return; }
-  if (A.glow) { A.glow = null; setGlow(null); }
-  const er = e.target.closest('[data-cat-row]');
-  if (er) { document.querySelectorAll('.chip.hit2').forEach(x => x.classList.remove('hit2')); const ch = document.querySelector(`.chip[data-cat="${er.dataset.catRow}"]`); if (ch) ch.classList.add('hit2'); return; }
   const box = $('#cinfo');
   const sc = e.target.closest('[data-score]');
   if (sc) {
@@ -913,52 +488,6 @@ document.addEventListener('mouseover', e => {
   if (box) box.innerHTML = infoHTML(u);
   highlight(u);
 });
-
-// ===== チュートリアル =====
-// オフラインでチェックを入れたときだけ。手番や場面に合わせて吹き出しで案内する
-const TUT_SETS = ['ham', 'teishoku', 'zoo', 'oppen'];
-const TUT = [
-  { t: 1, center: 1, h: 'ようこそ、ター宿のほとりへ', x: '4人で同じ7枚の手札を回しながら1枚ずつ取り、場のカードの点数を競うゲームです。カードの強さは、真ん中の<b>ティア表</b>でみんなが決めます。まずは1局だけ遊んでみましょう。' },
-  { t: 1, sel: '.hand', h: 'あなたの手札', x: 'カード左上の大きな数字は「いま取ったら何点になるか」。下の色の札がカードの<b>カテゴリ</b>です。' },
-  { t: 1, sel: '.tierboard', h: 'ティア表', x: 'カテゴリが上の段にあるほど、そのカテゴリのカードの点が上がります（Godなら1枚につき+6、Tier5なら−2）。どの段にあるかは、みんなの操作で毎手番変わります。' },
-  { t: 1, sel: '.me-side', h: '拡大表示', x: 'カードにマウスを乗せる（スマホは押す）と、ここに効果の全文と、点数の内訳が出ます。' },
-  { t: 1, sel: '.hand', h: 'カードを取ってみよう', x: '好きなカードを1枚押して、右の<b>「このカードを取る」</b>を押してください。全員が選び終わると一斉に公開されます。', wait: (st, P) => !!P.act },
-  { t: 2, sel: '.dirind', h: '手札は隣へ回る', x: '取り終わった残りの手札は、矢印の向きの隣の人へ渡ります。相手の場（取ったカード）は全員に見えています。誰が何を集めているか、見ておきましょう。' },
-  { t: 2, sel: '.actbar', h: 'ティアを動かしてみよう', x: '<b>「捨ててティアを動かす」</b>を押し、①ティア表のカテゴリ ②段数 ③捨てるカード の順に選んで決定。カードは1枚減りますが、自分の得意なカテゴリを上げたり、相手のを下げたりできます。', wait: (st, P) => !!P.act && A.lastActType === 'tier' },
-  { t: 3, sel: '.ftabs', h: '直前の手番とティアの効き目', x: '「直前の手番」で、誰の点が何のせいで何点動いたか、誰がどのカテゴリを動かしたかが分かります。名札の横の +5 のような数字に乗せても出ます。<b>「ティアの効き目」</b>タブでは、各カテゴリを1段動かすと4人それぞれが何点変わるかが見られます。' },
-  { t: 3, sel: '.hand', h: '✂ はカット候補', x: 'カードの ✂ の印は、あなたが手札を渡す人がそのカードで得をする印です。赤く光るものは特に危険。捨ててティアを動かせば、相手に渡さずに済みます（カット）。' },
-  { t: 4, sel: '.rcards', h: 'ルール札', x: 'カードセットごとに、その局だけの追加ルールがあります。札にマウスを乗せると全文が出て、関係するカードが光ります。' },
-  { t: 6, sel: '.pips', h: 'もうすぐ dat落ち', x: '最後の7手番目は、スレがdat落ちしてティアを動かせません。動かすなら今のうちです。' },
-  { end: 1, center: 1, h: 'おつかれさまでした', x: '本番は<b>4局</b>遊び、局ごとの順位点（1位4点・2位2点・3位1点・4位0点）の合計で<b>ティアGOD</b>を決めます。メニューのルール説明もどうぞ。' }
-];
-function tutUpdate() {
-  document.querySelectorAll('.coach-hl').forEach(el => el.classList.remove('coach-hl'));
-  let box = document.getElementById('coach');
-  const st = A.st; const T = A.tut;
-  if (!T || A.screen !== 'game' || !st || !st.tut || A.me < 0 || A.playing) { if (box) box.remove(); return; }
-  const P = st.players[A.me];
-  let step = TUT[T.i];
-  // 過ぎた場面の案内は飛ばす
-  while (step && !step.end && (st.phase !== 'pick' || st.turn > step.t || (step.wait && step.wait(st, P)))) { T.i++; step = TUT[T.i]; }
-  const show = step && (step.end ? st.phase === 'gameEnd' && A.finalShown : st.phase === 'pick' && st.turn === step.t);
-  if (!show) { if (box) box.remove(); return; }
-  if (!box) { box = document.createElement('div'); box.id = 'coach'; box.className = 'coach'; document.body.appendChild(box); }
-  const n = TUT.filter(x => !x.end).length;
-  box.innerHTML = `<div class="co-h">${step.end ? '🎓' : '🧭'} ${step.h}<span>${step.end ? '' : `${Math.min(T.i + 1, n)}/${n}`}</span></div><div class="co-x">${step.x}</div>
-    <div class="co-b">${step.wait ? '<span class="co-w">やってみると次へ進みます</span>' : `<button class="btn primary sm" data-a="tutNext" type="button">${step.end ? '閉じる' : '次へ'}</button>`}${step.end ? '' : '<button class="btn sm ghost" data-a="tutSkip" type="button">案内を終える</button>'}</div>`;
-  const tg = step.sel ? document.querySelector(step.sel) : null;
-  if (tg) tg.classList.add('coach-hl');
-  box.classList.toggle('center', !tg && !step.end);
-  box.classList.toggle('end', !!step.end);
-  if (tg) {
-    const r = tg.getBoundingClientRect(); const bw = Math.min(360, window.innerWidth - 20); const bh = box.offsetHeight || 160;
-    let top = r.top - bh - 12; if (top < 8) top = Math.min(window.innerHeight - bh - 8, r.bottom + 12);
-    if (top < 8) top = 8;
-    const left = Math.max(10, Math.min(window.innerWidth - bw - 10, r.left + r.width / 2 - bw / 2));
-    box.style.top = top + 'px'; box.style.left = left + 'px'; box.style.width = bw + 'px';
-  } else { box.style.top = ''; box.style.left = ''; box.style.width = ''; }
-}
-window.addEventListener('resize', () => tutUpdate());
 
 // ===== 画面：メニュー =====
 // タイトルの絵：夜の川のほとりに建つター宿。窓の灯りが水面に映る
@@ -1056,29 +585,7 @@ function rulesHTML() {
     <li><b>共通カテゴリ</b>（食べ物・死・宿・動物・スレ・湯・校庭・速さ・格ゲー・ター・老）のティアは、次の局へ引き継がれます。セット固有のカテゴリは毎局Tier3に戻ります。</li>
     <li>取ったカードは全員に見えています。誰が何を集めているかを読んで、ティアを動かしましょう。</li></ul></div>
   <div class="panel"><h3>親（スレ主）</h3><p>親は局ごとに交代します。親は<b class="kw">1手番目だけ</b>、カードを取りつつティアも動かせます。「>>1」などのカードで、ほかの人がこの権限を得ることもあります。</p></div>
-  <div class="panel"><h3>セットごとのルール</h3><p>カードセットによっては、その局だけの追加ルールがあります。卓の中央の<b class="kw">ルール札</b>に出ます。札が紫の枠なら、そのルールに関わるカードが場にあります。ルールが働いた瞬間は札が光ります。</p></div>
-  <div class="panel"><h3>卓の見かた</h3><ul>
-    <li>麻雀のように4人で卓を囲みます。自分は下、左・上・右に相手が座ります。名札の<b class="kw">東・南・西・北</b>は親（東）から数えた席の風です。</li>
-    <li>卓の中央がティア表です。上の丸印は7手番のどこまで進んだか（赤い縁の丸が dat落ちの最終手番）、右上の矢印は手札を回す向きです。</li>
-    <li>相手の名札の横の裏向きのカードが、その人の手札の枚数です。手番が終わると、手札の束が隣の席へ飛んでいきます。「あなたの手札が行く」「手札をくれる」の札で、誰に渡すかが分かります。</li></ul></div>
-  <div class="panel"><h3>効果の印</h3><ul>
-    <li><b class="kw">⚙</b>：場にあるあいだ、ずっと効いている効果（常時・ルールの書き換え）。</li>
-    <li><b class="kw">⏳</b>：手番の終わりや局の終わりなどに、あとから動く効果。</li>
-    <li><b class="kw">📦 箱</b>：箱に入ったカードは、捨て札にも移動にもならない。<b class="kw">🛡 守り</b>：一度だけ相手の効果を防ぐ。<b class="kw">↩ 返し</b>：一度だけ、相手の効果をそのカードへ跳ね返す。</li>
-    <li><b class="kw">⇄ 交換</b>：相手のカードを自分の場へ持ってくる効果は、すべて交換。かわりに自分の場の一番素点の低いカードを相手へ渡す。カードを捨て札へ送る効果の多くは、一番素点の<b>低い</b>カードを狙う。</li>
-    <li><b class="kw">☆</b>：気絶中。そのカードの【得点】や常時の効果が働かない（基本の点とティアの補正は残る）。<b class="kw">封じる</b>：封じられた手番に取ったカードは【取ったとき】が起きない。</li>
-    <li><b class="kw">逆張り</b>：ティアの補正がプラスとマイナス逆になるカード（カテゴリが下の段にあるほど強い）。<b class="kw">予言</b>：取ったときに書いたカテゴリが、局の終わりに上の段にあれば点になる。<b class="kw">ティア崩し</b>：一番上のカテゴリを引きずり下ろす。</li>
-    <li><b class="kw">🔋 ゲージ</b>：セットのルールでたまる数。<b class="kw">ワイルド</b>：取ったとき、自分の場で一番多いカテゴリが仲間に加わるカード。</li>
-    <li>効果が起きると、そのカードが<b class="kw">カットイン</b>で大きく出て、影響を受けた席やカードへ矢印が伸びます。速さは画面右上の「演出」で変えられます（「なし」で止める）。</li></ul></div>
-  <div class="panel"><h3>読み合いの道具</h3><ul>
-    <li><b class="kw">ティアの効き目</b>（卓の中央のタブ）：各カテゴリを1段上げた／下げたら、4人の点がそれぞれ何点動くかの表。色がついたマスが一番得をする人、赤い数字が一番損をする人です。行にマウスを乗せると、ティア表のそのカテゴリが光ります。</li>
-    <li><b class="kw">カット候補</b>：手札のカードには ✂ の印が付きます（赤く光るのが一番のカット候補）。カードにマウスを乗せる（スマホは選ぶ）と、手札を渡す相手（「あなたの手札が行く」人）がそれを取ったら何点得をするかが、拡大表示に出ます。捨ててティアを動かすときの目安にしてください。</li>
-    <li><b class="kw">点の内訳</b>：カードや点数にマウスを乗せる（スマホは選ぶ）と、手札の横の拡大表示に効果の全文と点数の内訳が出て、影響しているカードやティアが盤面で光ります。ルール札に乗せると、そのルールの全文が出ます。</li>
-    <li><b class="kw">直前の手番</b>（卓の中央のタブ）：直前の手番で<b class="kw">誰の点が何点動いたか、その原因</b>（取ったカード、動いたティアと動かした人、消されたカード、効果の増減とそのきっかけになったカード）と、誰がどのティアをどう動かしたかの振り返り。名札の横の <b class="kw">+5</b> のような数字にマウスを乗せると、その人の点の動きが全部出ます。<b class="kw">記録</b>のタブには、この局で起きたことが全部残ります。</li></ul></div>
-  <div class="panel"><h3>はじめての人へ・途中で抜けたとき</h3><ul>
-    <li>CPU戦の準備画面で<b class="kw">「チュートリアルで遊ぶ」</b>にチェックを入れると、案内を見ながら1局だけ遊べます。</li>
-    <li>オンライン対戦の途中で誰かが抜けると、その席は<b class="kw">代打ちCPU</b>が引き継ぎます。同じ部屋に戻ってくれば席を返します（部屋主が抜けると対局は終わります）。</li></ul></div>
-  <div class="panel"><h3>結果画面</h3><p>局の終わりに、<b class="kw">この局の決め手</b>（勝敗を分けたティア・カード・ルール・被害）と、各自の点数が基本・効果・ティア・ルールのどこから来たかの帯が出ます。最後には、MVPカードや破壊王などの<b class="kw">まとめ</b>が出ます。</p></div>
+  <div class="panel"><h3>セットごとのルール</h3><p>カードセットによっては、その局だけの追加ルールがあります。対局画面の上に表示されます。</p></div>
   <div class="panel"><h3>同点のとき</h3><p>局の中で同点なら、順位点を分け合います。最終結果が同点なら、4局の点数の合計で決めます。</p></div>`;
 }
 function renderRules() {
@@ -1123,7 +630,6 @@ function renderLobby() {
         <label class="mute" style="font-size:13px">手番の制限時間 ${sel('opTimer', [[0, 'なし'], [30, '30秒'], [60, '60秒'], [90, '90秒']], L.timer)}</label>
         <label class="mute" style="font-size:13px">CPUの強さ ${sel('opLv', [[1, 'よわい'], [2, 'ふつう'], [3, 'つよい']], L.lv)}</label>
       </div>
-      ${!L.online && host ? `<label class="panel tutbox"><input type="checkbox" id="opTut" ${L.tut ? 'checked' : ''}> <span><b>チュートリアルで遊ぶ</b><small>はじめての人向け。案内を見ながら1局だけ遊びます（カードセットは分かりやすいものに固定、CPUはよわい）。</small></span></label>` : ''}
       ${host ? `<button class="btn primary big" data-a="start" type="button" ${n ? '' : 'disabled'}>対局開始</button>` : '<div class="panel waitbox">部屋主が始めるのを待っています…</div>'}
     </div>
     <div class="panel" style="display:flex;flex-direction:column;gap:10px">
@@ -1157,24 +663,18 @@ function tierboardHTML() {
   const rows = TJ.TIERS.map((t, i) => {
     const here = cats.filter(k => st.tiers[k] === i);
     const mod = t.mod == null ? `今${fmt(st.t8)}` : fmt(t.mod);
-    return `<div class="trow"><div class="tlab" style="background:${t.color}" title="${esc(t.desc)}"><b>${t.k === 'G' ? 'God' : t.k}</b><small>${mod}</small></div><div class="tchips">${here.map(chip).join('')}</div></div>`;
+    return `<div class="trow"><div class="tlab" style="background:${t.color}"><b>${t.k === 'G' ? 'God' : t.k}</b><small>${mod}</small></div><div class="tchips">${here.map(chip).join('')}</div></div>`;
   }).join('');
   const kes = cats.filter(k => st.tiers[k] === TJ.KESU);
-  return `<div class="tierboard" aria-label="ティア表">
+  return `<aside class="tierboard" aria-label="ティア表">
     <div class="tb-h"><span>【ター宿】強さ議論スレ ティア表</span><b>v${st.round + 1}.${st.turn}</b></div>
     ${rows}
     <div class="trow kesurow"><div class="tlab" style="background:#7a6a9a;color:#fff"><b>欠番</b><small>±0</small></div><div class="tchips">${kes.map(chip).join('') || '<span class="mute" style="font-size:11px;padding:4px">理由は聞かない</span>'}</div></div>
-  </div>`;
-}
-function deltaSectionHTML() {
-  const T = A.turnDelta; if (!T) return '';
-  const order = [0, 1, 2, 3].sort((x, y) => (x === A.me ? -1 : y === A.me ? 1 : 0) || Math.abs(T.per[y].d) - Math.abs(T.per[x].d));
-  return `<div class="dsec"><div class="rc-h">【点の動き】${T.turn}手番目の結果</div>${order.map(p => { const D = T.per[p]; return `<div class="dpl" data-dlt="${p}"><div class="dph"><b style="color:${SEATC[p]}">${esc(whoName(p))}</b><b class="${D.d > 0 ? 'p' : D.d < 0 ? 'n' : ''}">${fmt(D.d)}</b></div>${D.lines.length ? deltaLinesHTML(D, 3) : '<div class="dl">点は動かなかった</div>'}</div>`; }).join('')}</div>`;
+    ${recapHTML()}
+    <p class="tb-foot">数字は、そのカテゴリのカードを各自が場に何枚持っているか（色＝席）。ティアの補正は1枚・1カテゴリごとに入ります。</p>
+  </aside>`;
 }
 function recapHTML() {
-  return deltaSectionHTML() + recapVotesHTML();
-}
-function recapVotesHTML() {
   const st = A.st; const r = st.recap;
   const head = `<div class="rc-h">【直前の手番の議論】${r ? `${esc(TJ.ROUND_NAMES[r.round] || '')} ${r.turn}手番目` : ''}</div>`;
   if (!r || (!r.votes.length && !(r.fx || []).length)) return `<div class="recap">${head}<div class="rc-none">${r ? 'この手番は、誰もティアを動かさなかった。' : 'まだ議論はない。'}</div></div>`;
@@ -1192,81 +692,24 @@ function recapVotesHTML() {
   (r.fx || []).forEach(x => posts.push(`<div class="rc-r fx">★ ${esc(srcText(x.src))}で〈${esc(catName(x.cat))}〉 ${tierLabel(x.from)} → <b class="${x.to === TJ.KESU || x.to > x.from ? 'n' : 'p'}">${tierLabel(x.to)}</b></div>`));
   return `<div class="recap">${head}${posts.join('')}</div>`;
 }
-const WINDS = ['東', '南', '西', '北'];
-function seatHTML(p, pos) {
-  const st = A.st; const sc = scoresNow(); const P = st.players[p]; const isMe = pos === 'me';
+function playerPanel(p, isMe) {
+  const st = A.st; const sc = scoresNow(); const P = st.players[p];
   const tot = sc.tot; const lead = Math.max(...tot) === tot[p] && tot[p] > 0;
   const tags = [];
   if (p === st.oya) tags.push('<span class="tag oya">親</span>');
-  if (st.seats[p].cpu) tags.push(A.lobby && A.lobby.seats[p] && A.lobby.seats[p].dropped ? '<span class="tag drop" title="抜けたので、CPUが代わりに打っています。戻ってくれば交代します">代打ちCPU</span>' : '<span class="tag">CPU</span>');
+  if (st.seats[p].cpu) tags.push('<span class="tag">CPU</span>');
   if (st.phase === 'pick') tags.push(P.act ? '<span class="tag ok">決定</span>' : '<span class="tag wait">考え中</span>');
   if (st.phase === 'roundEnd' && (P.ok || st.seats[p].cpu)) tags.push('<span class="tag ok">OK</span>');
   if (!isMe && A.me >= 0) {
-    if ((A.me + st.dir + 4) % 4 === p) tags.push('<span class="tag dir">あなたの手札が行く</span>');
-    if ((A.me - st.dir + 4) % 4 === p) tags.push('<span class="tag dir">手札をくれる</span>');
+    if ((A.me + st.dir + 4) % 4 === p) tags.push('<span class="tag dir">あなたの手札が行く →</span>');
+    if ((A.me - st.dir + 4) % 4 === p) tags.push('<span class="tag dir">← 手札をくれる</span>');
   }
-  if (P.gauge) tags.push(`<span class="tag" title="ゲージ">🔋${P.gauge}</span>`);
   const cards = P.table.map(c => miniHTML(c, p, sc.map[c.u] ? sc.map[c.u].total : 0)).join('')
     + (st.ghosts || []).filter(gh => gh.p === p).map(gh => ghostHTML(gh)).join('');
-  const wind = WINDS[(p - st.oya + 4) % 4];
-  const backs = isMe ? '' : `<div class="stack" data-stack="${p}" title="手札 ${P.hand.length}枚">${P.hand.map(() => '<i></i>').join('')}<span>${P.hand.length}</span></div>`;
-  return `<section class="seat pos-${pos} ${lead ? 'lead' : ''}" style="--sc:${SEATC[p]}" data-seat="${p}" aria-label="${esc(st.seats[p].name)}の席">
-    ${isMe ? '<div class="me-main">' : ''}<div class="np"><span class="wind" title="${wind}家">${wind}</span><span class="nm">${isMe ? 'あなた（' + esc(st.seats[p].name) + '）' : esc(st.seats[p].name)}</span>${tags.join('')}</div>
-    <div class="pp-s"><span class="sc" data-score="${p}" title="点数の内訳">${tot[p]}<small>点</small></span>${A.turnDelta && A.turnDelta.per[p].d && !A.playing ? `<span class="dlt ${A.turnDelta.per[p].d > 0 ? 'p' : 'n'}" data-dlt="${p}" tabindex="0" title="直前の手番の点の動き（乗せると原因が出ます）">${fmt(A.turnDelta.per[p].d)}</span>` : ''}<span class="rp">順位点 <b>${P.rp}</b></span>${backs}</div>
-    <div class="tbl">${cards || '<span class="mute" style="font-size:12px">まだ何も取っていない</span>'}</div>
-    ${isMe ? (A._meExtra || '') + '</div>' + `<div class="me-side">${A._meSide || ''}</div>` : ''}
-  </section>`;
-}
-// ティアの効き目表：各カテゴリを1段動かしたら、各自の点がどう変わるか
-function effectTable() {
-  const st = A.st; const key = st.v + ':' + st.round + ':' + st.turn;
-  if (A.effCache && A.effCache.key === key && A.effCache.st === st) return A.effCache.rows;
-  const rows = TJ.tierCats(st).sort((a, b) => st.tiers[a] - st.tiers[b]).map(cat => ({ cat, up: TJ.ai.tierEffect(st, cat, 1), dn: TJ.ai.tierEffect(st, cat, -1) }));
-  A.effCache = { key, st, rows };
-  return rows;
-}
-function effectHTML() {
-  const st = A.st; const rows = effectTable();
-  const nm = i => i === A.me ? 'あなた' : esc(st.seats[i].name);
-  const head = `<tr><th>カテゴリ</th>${[0, 1, 2, 3].map(i => `<th style="color:${SEATC[i]}">${nm(i)}</th>`).join('')}</tr>`;
-  const body = rows.map(r => {
-    const mx = Math.max(...r.up), mn = Math.min(...r.dn);
-    return `<tr data-cat-row="${r.cat}"><td><span class="ek" style="--cc:${catColor(r.cat)}">${esc(catName(r.cat))}</span><small>${tierLabel(st.tiers[r.cat])}</small></td>${[0, 1, 2, 3].map(i => {
-      const u = r.up[i], d = r.dn[i];
-      const best = u === mx && u > 0; const worst = d === mn && d < 0;
-      return `<td class="${best ? 'best' : ''}" style="${best ? `--bc:${SEATHEX[i]}` : ''}"><b class="${u > 0 ? 'p' : u < 0 ? 'n' : ''}">${u ? fmt(u) : '·'}</b><small class="${worst ? 'wst' : ''}">${d ? fmt(d) : '·'}</small></td>`;
-    }).join('')}</tr>`;
-  }).join('');
-  return `<div class="effect"><p class="ef-n">各カテゴリを<b>1段上げたら</b>（下の小さい数字は<b>1段下げたら</b>）、各自の点がどう変わるか。色つきのマスが一番得する人です。</p><table class="eff">${head}${body}</table></div>`;
-}
-function logLines() {
-  return A.st.log.slice(-60).map(l => `<div class="${l.b ? 'b' : l.k === 'sys' ? 's' : l.k === 'vote' ? 'v' : ''}">${esc(l.t)}</div>`).join('');
-}
-function centerHTML() {
-  const st = A.st;
-  const pips = Array.from({ length: TJ.TURNS }, (_, i) => `<i class="${i + 1 < st.turn ? 'done' : i + 1 === st.turn ? 'now' : ''} ${i + 1 >= TJ.datTurn(st) ? 'dat' : ''}"></i>`).join('');
-  const dirL = st.dir === 1;
-  // ルールのあるセットは札、ないセットは小さな名札にまとめる（ルール札が多い局でも全部見えるように）
-  const withR = st.sets.filter(id => TJ.SETS[id].rules && TJ.SETS[id].rules.text);
-  const noR = st.sets.filter(id => !withR.includes(id));
-  const rcards = withR.map(id => { const S = TJ.SETS[id]; const m = S.rules.text.match(/^【(.+?)】(.*)$/s); return `<div class="rcard has" data-rule="${id}" tabindex="0" title="${esc(S.rules.text)}"><span class="e">${S.e || ''}</span><b>${m ? '【' + esc(m[1]) + '】' : esc(S.name)}</b><span class="rsn">${esc(S.name)}</span><small>${richText(m ? m[2] : S.rules.text)}</small></div>`; }).join('')
-    + (noR.length ? `<div class="rnone">${noR.map(id => { const S = TJ.SETS[id]; return `<span class="rn" data-rule="${id}" tabindex="0" title="${esc(S.name)}：独自ルールなし">${S.e || ''} ${esc(S.name)}</span>`; }).join('')}<span class="mute">独自ルールなし</span></div>` : '');
-  const tab = A.ctab || 'recap';
-  return `<div class="felt">
-    <div class="felt-top">
-      <span class="kyoku">${TJ.ROUND_NAMES[st.round] || ''}</span>
-      <span class="oya">親 <b style="color:${SEATC[st.oya]}">${esc(st.seats[st.oya].name)}</b></span>
-      <span class="pips" title="手番（赤い枠はティア操作禁止）">${pips}<em>${Math.min(st.turn, 7)}/7</em></span>
-      <span class="dirind ${dirL ? 'l' : 'r'}" title="手札を回す向き">${dirL ? '↺' : '↻'} 手札は${dirL ? '左' : '右'}隣へ</span>
-    </div>
-    <div class="fboard">${tierboardHTML()}</div>
-    <div class="fside">
-    <div class="rcards" aria-label="この局のカードセットとルール">${rcards}</div>
-    <div class="ftabs" role="tablist"><button type="button" role="tab" data-a="ctab" data-t="recap" aria-selected="${tab === 'recap'}">直前の手番</button><button type="button" role="tab" data-a="ctab" data-t="eff" aria-selected="${tab === 'eff'}">ティアの効き目</button><button type="button" role="tab" data-a="ctab" data-t="log" aria-selected="${tab === 'log'}">記録</button></div>
-    <div class="fpane" id="fpane">${tab === 'eff' ? effectHTML() : tab === 'log' ? `<div class="logbox inpane">${logLines()}</div>` : recapHTML()}</div>
-    </div>
-    <p class="tb-foot">チップの数字は、そのカテゴリのカードを各自が場に何枚持っているか（色＝席）。カードの ⚙ は常時効いている効果、⏳ は手番の終わりなどに変化する効果、✂ はカット候補。</p>
-  </div>`;
+  const body = `<div class="pp-h"><span class="nm">${esc(st.seats[p].name)}</span>${tags.join('')}</div>
+    <div class="pp-s"><span class="sc" data-score="${p}" title="点数の内訳">${tot[p]}<small>点</small></span><span class="rp">順位点 <b>${P.rp}</b></span><span class="handc">手札 ${P.hand.length}</span></div>
+    <div class="tbl">${cards || '<span class="mute" style="font-size:12px">まだ何も取っていない</span>'}</div>`;
+  return isMe ? body : `<div class="pp ${lead ? 'lead' : ''}" style="--sc:${SEATC[p]}">${body}</div>`;
 }
 function previewTakes() {
   const st = A.st; const key = st.v + ':' + st.round + ':' + st.turn;
@@ -1321,88 +764,66 @@ function actbarHTML() {
     <button type="button" class="btn primary" data-a="submit" ${ok ? '' : 'disabled'}>${esc(label)}</button>
   </div>`;
 }
-function cutCandidates() {
-  const st = A.st; const me = A.me; const key = st.v + ':' + st.round + ':' + st.turn + ':' + st.dir;
-  if (A.cutCache && A.cutCache.key === key && A.cutCache.st === st) return A.cutCache.map;
-  const q = (me + st.dir + 4) % 4; const map = {};
-  st.players[me].hand.forEach(c => { try { map[c.u] = Math.round(TJ.ai.valueFor(st, me, q, c.u)); } catch (e) { map[c.u] = 0; } });
-  const mx = Math.max(...Object.values(map));
-  const out = {}; Object.keys(map).forEach(u => { out[u] = { v: map[u], top: map[u] === mx && mx > 0 && st.players[me].hand.length > 1, name: st.seats[q].name }; });
-  A.cutCache = { key, st, map: out };
-  return out;
-}
 function renderGame() {
   const st = A.st; const me = A.me; const spect = me < 0;
   const view = spect ? 0 : me;
-  const L = (view + 1) % 4, T = (view + 2) % 4, R = (view + 3) % 4;
+  const opps = [1, 2, 3].map(k => (view + k) % 4);
+  const rules = st.sets.map(id => TJ.SETS[id]).filter(s => s.rules && s.rules.text);
+  const dirTxt = st.dir === 1 ? '左隣へ回す' : '右隣へ回す';
   const timeLeft = st.timer && st.phase === 'pick' && A.deadline ? Math.max(0, Math.ceil((A.deadline - Date.now()) / 1000)) : null;
-  A._meExtra = ''; A._meSide = '';
+  const sc = scoresNow();
+  let meHTML = '';
   if (!spect) {
     const P = st.players[me];
-    const active = st.phase === 'pick' && !P.act && !A.playing;
-    const pv = active ? previewTakes() : {};
-    const cut = active && st.turn < TJ.TURNS ? cutCandidates() : {};
+    const pv = st.phase === 'pick' && !P.act ? previewTakes() : {};
     const hand = P.hand.map(c => cardHTML(c, {
-      button: active ? 'hand' : '',
+      button: st.phase === 'pick' && !P.act ? 'hand' : '',
       pts: pv[c.u] ? pv[c.u].self : null,
       ptsLabel: pv[c.u] ? '' : null,
       total: pv[c.u] && A.sel.mode === 'take' ? pv[c.u].total : null,
-      cut: cut[c.u] && (A.sel.mode === 'tier' || cut[c.u].top) ? cut[c.u] : null,
       cls: A.sel.u === c.u ? (A.sel.mode === 'tier' ? 'cutsel' : 'sel') : (P.act ? 'dim' : '')
     })).join('');
-    const waiting = A.playing && st.phase === 'pick';
-    A._meExtra = `${waiting ? `<div class="actbar playbar"><span class="pb-dot"></span><span>この手番で起きたことを再生中… 終わるとカードを選べます</span><button type="button" class="btn sm" data-a="pbSkip">▶▶ とばす</button></div>` : actbarHTML()}
-      <div class="hand ${waiting ? 'waiting' : ''}" data-stack="${me}" aria-label="手札">${waiting ? P.hand.map(() => '<div class="card back"></div>').join('') : (hand || '<span class="mute">手札はありません</span>')}</div>`;
-    A._meSide = `<div id="cinfo" aria-live="polite">${A.glow ? ruleInfoHTML(A.glow) : infoHTML(A.sel.u != null ? A.sel.u : A.hoverU)}</div>`;
-  }
-  const logs = logLines();
+    meHTML = `<section class="me" style="--sc:${SEATC[me]}" aria-label="あなたの場">
+      ${playerPanel(me, true)}
+      ${actbarHTML()}
+      <div id="cinfo">${infoHTML(A.sel.u != null ? A.sel.u : A.hoverU)}</div>
+      <div class="hand" aria-label="手札">${hand || '<span class="mute">手札はありません</span>'}</div>
+    </section>`;
+  } else meHTML = '<div class="panel waitbox">観戦中です（席がありません）</div>';
+  const logs = st.log.slice(-40).map(l => `<div class="${l.b ? 'b' : l.k === 'sys' ? 's' : l.k === 'vote' ? 'v' : ''}">${esc(l.t)}</div>`).join('');
   let overlay = '';
   if (A.roundOpen && st.phase === 'roundEnd') overlay = roundHTML();
   if (A.modal) overlay = A.modal;
-  const sp = A.speed || 'normal';
   return `<header class="hd">
       <span class="logo">ター宿のほとり</span>
+      <span class="pill"><b>${TJ.ROUND_NAMES[st.round] || ''}</b></span>
+      <span class="pill">親 <b style="color:${SEATC[st.oya]}">${esc(st.seats[st.oya].name)}</b></span>
+      <span class="pill ${st.turn >= TJ.TURNS ? 'warn' : ''}">手番 <b>${Math.min(st.turn, 7)}</b>/7</span>
+      <span class="pill">${st.dir === 1 ? '↺' : '↻'} ${dirTxt}</span>
       ${timeLeft != null ? `<span class="pill time ${timeLeft <= 10 ? 'low' : ''}" id="tmr">残り <b>${timeLeft}</b>秒</span>` : ''}
       <span class="sp"></span>
-      <label class="pill" style="gap:4px">演出 <select id="opSpeed" aria-label="演出の速さ">${[['fast', 'はやい'], ['normal', 'ふつう'], ['slow', 'じっくり'], ['off', 'なし']].map(([v, t]) => `<option value="${v}" ${sp === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
       <button class="btn sm" data-a="mute" type="button">${TJ.audio.muted ? '音：OFF' : '音：ON'}</button>
       <button class="btn sm" data-a="rulesModal" type="button">ルール</button>
       <button class="btn sm" data-a="leave" type="button">退出</button>
     </header>
-    <div class="mj">
-      <div class="g-top">${seatHTML(T, 'top')}</div>
-      <div class="g-left">${seatHTML(L, 'left')}</div>
-      <div class="g-center">${centerHTML()}</div>
-      <div class="g-right">${seatHTML(R, 'right')}</div>
-      <div class="g-me">${spect ? '<div class="panel waitbox">観戦中です（席がありません）</div>' : seatHTML(me, 'me')}</div>
+    <div class="game">
+      ${tierboardHTML()}
+      <div class="main">
+        <div class="ruleband">${st.sets.map(id => `<span class="setp">${TJ.SETS[id].e || ''} ${esc(TJ.SETS[id].name)}</span>`).join('')}${rules.map(s => `<span class="rule" data-rule="${s.id}">${s.e || ''} ${richText(s.rules.text)}</span>`).join('')}</div>
+        <div class="opps">${opps.map(p => playerPanel(p, false)).join('')}</div>
+        ${meHTML}
+        <div class="logbox" id="logbox" aria-label="記録">${logs}</div>
+      </div>
     </div>
-    <div class="logbox" id="logbox" aria-label="記録">${logs}</div>
     ${overlay ? `<div class="ov" data-a="ovbg">${overlay}</div>` : ''}`;
-}
-// 点の出どころの帯：基本／効果／ティア／ルール（マイナスは右に赤で）
-function bandParts(r, p) {
-  const rows = r.rows[p]; const sum = rows.reduce((a, x) => a + x.r.total, 0);
-  const v = { base: 0, eff: 0, tier: 0, rule: r.scores[p] - sum };
-  rows.forEach(x => { v.base += x.r.base; v.eff += x.r.eff; v.tier += x.r.tier; v.rule += x.r.rule; });
-  return v;
-}
-const BAND = [['base', '基本', '#c9c2ae'], ['eff', '効果', '#6cc8bd'], ['tier', 'ティア', '#f3c54a'], ['rule', 'ルール', '#b39cff']];
-function bandHTML(r, p, scale) {
-  const v = bandParts(r, p);
-  const pos = BAND.filter(([k]) => v[k] > 0).map(([k, n, c]) => `<i style="width:${v[k] * scale}%;background:${c}" title="${n} ${fmt(v[k])}"></i>`).join('');
-  const neg = BAND.filter(([k]) => v[k] < 0).map(([k, n, c]) => `<i class="neg" style="width:${-v[k] * scale}%;--nc:${c}" title="${n} ${fmt(v[k])}"></i>`).join('');
-  const lab = BAND.filter(([k]) => v[k]).map(([k, n, c]) => `<span><b style="background:${c}"></b>${n}${fmt(Math.round(v[k]))}</span>`).join('');
-  return `<div class="band">${pos}${neg}</div><div class="bandl">${lab}${r.lost && r.lost[p] ? `<span class="lostn">消された ${r.lost[p]}枚</span>` : ''}</div>`;
 }
 function roundHTML() {
   const st = A.st; const r = st.results[st.results.length - 1]; if (!r) return '';
   const order = [0, 1, 2, 3].sort((a, b) => r.place[a] - r.place[b]);
-  const mx = Math.max(1, ...[0, 1, 2, 3].map(p => { const v = bandParts(r, p); return BAND.reduce((a, [k]) => a + Math.abs(v[k]), 0); }));
-  const scale = 100 / mx;
   const rows = order.map(p => {
     const bd = r.rows[p].map(x => { const d = TJ.CARD[x.id]; return `<tr><td>${d ? (d.e || '') + ' ' + esc(d.short || d.name) : '?'}</td><td>${x.r.base}</td><td>${fmt(x.r.eff)}</td><td>${fmt(x.r.tier)}</td><td><b>${x.r.total}</b></td></tr>`; }).join('');
     const sum = r.rows[p].reduce((a, x) => a + x.r.total, 0); const bonus = r.scores[p] - sum;
-    return `<tr class="r${r.place[p]}"><td class="pl">${r.place[p]}位</td><td><b style="color:${SEATC[p]}">${p === A.me ? 'あなた（' + esc(st.seats[p].name) + '）' : esc(st.seats[p].name)}</b>${bandHTML(r, p, scale)}
+    return `<tr class="r${r.place[p]}"><td class="pl">${r.place[p]}位</td><td><b style="color:${SEATC[p]}">${esc(st.seats[p].name)}</b>
       <details class="bd"><summary>内訳</summary><table class="bdt"><tr><td></td><td>基本</td><td>効果</td><td>ティア</td><td>計</td></tr>${bd}${bonus ? `<tr><td>セットのルール</td><td></td><td></td><td></td><td><b>${fmt(bonus)}</b></td></tr>` : ''}</table></details></td>
       <td class="big">${r.scores[p]}点</td><td class="big" style="color:var(--andon)">${fmt(r.pts[p])}</td><td>${st.players[p].rp}</td></tr>`;
   }).join('');
@@ -1410,8 +831,7 @@ function roundHTML() {
   const ready = st.players.filter((x, i) => x.ok || st.seats[i].cpu).length;
   return `<div class="modal" role="dialog" aria-label="局の結果">
     <h2>${TJ.ROUND_NAMES[r.round]} 結果${r.reversed ? '（さかさま）' : ''}</h2>
-    ${r.story && r.story.length ? `<div class="story"><div class="st-h">この局の決め手</div>${r.story.map(x => `<div class="st-l k-${x.type}"><span class="st-i">${{ tier: '📈', card: '🃏', rule: '📜', kill: '💥', close: '⚖️' }[x.type] || '・'}</span>${esc(x.t)}</div>`).join('')}</div>` : ''}
-    <table class="restbl"><tr><th>順位</th><th>名前と点の出どころ</th><th>点数</th><th>順位点</th><th>合計</th></tr>${rows}</table>
+    <table class="restbl"><tr><th>順位</th><th>名前</th><th>点数</th><th>順位点</th><th>合計</th></tr>${rows}</table>
     <p class="mute" style="font-size:13px">共通カテゴリのティアは次の局へ引き継がれます。</p>
     <div class="row">${A.me >= 0 ? `<button class="btn primary big" data-a="okRound" type="button" ${ok ? 'disabled' : ''}>${ok ? '待っています…' : '次の局へ'}</button>` : ''}<span class="mute">準備OK ${ready}/4（45秒で自動的に進みます）</span></div>
   </div>`;
@@ -1438,15 +858,12 @@ function render() {
   const nmFocus = document.activeElement && document.activeElement.id;
   const nmVal = $('#code') ? $('#code').value : '';
   app.innerHTML = html;
-  document.body.dataset.screen = A.screen;
   if (nmFocus === 'code' && $('#code')) { $('#code').value = nmVal; $('#code').focus(); }
   if (A.screen === lastScreen) window.scrollTo(0, keepScroll); else window.scrollTo(0, 0);
   lastScreen = A.screen;
   const lb = $('#logbox'); if (lb) lb.scrollTop = lb.scrollHeight;
-  const lp = document.querySelector('.logbox.inpane'); if (lp) lp.scrollTop = lp.scrollHeight;
   // 再描画しても光らせたままにする
   if (A.screen === 'game' && A.hl) { const h = A.hl; if (h.p != null) highlightTotal(h.p); else if (h.u != null) highlight(h.u); }
-  tutUpdate();
 }
 setInterval(() => {
   const t = $('#tmr'); const st = A.st;
@@ -1465,7 +882,6 @@ async function startSession(sess) {
   if (!sess.isHost) { A.screen = 'lobby'; A.lobby = A.lobby || { seats: [], sets: [], code: sess.code, online: true }; render(); }
 }
 function doSubmit() {
-  if (A.playing) return;
   const st = A.st; const s = A.sel; const me = A.me;
   let a = null;
   if (s.mode === 'take') {
@@ -1477,7 +893,6 @@ function doSubmit() {
     a = { type: 'tier', u: s.u, cat: s.cat, d: s.d };
   }
   const c = st.players[me].hand.find(x => x.u === a.u);
-  A.lastActType = a.type;
   A.myAct = a.type === 'take' ? `「${cardShort(c.id)}」を取る${a.tier ? `＋〈${catName(a.tier.cat)}〉${fmt(a.tier.d)}` : ''}` : `「${cardShort(c.id)}」を捨てて〈${catName(a.cat)}〉${fmt(a.d)}`;
   const err = A.session.act(a);
   if (err) { toast(err); TJ.audio.play('error'); A.myAct = null; return; }
@@ -1489,11 +904,9 @@ document.addEventListener('input', e => {
   if (e.target.id === 'nm') { A.name = e.target.value.trim().slice(0, 12); store.set('tjgod-name', A.name); }
 });
 document.addEventListener('change', e => {
-  if (e.target.id === 'opSpeed') { A.speed = e.target.value; store.set('tjgod-speed', A.speed); return; }
   const H = A.session && A.session.isHost ? A.session : null; if (!H) return;
   if (e.target.id === 'opTimer') { H.lobby.timer = +e.target.value; H.push(); }
   if (e.target.id === 'opLv') { H.lobby.lv = +e.target.value; H.push(); }
-  if (e.target.id === 'opTut') { H.lobby.tut = !!e.target.checked; H.push(); }
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.id === 'code') clickAction('join', {});
@@ -1529,9 +942,6 @@ function clickAction(a, ds) {
     case 'setsRand': if (H) { H.lobby.sets = TJ.util.shuffle(TJ.SET_ORDER.slice()).slice(0, 8); H.push(); } break;
     case 'kick': if (H) { const i = +ds.i; H.lobby.seats[i] = { name: CPU_NAMES[i], cpu: true }; H.push(); } break;
     case 'start': if (H) { TJ.audio.play('round'); H.startGame(); } break;
-    case 'pbSkip': skipPlayback(); break;
-    case 'tutNext': if (A.tut) { if (TUT[A.tut.i] && TUT[A.tut.i].end) A.tut = null; else A.tut.i++; tutUpdate(); } break;
-    case 'tutSkip': A.tut = null; tutUpdate(); break;
     case 'again': if (H) { closeFinal(); A.finalShown = false; H.backToLobby(); TJ.audio.music('menu'); } break;
     case 'okRound': if (A.session) { A.session.act({ type: 'ok' }); if (!A.session.isHost && st) { st.players[A.me].ok = true; render(); } } break;
     case 'zoom': A.modal = zoomHTML(+ds.u, +ds.o); render(); break;
@@ -1545,7 +955,6 @@ function clickAction(a, ds) {
       TJ.audio.play('click'); render(); break;
     case 'delta': A.sel.d = A.sel.d === +ds.d && A.sel.mode === 'take' ? null : +ds.d; TJ.audio.play('click'); render(); break;
     case 'submit': doSubmit(); break;
-    case 'ctab': A.ctab = ds.t; render(); break;
   }
 }
 
