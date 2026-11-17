@@ -51,6 +51,7 @@ function Host(online) {
     sets: TJ.SET_ORDER.slice(), timer: online ? 60 : 0, lv: 2
   };
   this.st = null; this.seen = {}; this.pending = {}; this.conn = null; this.lastB = 0; this.roundEndAt = 0;
+  this.rev = 0; this.lastSig = ''; this.tk = ''; this.tkAt = 0; this.rdAt = 0; this.ready = {};
 }
 Host.prototype.isHost = true;
 Host.prototype.open = async function () {
@@ -84,15 +85,23 @@ Host.prototype.onMsg = function (m) {
       this.st.seats[i].cpu = false; this.lobby.seats[i].dropped = false;
       this.st.log.push({ t: `${this.st.seats[i].name}が戻ってきた。`, k: 'sys' }); toast(`${this.st.seats[i].name} が戻ってきました`);
     }
-    this.push();
+    this.push(true);
   } else if (m.t === 'act') {
     if (i < 0 || !this.st) return;
     const st = this.st;
     if (m.a && m.a.type === 'ok') { TJ.submit(st, i, m.a); this.changed(); return; }
     if (m.round === st.round && m.turn === st.turn && !st.players[i].act) {
       const err = TJ.submit(st, i, m.a);
-      if (!err) this.changed(); else this.push();
-    } else this.push();
+      if (!err) this.changed(); else { this.conn && this.conn.send({ t: 'rej', from: CID, to: m.from, msg: err, round: st.round, turn: st.turn }); this.push(true); }
+    } else this.push(true);
+  } else if (m.t === 'ready') {
+    // 参加者の画面で手番の演出が終わった → そろったら持ち時間を数え始める
+    const st = this.st;
+    if (i >= 0 && st && m.round === st.round && m.turn === st.turn && !this.ready[i]) {
+      this.ready[i] = 1; const had = st.deadline; this.syncDeadline(); if (!had && st.deadline) this.push(true);
+    }
+  } else if (m.t === 'sync') {
+    this.push(true);
   } else if (m.t === 'bye') {
     if (i > 0 && !this.lobby.started) { this.lobby.seats[i] = { name: CPU_NAMES[i], cpu: true }; this.push(); }
     else if (i > 0) this.drop(m.from, '退出した');
@@ -109,11 +118,12 @@ Host.prototype.drop = function (cid, why) {
 };
 Host.prototype.tick = function () {
   const now = Date.now(); const st = this.st;
+  if (!st) { if (this.online && now - this.lastB > 3000) this.push(); return; }
+  this.syncDeadline();
   if (this.online && now - this.lastB > 3000) this.push();
-  if (!st) return;
   // 回線落ち → CPUが代打ち
   if (this.online && this.lobby.started) this.lobby.seats.forEach((s, i) => {
-    if (s.cid && s.cid !== CID && !st.seats[i].cpu && now - (this.seen[s.cid] || now) > 15000) this.drop(s.cid, '応答しなくなった');
+    if (s.cid && s.cid !== CID && !st.seats[i].cpu && now - (this.seen[s.cid] || now) > 75000) this.drop(s.cid, '応答しなくなった');
   });
   // 手番の制限時間
   if (st.phase === 'pick' && st.timer && st.deadline && now > st.deadline) {
@@ -126,6 +136,18 @@ Host.prototype.tick = function () {
     if (TJ.allOk(st) || now - this.roundEndAt > 45000) { this.roundEndAt = 0; TJ.nextRound(st); this.changed(); }
   } else this.roundEndAt = 0;
 };
+// 手番の持ち時間は「人間全員の画面で演出が終わってから」数える（最大45秒待つ）
+Host.prototype.syncDeadline = function () {
+  const st = this.st; if (!st) return;
+  if (st.phase !== 'pick' || !st.timer) { st.deadline = 0; return; }
+  const now = Date.now(); const key = st.round + ':' + st.turn;
+  if (key !== this.tk) { this.tk = key; this.tkAt = now; this.rdAt = 0; this.ready = {}; }
+  if (!this.rdAt) {
+    const all = st.seats.every((s, i) => s.cpu || st.players[i].act || (this.lobby.seats[i] && this.lobby.seats[i].cid === CID ? !A.playing : this.ready[i]));
+    if (all) this.rdAt = now; else if (now - this.tkAt > 45000) this.rdAt = this.tkAt + 45000;
+  }
+  st.deadline = this.rdAt ? this.rdAt + st.timer * 1000 : 0;
+};
 Host.prototype.slim = function () {
   if (!this.st) return null;
   const s = JSON.parse(JSON.stringify(this.st));
@@ -135,9 +157,17 @@ Host.prototype.slim = function () {
   delete s.deadline;
   return s;
 };
-Host.prototype.push = function () {
+Host.prototype.push = function (force) {
   this.lastB = Date.now();
-  if (this.conn) this.conn.send({ t: 'state', from: CID, lobby: this.lobby, st: this.slim() });
+  this.syncDeadline();
+  if (this.conn) {
+    // 中身が変わっていなければ、小さな「生きてるよ」だけ送る（参加者の画面を作り直さない）
+    const st = this.slim(); const dl = st ? st.dlLeft : 0; if (st) delete st.dlLeft;
+    const sig = JSON.stringify([this.lobby, st]);
+    if (sig !== this.lastSig) { this.lastSig = sig; this.rev++; force = true; }
+    if (force) { if (st) st.dlLeft = dl; this.conn.send({ t: 'state', from: CID, rev: this.rev, lobby: this.lobby, st }); }
+    else { this.conn.send({ t: 'hb', from: CID, rev: this.rev, dlLeft: dl }); A.deadline = this.st && this.st.deadline || 0; updTimer(); return; }
+  }
   onState(this.lobby, this.st, true);
 };
 Host.prototype.changed = function () { this.push(); this.cpuMoves(); };
@@ -176,25 +206,62 @@ Host.prototype.startGame = function () {
 Host.prototype.backToLobby = function () { this.lobby.started = false; this.st = null; this.lobby.seats.forEach(s => { s.dropped = false; }); this.push(); };
 
 // ===== セッション（参加者） =====
-function Client(code) { this.code = code; this.lobby = null; this.st = null; this.pendingAct = null; this.heard = 0; }
+function Client(code) { this.code = code; this.lobby = null; this.st = null; this.pendingAct = null; this.heard = 0; this.rev = -1; this.syncAt = 0; }
 Client.prototype.isHost = false;
 Client.prototype.open = async function () {
   this.conn = await TJ.net.open(this.code, false, m => this.onMsg(m), (s) => { if (s === 'closed') leaveTo('部屋主との接続が切れました'); });
   this.hello();
-  this.iv = setInterval(() => this.tick(), 1500);
+  this.iv = setInterval(() => this.tick(), 1000);
+  // タブを裏に回して戻ってきたら、すぐに生存を知らせて最新の状態をもらう
+  this.vis = () => { if (document.visibilityState === 'visible' && this.conn) { this.conn.send({ t: 'ping', from: CID }); this.conn.send({ t: 'sync', from: CID }); } };
+  document.addEventListener('visibilitychange', this.vis);
 };
-Client.prototype.close = function () { clearInterval(this.iv); if (this.conn) { this.conn.send({ t: 'bye', from: CID }); setTimeout(() => this.conn && this.conn.close(), 300); } };
+Client.prototype.close = function () { clearInterval(this.iv); if (this.vis) document.removeEventListener('visibilitychange', this.vis); if (this.conn) { this.conn.send({ t: 'bye', from: CID }); setTimeout(() => this.conn && this.conn.close(), 300); } };
 Client.prototype.hello = function () { this.conn.send({ t: 'hello', from: CID, name: A.name || 'ゲスト' }); };
 Client.prototype.tick = function () {
   if (!this.lobby) { this.hello(); return; }
   this.conn.send({ t: 'ping', from: CID });
   if (this.lobby && !this.lobby.started && this.lobby.seats.findIndex(s => s.cid === CID) < 0) this.hello();
   if (this.pendingAct) this.conn.send(this.pendingAct);
+  this.sendReady();
   if (this.heard && Date.now() - this.heard > 15000) { toast('部屋主からの応答がありません…'); this.heard = Date.now(); }
+};
+// 自分の画面で演出が終わって、カードを選べる状態になったことを部屋主に知らせる
+Client.prototype.sendReady = function () {
+  const st = this.st;
+  if (!this.conn || !st || st.phase !== 'pick' || A.playing || A.screen !== 'game') return;
+  const me = this.lobby ? this.lobby.seats.findIndex(s => s.cid === CID) : -1;
+  if (me < 0 || st.players[me].act) return;
+  const key = st.round + ':' + st.turn;
+  if (this.readyKey === key && Date.now() - this.readyAt < 4000) return;
+  this.readyKey = key; this.readyAt = Date.now();
+  this.conn.send({ t: 'ready', from: CID, round: st.round, turn: st.turn });
 };
 Client.prototype.onMsg = function (m) {
   if (!m || m.from === CID) return;
+  if (m.t === 'hb') {
+    if (this.lobby && m.from !== this.lobby.host) return;
+    this.heard = Date.now();
+    const had = !!A.deadline;
+    A.deadline = m.dlLeft ? Date.now() + m.dlLeft : 0;
+    if (had !== !!A.deadline) updTimer();
+    // 取りこぼしがあれば、全部送り直してもらう
+    if (m.rev !== this.rev && Date.now() - this.syncAt > 2000) { this.syncAt = Date.now(); this.conn.send({ t: 'sync', from: CID }); }
+    return;
+  }
+  if (m.t === 'rej' && m.to === CID) {
+    const p = this.pendingAct; this.pendingAct = null;
+    if (this.st && A.me >= 0 && this.st.round === m.round && this.st.turn === m.turn) { this.st.players[A.me].act = null; A.myAct = null; }
+    toast('選び直してください：' + (m.msg || '受け付けられませんでした')); TJ.audio.play('error');
+    if (p) render();
+    return;
+  }
   if (m.t === 'state') {
+    if (m.rev != null && m.rev === this.rev && this.st) {
+      // 同じ中身（送り直し）なら画面は作り直さない
+      this.heard = Date.now(); A.deadline = m.st && m.st.dlLeft ? Date.now() + m.st.dlLeft : 0; updTimer(); return;
+    }
+    if (m.rev != null) this.rev = m.rev;
     if (this.lobby && m.lobby && m.lobby.host !== this.lobby.host) return;
     this.lobby = m.lobby; this.st = m.st; this.heard = Date.now();
     if (m.st && m.st.dlLeft) A.deadline = Date.now() + m.st.dlLeft; else A.deadline = 0;
@@ -202,8 +269,11 @@ Client.prototype.onMsg = function (m) {
     if (this.pendingAct && this.st) {
       const p = this.pendingAct;
       if (this.st.round !== p.round || this.st.turn !== p.turn || this.st.phase !== p.phase || (me >= 0 && this.st.players[me].act) || (p.a.type === 'ok' && this.st.players[me] && this.st.players[me].ok)) this.pendingAct = null;
+      // まだ部屋主に届いていないだけ → 「決定済み」の表示を保つ（手札が一瞬戻って二度押しになるのを防ぐ）
+      else if (me >= 0 && p.a.type !== 'ok') this.st.players[me].act = 1;
     }
     onState(this.lobby, this.st, false);
+    this.sendReady();
   } else if (m.t === 'full' && m.to === CID) { leaveTo('満席でした'); }
   else if (m.t === 'closed' && this.lobby && m.from === this.lobby.host) leaveTo('部屋主が部屋を閉じました');
 };
@@ -226,7 +296,7 @@ function leaveTo(msg) {
 function onState(lobby, st, local) {
   A.lobby = lobby; A.st = st;
   A.me = lobby.seats.findIndex(s => s.cid === CID);
-  if (local && st && st.deadline) A.deadline = st.deadline;
+  if (local) A.deadline = st && st.deadline || 0;
   if (!lobby.started || !st) {
     if (A.screen === 'game') { A.roundOpen = false; closeFinal(); }
     A.screen = 'lobby'; render(); return;
@@ -667,7 +737,9 @@ function roundAnnounce(done) {
 // 全体の長さの上限（演出の速さに比例）。多いときは1つずつ短くする
 const PB_BUDGET = 26000;
 function runPlayback(steps, after) {
-  const S = spf();
+  // 画面が裏に回っている（タブ切り替え・最小化・別ウィンドウで隠れている）ときは演出しない。
+  // 裏ではタイマーが間引かれて演出が何分も終わらず、戻ったときにカードが選べなくなるため。
+  const S = document.hidden ? 0 : spf();
   if (A.playing && !steps.length) { A.pbAfter = (A.pbAfter || []).concat(after); return; }
   if (!S || !steps.length) { A.pbTiers = A.pbScores = A.pbPend = A.pbAlive = null; (A.pbAfter || []).concat(after).forEach(f => f()); A.pbAfter = []; if (A.playing) endPlayback(); return; }
   steps.forEach(x => { x.ms = x.dur * S; });
@@ -681,6 +753,7 @@ function pbNext() {
   const s = A.pbQ.shift();
   if (!s) { endPlayback(); return; }
   try { s.run(s.ms); } catch (e) { console.error(e); }
+  A.pbStepAt = Date.now(); A.pbStepMs = s.ms;
   A.pbT = setTimeout(pbNext, s.ms);
 }
 function endPlayback() {
@@ -688,6 +761,8 @@ function endPlayback() {
   A.pbTiers = A.pbScores = A.pbPend = A.pbAlive = null;
   const af = A.pbAfter || []; A.pbAfter = [];
   render(); af.forEach(f => { try { f(); } catch (e) { console.error(e); } });
+  if (A.session && A.session.sendReady) A.session.sendReady();
+  else if (A.session && A.session.isHost && A.session.st) { const had = A.session.st.deadline; A.session.syncDeadline(); if (!had && A.session.st.deadline) A.session.push(true); }
 }
 // テロップを押すと、次の出来事へ進む
 document.addEventListener('click', e => { if (A.playing && e.target.closest && e.target.closest('.telop .tl-b')) pbNext(); });
@@ -1513,7 +1588,7 @@ function renderGame() {
   const sp = A.speed || 'normal';
   return `<header class="hd">
       <span class="logo">ター宿のほとり</span>
-      ${timeLeft != null ? `<span class="pill time ${timeLeft <= 10 ? 'low' : ''}" id="tmr">残り <b>${timeLeft}</b>秒</span>` : ''}
+      ${st.timer && st.phase === 'pick' ? `<span class="pill time ${timeLeft != null && timeLeft <= 10 ? 'low' : ''}" id="tmr">${timeLeft != null ? `残り <b>${timeLeft}</b>秒` : '⏳ 全員の演出待ち'}</span>` : ''}
       <span class="sp"></span>
       <label class="pill" style="gap:4px">演出 <select id="opSpeed" aria-label="演出の速さ">${[['fast', 'はやい'], ['normal', 'ふつう'], ['slow', 'じっくり'], ['off', 'なし']].map(([v, t]) => `<option value="${v}" ${sp === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
       <button class="btn sm" data-a="mute" type="button">${TJ.audio.muted ? '音：OFF' : '音：ON'}</button>
@@ -1577,7 +1652,16 @@ function zoomHTML(u, owner) {
 
 // ===== 描画 =====
 let lastScreen = '';
+// ボタンを押している最中に画面を作り直すと、押したことにならない（mousedown と mouseup が別の要素になる）。
+// 押している間は再描画を待たせて、離した直後にまとめて描き直す。
+let ptrDown = 0, renderQueued = false;
+document.addEventListener('pointerdown', e => { if (e.target.closest && e.target.closest('#app [data-a], #app [data-u], #app [data-cat]')) ptrDown = Date.now(); }, true);
+const ptrUp = () => { if (!ptrDown) return; ptrDown = 0; if (renderQueued) setTimeout(() => { if (renderQueued && !ptrDown) render(); }, 0); };
+document.addEventListener('pointerup', ptrUp, true);
+document.addEventListener('pointercancel', ptrUp, true);
 function render() {
+  if (ptrDown && Date.now() - ptrDown < 1500) { renderQueued = true; return; }
+  renderQueued = false;
   const app = $('#app');
   const keepScroll = A.screen === lastScreen ? window.scrollY : 0;
   let html = '';
@@ -1599,14 +1683,28 @@ function render() {
   if (A.screen === 'game' && A.hl) { const h = A.hl; if (h.p != null) highlightTotal(h.p); else if (h.u != null) highlight(h.u); }
   tutUpdate();
 }
-setInterval(() => {
+function updTimer(sound) {
   const t = $('#tmr'); const st = A.st;
-  if (!t || !st || !A.deadline) return;
+  if (!t || !st) return;
+  if (!A.deadline) { t.textContent = '⏳ 全員の演出待ち'; t.classList.remove('low'); return; }
   const left = Math.max(0, Math.ceil((A.deadline - Date.now()) / 1000));
+  if (!t.querySelector('b')) t.innerHTML = '残り <b></b>秒';
   t.querySelector('b').textContent = left;
   t.classList.toggle('low', left <= 10);
-  if (left <= 5 && left > 0 && A.me >= 0 && !st.players[A.me].act) TJ.audio.play('tick');
+  if (sound && left <= 5 && left > 0 && A.me >= 0 && !st.players[A.me].act) TJ.audio.play('tick');
+}
+setInterval(() => {
+  updTimer(true);
+  // 見張り：演出の1コマが予定より大きく遅れていたら先へ進める（入力が止まったままにならないように）
+  if (A.playing && A.pbStepAt && Date.now() - A.pbStepAt > (A.pbStepMs || 0) + 4000) pbNext();
 }, 1000);
+// 裏から戻ってきたとき、演出の途中なら飛ばしてすぐ選べるようにする
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  if (A.playing && hiddenAt && Date.now() - hiddenAt > 3000) skipPlayback();
+  hiddenAt = 0;
+});
 
 // ===== 操作 =====
 async function startSession(sess) {

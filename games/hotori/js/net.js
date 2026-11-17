@@ -66,7 +66,8 @@ async function openPeer(code, isHost, onMsg, onStatus) {
       });
     } else {
       peer.on('open', () => {
-        hostConn = peer.connect(PREFIX + code, { reliable: true });
+        // 'json' にすると大きな状態を細切れにしない（細切れの取りこぼし・順番違いを避ける）
+        hostConn = peer.connect(PREFIX + code, { reliable: true, serialization: 'json' });
         hostConn.on('open', () => { if (!done) { done = true; onStatus && onStatus('connected'); resolve(api); } });
         hostConn.on('data', (d) => onMsg(d));
         hostConn.on('close', () => onStatus && onStatus('closed'));
