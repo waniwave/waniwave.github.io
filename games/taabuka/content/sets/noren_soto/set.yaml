@@ -1,0 +1,7 @@
+id: noren_soto
+name: 暖簾の外側
+unlock: { souvenir: sv_noren }          # 暖簾の切れ端を持ち帰る（第二層の謎「暖簾」）
+color: "#a0402a"
+keywords: []
+intro: 麺処の暖簾の、外側。食材と縁起物と、卓上の小瓶。
+from: 麺ザードリィ ワンタンの逆襲

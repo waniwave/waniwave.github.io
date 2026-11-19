@@ -1,0 +1,93 @@
+# ター宿のほとり「群れ」の移植（名前・カテゴリ・フレーバーは元のまま。効果はター深用に作り直し）
+
+- id: hmure_shiba
+  name: シバターヌ
+  cat: [動物, ター]
+  tier: '3'
+  grade: 特上
+  text: 〈動物〉の札が2枚以上採点されると掛け×1.6
+  flavor: 柴犬とたぬきの、どちらでもある。
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: 動物, 枚数以上: 2}
+    do:
+    - {掛け: 1.6}
+
+- id: hmure_ookami
+  name: オオカミーム
+  cat: [動物]
+  tier: '3'
+  grade: 上
+  text: 〈動物〉の札が2枚以上採点されると倍率＋5
+  flavor: 満月の夜は、Tierが1つ上がる。
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: 動物, 枚数以上: 2}
+    do:
+    - {倍率: 5}
+
+- id: hmure_zou
+  name: ゾウターム
+  cat: [動物, ター]
+  tier: '0'
+  grade: 極
+  text: 同じ出しに同じカテゴリの札があれば強さ＋100。採点されると掛け×2
+  flavor: 宿の床が、少したわむ。
+  fx:
+  - when: 採点時
+    if: {同じカテゴリの札が他に: true}
+    do:
+    - {強さ: 100}
+  - when: 採点時
+    do:
+    - {掛け: 2}
+
+- id: hmure_kirin
+  name: キリンター
+  cat: [動物, ター]
+  tier: '2'
+  grade: 特上
+  text: 〈動物〉の札が2枚以上採点されると掛け×1.6
+  flavor: 首が長い。隣の部屋が見える。
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: 動物, 枚数以上: 2}
+    do:
+    - {掛け: 1.6}
+
+- id: hmure_fureai
+  name: ふれあい広場
+  cat: [動物]
+  tier: '5'
+  grade: 並
+  text: 〈動物〉の札が2枚以上採点されると倍率＋3
+  flavor: 餌やり体験：ター油（100円）。
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: 動物, 枚数以上: 2}
+    do:
+    - {倍率: 3}
+
+- id: hmure_usagi
+  name: ウサギター
+  cat: [動物, ター]
+  tier: '5'
+  grade: 上
+  text: 採点されると倍率＋3
+  flavor: 気がつくと、増えている。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 3}
+
+- id: hmure_koala
+  name: コアラーム
+  cat: [動物]
+  tier: '4'
+  grade: 並
+  text: ターン終了時に手札にあれば受け＋4
+  flavor: 1日22時間寝る。残り2時間も寝ている。
+  fx:
+  - when: ターン終了
+    do:
+    - {受け: 4}

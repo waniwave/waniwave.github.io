@@ -1,0 +1,86 @@
+# ター宿のほとり「汎用の勇者パーティ」の移植（名前・カテゴリ・フレーバーは元のまま。効果はター深用に作り直し）
+
+- id: hhanyou1_g_hero
+  name: 勇者
+  cat: [格ゲー]
+  tier: God
+  grade: 神
+  text: 採点されると掛け×3.5
+  flavor: 選ばれし者。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 3.5}
+
+- id: hhanyou1_g_knight
+  name: 騎士
+  cat: [格ゲー]
+  tier: '0'
+  grade: 特上
+  text: 採点されると掛け×1.5
+  flavor: 馬に乗っている。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.5}
+
+- id: hhanyou1_g_cleric
+  name: 僧侶
+  cat: [格ゲー]
+  tier: '2'
+  grade: 特上
+  text: 採点されると掛け×1.5
+  flavor: 回復魔法が使える。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.5}
+
+- id: hhanyou1_g_mage
+  name: 見習い魔法使い
+  cat: [格ゲー]
+  tier: '2'
+  grade: 上
+  text: 採点されると倍率＋（組の段位）
+  flavor: まだ見習い。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 段位}
+
+- id: hhanyou1_g_archer
+  name: 弓兵
+  cat: [格ゲー]
+  tier: '2'
+  grade: 上
+  text: 採点されると倍率＋3
+  flavor: 遠くから攻撃できる。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 3}
+
+- id: hhanyou1_g_scout
+  name: 斥候
+  cat: [格ゲー]
+  tier: '4'
+  grade: 並
+  text: 〈格ゲー〉の札が2枚以上採点されると倍率＋3
+  flavor: 偵察が得意。
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: 格ゲー, 枚数以上: 2}
+    do:
+    - {倍率: 3}
+
+- id: hhanyou1_kyushoku
+  name: 給食当番
+  cat: [食べ物]
+  tier: '2'
+  grade: 並
+  text: 採点されると強さ＋24
+  flavor: 白衣と帽子とマスク。
+  fx:
+  - when: 採点時
+    do:
+    - {強さ: 24}

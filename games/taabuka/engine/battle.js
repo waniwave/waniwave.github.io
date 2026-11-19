@@ -206,7 +206,7 @@ export function createBattle(base, o) {
     items: (o.items || []).slice(),
     banzuke: { ...(o.banzuke || {}) }, handLevels: { ...(o.handLevels || {}) },
     rules: (o.rules || []).map((r) => ({ ...r })), mods: [], flags: {}, guest: o.guest ?? null, guestSwap: null,
-    guestState: { ...(guestDef?.state || {}), ...(o.guestState || {}) }, quirk: o.quirk ?? null, quirkParams: o.quirkParams ?? null, heldRules: o.heldRules ?? null, xmods: o.xmods ?? null,
+    guestState: { ...(guestDef?.state || {}), ...(o.guestState || {}) }, quirk: o.quirk ?? null, quirkParams: o.quirkParams ?? null, heldRules: o.heldRules ?? null, xmods: o.xmods ?? null, itemPool: o.itemPool ?? null,
     sealed: { cats: [], hands: [], discard: false }, pendingFaceDown: 0, fixedPlay: null,
     lastHand: null, turnLastHand: null, lastPlayedCats: [], carryS: 0, banzukeFloorStart: o.banzukeFloorStart ?? null, initialClaim: ZERO, zeni: 0, overkill: null, result: null, rewardRate: 1,
     stats: { plays: 0, maxV: ZERO, hands: {} },
@@ -456,7 +456,7 @@ export function gainItem(B, env, kind, extra) {
   const slots = env.balance.hands.play.itemSlots;
   if (B.items.length >= slots) return null;
   const no = layerNoAt(env.content, B.floor);
-  const defs = Object.values(env.content.items || {}).filter((d) => d.kind === kind && (!extra.hand || d.hand === extra.hand) && no >= (d.fromLayer ?? 1));
+  const defs = Object.values(env.content.items || {}).filter((d) => d.kind === kind && (!extra.hand || d.hand === extra.hand) && no >= (d.fromLayer ?? 1) && (!B.itemPool || B.itemPool.includes(d.id)));
   const id = defs.length ? env.rng.pick(defs).id : null;
   if (!id && kind !== '議題') return null;
   const item = { uid: newUid(B, 'i'), id, kind, ...extra };

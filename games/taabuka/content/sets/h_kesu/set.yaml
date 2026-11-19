@@ -1,0 +1,8 @@
+id: h_kesu
+name: 欠番と専用
+unlock: { reach:  6 }          # ほとり第3波（B6到達）
+color: "#7a3ac0"
+keywords: []
+intro: 理由は聞かない。存在しないカード、専用のカード、取り違えた下足札。
+wave: 3
+from: ター宿のほとり

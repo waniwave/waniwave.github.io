@@ -59,9 +59,9 @@ function log(D, entry) { D.log.push({ floor: D.floor, ...entry }); if (D.log.len
 /** 拾える物の範囲（既定：最初から解放のセット・宿泊客の専用セット・「仮」の札） */
 export function defaultPool(content, guest) {
   const g = guest ? content.guests?.[guest] : null;
-  const ok = (set) => set === '仮' || (g && set === g.set) || !!content.sets?.[set]?.unlock?.start;
+  const ok = (set) => (g && set === g.set) || !!content.sets?.[set]?.unlock?.start;
   const ids = (bucket) => Object.values(content[bucket] || {}).filter((d) => ok(d.set)).map((d) => d.id);
-  return { cards: ids('cards'), regulars: ids('regulars'), relics: ids('relics') };
+  return { cards: ids('cards'), regulars: ids('regulars'), relics: ids('relics'), items: ids('items') };
 }
 
 // ───────────────────────── 潜行の開始 ─────────────────────────
@@ -307,7 +307,8 @@ function rollSouvenir(base, D, rng, floor, quality) {
 function rollItem(base, D, rng) {
   const L = layerAt(base.content, D.floor);
   const no = L ? layerNo(base.content, L) : 1;
-  const list = Object.values(base.content.items || {}).filter((d) => !d.noDrop && no >= (d.fromLayer ?? 1));
+  const inPool = (d) => !D.pool?.items || D.pool.items.includes(d.id);
+  const list = Object.values(base.content.items || {}).filter((d) => !d.noDrop && no >= (d.fromLayer ?? 1) && inPool(d));
   const d = rng.pick(list);
   if (d && d.once === '潜行' && D.flags.used[d.id]) return null;
   return d ? { id: d.id, kind: d.kind, ...(d.hand ? { hand: d.hand } : {}) } : null;
@@ -560,7 +561,7 @@ export function battleOptions(base, D) {
     banzuke: D.banzuke, handLevels: D.handLevels, banzukeFloorStart: D.floorBanzuke,
     enemies: bt.enemies, weight: bt.kind === '番人' ? pouchWeight(base, D) : 0,
     ...(quirkOf(base, D) ? { quirk: quirkOf(base, D).name, quirkParams: quirkOf(base, D).params } : {}),
-    ...(D.heldRules?.length ? { heldRules: D.heldRules } : {}), ...(D.xmods ? { xmods: D.xmods } : {}),
+    ...(D.heldRules?.length ? { heldRules: D.heldRules } : {}), ...(D.pool?.items ? { itemPool: D.pool.items } : {}), ...(D.xmods ? { xmods: D.xmods } : {}),
   };
 }
 

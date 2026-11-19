@@ -1,0 +1,392 @@
+# ター宿セット（40枚。最初から。並の17枚が初期デッキの素）
+
+- id: tj_c_teishoku
+  name: 宿の定食
+  cat: [食べ物]
+  tier: 0
+  grade: 並
+  flavor: ごはんはおかわり自由。
+
+- id: tj_c_kaku
+  name: 角部屋
+  cat: [ター, 宿]
+  tier: 1
+  grade: 並
+  flavor: 窓が二つある。
+
+- id: tj_c_okami
+  name: 女将の挨拶
+  cat: [宿, 老]
+  tier: 1
+  grade: 並
+  flavor: 「ようこそ、ター宿へ」
+
+- id: tj_c_ramen
+  name: 夜鳴きラーメン
+  cat: [麺, 食べ物]
+  tier: 2
+  grade: 並
+  flavor: チャルメラが遠くで鳴る。
+
+- id: tj_c_gensen
+  name: 源泉かけ流し
+  cat: [湯]
+  tier: 2
+  grade: 並
+  flavor: 熱い。
+
+- id: tj_c_soujiki
+  name: 掃除ロボ
+  cat: [ロボ]
+  tier: 2
+  grade: 並
+  flavor: 段差で止まる。
+
+- id: tj_c_neko
+  name: 宿の猫
+  cat: [動物]
+  tier: 3
+  grade: 並
+  flavor: 帳場の上で寝ている。
+
+- id: tj_c_surenushi
+  name: スレ主
+  cat: [スレ]
+  tier: 3
+  grade: 並
+  flavor: '>>1 です。'
+
+- id: tj_c_hakusen
+  name: 校庭の白線
+  cat: [校庭]
+  tier: 3
+  grade: 並
+  flavor: 少し曲がっている。
+
+- id: tj_c_kakesoba
+  name: かけそば
+  cat: [麺]
+  tier: 3
+  grade: 並
+  flavor: 一杯のかけそば。
+
+- id: tj_c_byousoku
+  name: 秒速の議論
+  cat: [速さ]
+  tier: 4
+  grade: 並
+  flavor: 結論はまだ出ていない。
+
+- id: tj_c_hadou
+  name: 波動の構え
+  cat: [格ゲー]
+  tier: 4
+  grade: 並
+  flavor: ↓↘→＋P
+
+- id: tj_c_rou
+  name: 長老の昔話
+  cat: [老]
+  tier: 4
+  grade: 並
+  flavor: 三回目。
+
+- id: tj_c_hone
+  name: 床下の骨
+  cat: [死]
+  tier: 5
+  grade: 並
+  flavor: 誰のかは聞かない。
+
+- id: tj_c_inu
+  name: 番犬
+  cat: [動物]
+  tier: 5
+  grade: 並
+  flavor: 客には吠えない。
+
+- id: tj_c_yuoke
+  name: 湯桶
+  cat: [湯, 宿]
+  tier: 5
+  grade: 並
+  flavor: カコーン。
+
+- id: tj_c_kaeru
+  name: 温泉蛙
+  cat: [動物, 湯]
+  tier: 8
+  grade: 並
+  flavor: ゲコ。
+
+- id: tj_c_makura
+  name: 枕投げ
+  cat: [宿, 速さ]
+  tier: 3
+  grade: 上
+  text: この戦闘1回目の出しなら倍率×2
+  flavor: 消灯後に始まる。
+  kw: [一番槍]
+
+- id: tj_c_yukata
+  name: 浴衣
+  cat: [湯, 宿]
+  tier: 3
+  grade: 上
+  text: 受けに回ると受け＋6
+  flavor: 帯の結び方が分からない。
+  kw: [守り6]
+
+- id: tj_c_chouba
+  name: 帳場の呼び鈴
+  cat: [宿]
+  tier: 2
+  grade: 上
+  text: 採点されると札を1枚引く
+  flavor: チーン。
+  kw: [呼び水1]
+
+- id: tj_c_ofuro
+  name: 露天風呂
+  cat: [湯]
+  tier: 2
+  grade: 上
+  text: 同じ出しに同じカテゴリの札があれば倍率＋3
+  flavor: 星が見える。
+  kw: [連れ3]
+
+- id: tj_c_kaiseki
+  name: 夕餉の膳
+  cat: [食べ物, 宿]
+  tier: 2
+  grade: 上
+  text: 5枚採点されると倍率＋5
+  flavor: 品数が多すぎる。
+  fx:
+  - when: 出し
+    if: {採点枚数: 5}
+    do:
+    - {倍率: 5}
+
+- id: tj_c_tsuri
+  name: 釣りスレ
+  cat: [スレ, 動物]
+  tier: 3
+  grade: 上
+  text: 採点の最後なら倍率＋4
+  flavor: 釣れた。
+  fx:
+  - when: 採点時
+    if: {採点の順番: 最後}
+    do:
+    - {倍率: 4}
+
+- id: tj_c_matsuri
+  name: 宿の夏祭り
+  cat: [校庭, 食べ物]
+  tier: 2
+  grade: 上
+  text: 手札に残ると次の出しの強さ＋8
+  flavor: 金魚すくいは一回だけ。
+  fx:
+  - when: 手札に残る
+    do:
+    - {次の出しの強さ: 8}
+
+- id: tj_c_gekiron
+  name: 激論
+  cat: [スレ, 格ゲー]
+  tier: 2
+  grade: 上
+  text: 採点されると〈スレ〉の番付を1段上げる
+  flavor: 夜明けまで続いた。
+  fx:
+  - when: 採点時
+    do:
+    - 番付を上げる: {カテゴリ: スレ, 段: 1}
+
+- id: tj_c_taam
+  name: ターム
+  cat: [ター]
+  tier: 1
+  grade: 特上
+  text: 採点されると掛け×1.5
+  flavor: 強さ議論の、すべての始まり。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.5}
+
+- id: tj_c_tiergod
+  name: ティアGOD
+  cat: [ター, スレ]
+  tier: 0
+  grade: 特上
+  text: 番付で一番高いカテゴリの札なら掛け×1.6
+  flavor: 議論の果ての称号。
+  fx:
+  - when: 採点時
+    if: {カテゴリ: 一番高い}
+    do:
+    - {掛け: 1.6}
+
+- id: tj_c_dai
+  name: 大浴場
+  cat: [湯, 宿]
+  tier: 1
+  grade: 特上
+  text: 受けに回ると受け＋12
+  flavor: 貸し切りの時間がある。
+  kw: [守り12]
+
+- id: tj_c_tokusei
+  name: 特製ラーメン
+  cat: [麺, 食べ物]
+  tier: 1
+  grade: 特上
+  text: 〈麺〉の札が2枚以上採点されると掛け×1.6
+  flavor: 全部のせ。
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: 麺, 枚数以上: 2}
+    do:
+    - {掛け: 1.6}
+
+- id: tj_c_ryouri
+  name: 料理長の一皿
+  cat: [食べ物, 老]
+  tier: 0
+  grade: 特上
+  text: 採点されると倍率＋6
+  flavor: 一皿のための人生。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 6}
+
+- id: tj_c_jouren
+  name: 常連の席
+  cat: [宿, スレ]
+  tier: 1
+  grade: 特上
+  text: この戦闘の3ターン目以降なら掛け×1.6
+  flavor: いつもの席。
+  fx:
+  - when: 採点時
+    if: {戦闘のターン以上: 3}
+    do:
+    - {掛け: 1.6}
+
+- id: tj_c_kaidan
+  name: 宿の大階段
+  cat: [宿, 校庭]
+  tier: 1
+  grade: 特上
+  text: 階段で採点されると掛け×1.8
+  flavor: 一段だけ高さが違う。
+  fx:
+  - when: 採点時
+    if: {組: 階段}
+    do:
+    - {掛け: 1.8}
+
+- id: tj_c_soutourou
+  name: 相当老
+  cat: [老, 死]
+  tier: 0
+  grade: 特上
+  text: 体力が半分以下なら掛け×2
+  flavor: 相当、老けている。
+  fx:
+  - when: 採点時
+    if: {体力の割合以下: 0.5}
+    do:
+    - {掛け: 2}
+
+- id: tj_c_maap
+  name: 女将マープ
+  cat: [宿, 老, ター]
+  tier: God
+  grade: 極
+  text: 採点されると掛け×2.5
+  flavor: 宿の番付は、ここで決まる。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 2.5}
+
+- id: tj_c_takaku
+  name: ター角
+  cat: [ター, 格ゲー]
+  tier: 0
+  grade: 極
+  text: 採点の最初か最後なら掛け×3
+  flavor: 角を取った者が勝つ。
+  fx:
+  - when: 採点時
+    if: {採点の順番: 最初}
+    do:
+    - {掛け: 3}
+  - when: 採点時
+    if: {採点の順番: 最後}
+    do:
+    - {掛け: 3}
+
+- id: tj_c_ham
+  name: 生生ハーム
+  cat: [食べ物, 動物]
+  tier: 0
+  grade: 極
+  text: 同じ出しに同じカテゴリの札があれば倍率＋8
+  flavor: 生の、生。
+  kw: [連れ8]
+
+- id: tj_c_eo
+  name: EOとOE
+  cat: [速さ, ター]
+  tier: 0
+  grade: 極
+  text: 5枚採点されると掛け×3
+  flavor: 揃えば10倍、らしい。
+  fx:
+  - when: 出し
+    if: {採点枚数: 5}
+    do:
+    - {掛け: 3}
+
+- id: tj_c_teishoku2
+  name: 完全な定食
+  cat: [食べ物, 宿, 湯]
+  tier: 0
+  grade: 極
+  text: 採点されると倍率＋（採点枚数×3）
+  flavor: 小鉢・みそ汁・漬物。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 採点枚数*3}
+
+- id: tj_c_taashin
+  name: ター深
+  cat: [ター, 死]
+  tier: God
+  grade: 神
+  text: 採点されると掛け×4
+  flavor: 潜るほど、強くなる。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 4}
+
+- id: tj_c_yado
+  name: ター宿
+  cat: [宿, ター, スレ]
+  tier: God
+  grade: 神
+  text: 5枚採点されると掛け×5
+  flavor: すべての議論が、ここに泊まる。
+  fx:
+  - when: 出し
+    if: {採点枚数: 5}
+    do:
+    - {掛け: 5}

@@ -1,0 +1,8 @@
+id: h_hanyou2
+name: 汎用の城塞
+unlock: { reach:  12 }          # ほとり第7波（B12到達）
+color: "#3a8a8a"
+keywords: []
+intro: 歩兵、盾兵、城壁、ゴーレム、ドラゴン。重くて固い汎用札。
+wave: 7
+from: ター宿のほとり

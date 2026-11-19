@@ -1,0 +1,8 @@
+id: h_matagi
+name: 系統またぎ
+unlock: { reach:  12 }          # ほとり第7波（B12到達）
+color: "#3a8a8a"
+keywords: []
+intro: 動物で格ゲー、食べ物で格ゲー。カテゴリを2つ持つカードがそろう。
+wave: 7
+from: ター宿のほとり

@@ -1205,15 +1205,15 @@ group('段階7：先行版の中身');
   const bySet = (bucket, set) => Object.values(C[bucket]).filter((d) => !set || d.set === set);
   eq(Object.keys(C.regulars).length, 62, '常連客62人（先行版40＋宿泊客6人の専用各3＋限定4）');
   eq(Object.values(C.regulars).filter((d) => d.grow).length, 5, 'うち成長型5人');
-  eq(Object.keys(C.relics).length, 26, '置物26（先行版20＋宿泊客6人の最初の置物）');
+  eq(Object.keys(C.relics).length, 36, '置物36（先行版20＋宿泊客6人の最初の置物＋暖簾の外側の縁起物10）');
   eq(Object.keys(C.events).length, 30, '謎30（各層＋本編の第三〜五層）');
   ok(!!C.events.ev_noren, '第二層の「暖簾」を含む');
   eq(Object.keys(C.guests).map((g) => bySet('cards', g).length).join('/'), Object.keys(C.guests).map(() => 25).join('/'), '宿泊客8人の専用札が各25枚');
-  eq(bySet('cards', 'ryukogo').length, 6, '流行語の試し6枚');
+  eq(bySet('cards', 'ryukogo').length, 30, '流行語30枚');
   eq(C.sets.ryukogo.unlock.boss, 'layer4', '流行語は第四層主を倒すと解放（本編）');
   eq(Object.keys(C.enemies).length, 61, '敵61体（通常30・精鋭14・層主10・底の主・追跡者3・番人3）');
   const items = Object.values(C.items);
-  eq(`${items.filter((d) => d.kind === '議題').length}/${items.filter((d) => d.kind === '番付札').length}/${items.filter((d) => d.kind === '品').length}`, '13/12/15', 'お品書き：議題13・番付札12（欠番送りを含む）・品15');
+  eq(`${items.filter((d) => d.kind === '議題').length}/${items.filter((d) => d.kind === '番付札').length}/${items.filter((d) => d.kind === '品').length}`, '13/12/20', 'お品書き：議題13・番付札12（欠番送りを含む）・品15＋暖簾の外側の小瓶5');
   eq(Object.keys(C.souvenirs).length, 15, 'お土産15種（本編で3種追加）');
   // 常連客と置物を1人ずつ席・棚に置いて戦闘を2ターン：例外が出ない
   const bad = [];
@@ -1619,6 +1619,34 @@ group('段階8d：共有（共有コード・日替わり・縛り）');
   const Hsd = M.newInn(base, 'sudo1'); Hsd.sudomari = 1;
   const Dsd = M.beginDive(base, Hsd, { seed: 'sd1', sudomari: true });
   eq(Dsd.maxFloor, 6, '素泊まり潜行は第二層（B6）まで');
+}
+
+group('完全版：札の中身（ター宿・ほとり・プロトコルチャーハン・暖簾の外側・流行語）');
+{
+  const { loadRealContent } = await import('./fixtures/index.mjs');
+  const M = await import('../engine/meta.js');
+  const { base } = await loadRealContent();
+  const C = base.content;
+  const by = (set) => Object.values(C.cards).filter((c) => c.set === set);
+  eq(by('taajuku').length, 40, 'ター宿セット40枚');
+  const st = M.starterIds(base, 'tsuchi');
+  ok(st.length === 20 && st.every((id) => C.cards[id] && C.cards[id].set !== '仮'), '初期デッキに仮の札がない（ター宿セットの並17枚＋入門札3枚）');
+  const hs = Object.values(C.sets).filter((x) => x.id.startsWith('h_'));
+  eq(hs.length, 41, 'ほとりの41セット（チャーハン4セットはプロトコルチャーハンへ）');
+  eq(hs.reduce((n, x) => n + by(x.id).length, 0), 284, 'ほとりの札284枚');
+  eq([...new Set(hs.map((x) => x.wave))].sort((a, b) => a - b).join(''), '123456789', 'ほとりは9つの波で解放');
+  eq(JSON.stringify(C.sets.h_ham.unlock), JSON.stringify({ start: true }), 'ほとり第1波は最初から');
+  eq(JSON.stringify(C.sets.h_houkai.unlock), JSON.stringify({ reach: 16 }), 'ほとり第9波はB16到達');
+  eq(`${by('chahan').length}/${C.sets.chahan.unlock.souvenir}`, '30/sv_kuroisara', 'プロトコルチャーハン30枚（黒い皿で解放）');
+  eq(`${by('noren_soto').length}/${C.sets.noren_soto.unlock.souvenir}`, '42/sv_noren', '暖簾の外側42枚（暖簾の切れ端で解放）');
+  eq(Object.values(C.relics).filter((x) => x.set === 'noren_soto').length + Object.values(C.items).filter((x) => x.set === 'noren_soto').length, 15, '暖簾の外側の縁起物10・小瓶5');
+  const all = Object.values(C.cards).filter((c) => c.set !== '仮' && !c.id.startsWith('__'));
+  ok(all.length >= 600, `札は全部で${all.length}枚`);
+  const H = M.newInn(base, 'pool1');
+  const pool = M.poolOf(base, H, 'tsuchi');
+  ok(!pool.items.some((id) => C.items[id].set === 'noren_soto'), '暖簾の外側の小瓶は解放前は出ない');
+  H.records.brought = ['sv_noren']; M.refreshUnlocks(base, H);
+  ok(H.unlocked.sets.includes('noren_soto') && M.poolOf(base, H, 'tsuchi').items.some((id) => C.items[id].set === 'noren_soto'), '暖簾の切れ端を持ち帰ると暖簾の外側が出る');
 }
 
 group('engine/ に札や敵の個別の処理がない');

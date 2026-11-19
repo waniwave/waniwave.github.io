@@ -1,0 +1,8 @@
+id: h_lso
+name: リミナル・スペース・オペラ
+unlock: { overkill:  { 大論破:  50 } }          # ほとり第8波（大論破を累計50回）
+color: "#8a3a8a"
+keywords: []
+intro: 賞金稼ぎリロイと寸胴型の相棒MEN-Boiler。ラー油弾と酢弾で、失われた味覚を叩き起こす。
+wave: 8
+from: ター宿のほとり

@@ -1,0 +1,8 @@
+id: h_digital
+name: バグった宿
+unlock: { reach:  16 }          # ほとり第9波（B16到達）
+color: "#555555"
+keywords: []
+intro: デジタルでしかできないことをする。手札の配り直し、巻き戻し、増殖、文字化け、無限ループ。
+wave: 9
+from: ター宿のほとり

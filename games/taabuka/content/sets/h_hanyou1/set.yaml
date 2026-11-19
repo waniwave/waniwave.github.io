@@ -1,0 +1,8 @@
+id: h_hanyou1
+name: 汎用の勇者パーティ
+unlock: { reach:  12 }          # ほとり第7波（B12到達）
+color: "#3a8a8a"
+keywords: []
+intro: どのゲームにもいる人たち。素点が高い、どのゲームにもいる人たち。
+wave: 7
+from: ター宿のほとり

@@ -1,0 +1,88 @@
+# ター宿のほとり「系統またぎ」の移植（名前・カテゴリ・フレーバーは元のまま。効果はター深用に作り直し）
+
+- id: hmatagi_x_nekopunch
+  name: 猫パンチ
+  cat: [動物, 格ゲー]
+  tier: '4'
+  grade: 特上
+  text: 同じ出しに同じカテゴリの札があれば強さ＋60
+  flavor: フレーム有利がとれる猫。
+  fx:
+  - when: 採点時
+    if: {同じカテゴリの札が他に: true}
+    do:
+    - {強さ: 60}
+
+- id: hmatagi_x_karaage
+  name: 唐揚げコンボ
+  cat: [食べ物, 格ゲー]
+  tier: '4'
+  grade: 上
+  text: 〈食べ物〉の札が2枚以上採点されると倍率＋5
+  flavor: つなぎがカリッと入る。
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: 食べ物, 枚数以上: 2}
+    do:
+    - {倍率: 5}
+
+- id: hmatagi_x_esayari
+  name: 餌やり体験
+  cat: [動物, 食べ物]
+  tier: '4'
+  grade: 上
+  text: 採点されると倍率＋3
+  flavor: ふれあい広場で100円。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 3}
+
+- id: hmatagi_x_banken
+  name: スレの番犬
+  cat: [動物, スレ]
+  tier: '3'
+  grade: 神
+  text: 〈スレ〉の札が3枚以上採点されると掛け×4
+  flavor: 荒らしにだけ吠える。
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: スレ, 枚数以上: 3}
+    do:
+    - {掛け: 4}
+
+- id: hmatagi_x_yashoku
+  name: 格ゲー勢の夜食
+  cat: [食べ物, 格ゲー]
+  tier: '4'
+  grade: 並
+  text: 採点されると強さ＋16
+  flavor: 深夜3時のカップ麺は、フレーム消費が少ない。
+  fx:
+  - when: 採点時
+    do:
+    - {強さ: 16}
+
+- id: hmatagi_x_onsenzaru
+  name: 温泉ザル
+  cat: [動物, 湯]
+  tier: '4'
+  grade: 並
+  text: ターン終了時に手札にあれば受け＋4
+  flavor: 湯船の主。タオルを頭にのせている。
+  fx:
+  - when: ターン終了
+    do:
+    - {受け: 4}
+
+- id: hmatagi_x_crane
+  name: クレーンゲームのぬいぐるみ
+  cat: [動物, 格ゲー]
+  tier: '3'
+  grade: 特上
+  text: 採点されると掛け×1.5
+  flavor: 格ゲー台の横の、アームが弱い台。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.5}

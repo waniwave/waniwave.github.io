@@ -1,0 +1,8 @@
+id: h_tamden
+name: タムデンとタムボイス
+unlock: { boss:  layer2 }          # ほとり第4波（第二層主を倒す）
+color: "#3ac07a"
+keywords: []
+intro: いつも少しだけ先回りする二人と、置いておくだけで積み上がる制度。
+wave: 4
+from: ター宿のほとり

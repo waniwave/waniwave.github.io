@@ -1,0 +1,87 @@
+# ター宿のほとり「金武町タイム」の移植（名前・カテゴリ・フレーバーは元のまま。効果はター深用に作り直し）
+
+- id: hkin_mukatteru
+  name: 金武町タームくん「今向かってるタム」のとき
+  cat: [速さ, ター]
+  tier: '5'
+  grade: 特上
+  text: 採点されると掛け×1.5
+  flavor: Tier1なのは「今向かってるタム」のときだけ。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.5}
+
+- id: hkin_tsuita
+  name: 金武町タームくん「着いたタム」のとき
+  cat: [速さ, ター]
+  tier: '4'
+  grade: 極
+  text: 採点されると掛け×2.2
+  flavor: 着いたら、Tier5だったタム。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 2.2}
+
+- id: hkin_neteru
+  name: 金武町タームくん「まだ寝てるタム」のとき
+  cat: [速さ, ター]
+  tier: '8'
+  grade: 並
+  text: 採点の最後なら掛け×1.2
+  flavor: 向かってすらいないタム。
+  fx:
+  - when: 採点時
+    if: {採点の順番: 最後}
+    do:
+    - {掛け: 1.2}
+
+- id: hkin_bus
+  name: 金武町行きのバス
+  cat: [速さ]
+  tier: '4'
+  grade: 特上
+  text: 同じ出しに同じカテゴリの札があれば強さ＋60
+  flavor: 今向かってるバス。
+  fx:
+  - when: 採点時
+    if: {同じカテゴリの札が他に: true}
+    do:
+    - {強さ: 60}
+
+- id: hkin_syrup
+  name: syrup16g
+  cat: [死]
+  tier: '5'
+  grade: 上
+  text: 採点されると倍率＋3
+  flavor: スレでは「敵意をもたないもの」としてTier4に分類されている。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 3}
+
+- id: hkin_chiko
+  name: チコリータ
+  cat: [動物, 死]
+  tier: '5'
+  grade: 上
+  text: ターン終了時に手札にあれば受け＋6
+  flavor: スレではTier5（食べ物よりも弱い）に置かれている。育つ。
+  fx:
+  - when: ターン終了
+    do:
+    - {受け: 6}
+
+- id: hkin_tamvoice
+  name: タムボイス制度
+  cat: [速さ, スレ]
+  tier: '5'
+  grade: 並
+  text: ターン終了時に手札にあれば受け＋4
+  flavor: 制度なので、置いておくだけで毎手番何かが積み上がる。
+  fx:
+  - when: ターン終了
+    do:
+    - {受け: 4}

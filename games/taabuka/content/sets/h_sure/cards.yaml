@@ -1,0 +1,79 @@
+# ター宿のほとり「佐々木強さ議論スレ」の移植（名前・カテゴリ・フレーバーは元のまま。効果はター深用に作り直し）
+
+- id: hsure_sasakisure
+  name: 佐々木強さ議論スレ
+  cat: [スレ]
+  tier: '3'
+  grade: 上
+  text: 採点されると倍率＋（組の段位）
+  flavor: どの佐々木なのかは、スレの中でも結論が出ていない。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 段位}
+
+- id: hsure_sasaki
+  name: 佐々木
+  cat: [スレ]
+  tier: '3'
+  grade: 並
+  text: 〈スレ〉の札が2枚以上採点されると倍率＋3
+  flavor: 「どの佐々木？」「この佐々木」
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: スレ, 枚数以上: 2}
+    do:
+    - {倍率: 3}
+
+- id: hsure_sasasa
+  name: 佐々木の佐々木
+  cat: [スレ]
+  tier: '3'
+  grade: 極
+  text: 採点されると〈スレ〉の番付を2段上げる。採点されると掛け×2
+  flavor: 佐々木の中の佐々木。
+  fx:
+  - when: 採点時
+    do:
+    - 番付を上げる: {カテゴリ: スレ, 段: 2}
+  - when: 採点時
+    do:
+    - {掛け: 2}
+
+- id: hsure_nanashi
+  name: 名無しのター
+  cat: [スレ, ター]
+  tier: '5'
+  grade: 並
+  text: 採点されると倍率＋（組の段位）
+  flavor: 1 名無しのター：佐々木は強い
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 段位}
+
+- id: hsure_anchor
+  name: '>>1'
+  cat: [スレ]
+  tier: '2'
+  grade: 特上
+  text: 〈スレ〉が番付でT1以上なら掛け×1.5
+  flavor: '>>1 乙'
+  fx:
+  - when: 採点時
+    if:
+      番付: {カテゴリ: スレ, 以上: '1'}
+    do:
+    - {掛け: 1.5}
+
+- id: hsure_datochi
+  name: スレのdat落ち
+  cat: [スレ]
+  tier: '2'
+  grade: 上
+  text: 採点されると倍率＋（組の段位）
+  flavor: 過去ログに、さようなら。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 段位}

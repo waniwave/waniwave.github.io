@@ -1,0 +1,86 @@
+# ター宿のほとり「バグった宿」の移植（名前・カテゴリ・フレーバーは元のまま。効果はター深用に作り直し）
+
+- id: hdigital_d_save
+  name: セーブデータ破損
+  cat: [ロボ]
+  tier: '3'
+  grade: 上
+  text: 採点されると札を1枚引く
+  flavor: 「冒険の書は消えてしまいました」
+  kw: [呼び水1]
+
+- id: hdigital_d_lag
+  name: ラグ
+  cat: [ロボ]
+  tier: '3'
+  grade: 上
+  text: 採点されると、この札の写しをこの戦闘だけ手札に加える
+  flavor: 回線が、詰まった。
+  fx:
+  - when: 採点時
+    do:
+    - {写しを手札に: この札}
+
+- id: hdigital_d_rewind
+  name: 巻き戻し
+  cat: [ロボ]
+  tier: '4'
+  grade: 並
+  text: 出すと番付を階に入った時の形に戻し、倍率＋3
+  flavor: 議論は、なかったことになった。
+  fx:
+  - when: 出し
+    do:
+    - 番付を階の始めに戻す
+    - {倍率: 3}
+
+- id: hdigital_d_zoushoku
+  name: バグ技：増殖
+  cat: [ロボ]
+  tier: '8'
+  grade: 特上
+  text: 採点されると、手札で一番強い札の写しをこの戦闘だけ手札に加える
+  flavor: アイテム欄の6番目で、Aボタンを押しながら……
+  fx:
+  - when: 採点時
+    do:
+    - {写しを手札に: 手札の一番強い}
+
+- id: hdigital_d_loop
+  name: 無限ループ
+  cat: [ロボ]
+  tier: '4'
+  grade: 神
+  text: 採点されると、手札で一番強い札の写しをこの戦闘だけ手札に加える。採点されると掛け×3
+  flavor: このスレは、終わらない。
+  fx:
+  - when: 採点時
+    do:
+    - {写しを手札に: 手札の一番強い}
+  - when: 採点時
+    do:
+    - {掛け: 3}
+
+- id: hdigital_d_mojibake
+  name: 文字化け
+  cat: [ロボ, スレ]
+  tier: '3'
+  grade: 並
+  text: 採点されると強さ＋20
+  flavor: 縺ｿ繧薙↑縺ｮ繧ｫ繝ｼ繝
+  fx:
+  - when: 採点時
+    do:
+    - {強さ: 20}
+
+- id: hdigital_d_cheat
+  name: チートコード
+  cat: [ロボ]
+  tier: '8'
+  grade: 特上
+  text: 採点されると〈ロボ〉を番付のGodへ
+  flavor: ↑↑↓↓←→←→BA
+  fx:
+  - when: 採点時
+    do:
+    - 番付を移す: {カテゴリ: ロボ, 先: God}

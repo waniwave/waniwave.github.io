@@ -1,0 +1,8 @@
+id: h_mizube
+name: 水辺と夜の動物
+unlock: { reach:  9 }          # ほとり第5波（B9到達）
+color: "#c03a5a"
+keywords: []
+intro: 甲羅は壊れない。針は刺し返す。夜に取れば強くなる動物たち。
+wave: 5
+from: ター宿のほとり

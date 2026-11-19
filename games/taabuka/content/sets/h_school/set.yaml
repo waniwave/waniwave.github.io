@@ -1,0 +1,8 @@
+id: h_school
+name: 校庭と自己紹介
+unlock: { reach:  6 }          # ほとり第3波（B6到達）
+color: "#7a3ac0"
+keywords: []
+intro: 床に白線が引かれたら、校庭変化の合図。手札の流れが逆になる。土は自己紹介をする。
+wave: 3
+from: ター宿のほとり

@@ -1,0 +1,8 @@
+id: h_hanekaesu
+name: 跳ね返す食卓と獣
+unlock: { reach:  12 }          # ほとり第7波（B12到達）
+color: "#3a8a8a"
+keywords: []
+intro: 菓子折りとヤマアラシは跳ね返す。群れのボスがいる間、群れには手が出せない。
+wave: 7
+from: ター宿のほとり

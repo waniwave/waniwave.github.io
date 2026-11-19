@@ -1,0 +1,8 @@
+id: h_noren
+name: 麺処グラヴィティ・ウェル
+unlock: { overkill:  { 大論破:  50 } }          # ほとり第8波（大論破を累計50回）
+color: "#8a3a8a"
+keywords: []
+intro: ネオ・トーキョー第七到着ゲートの裏。カウンター六席の店で、審査AIが一杯を判定する。
+wave: 8
+from: ター宿のほとり

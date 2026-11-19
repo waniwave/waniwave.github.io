@@ -1,0 +1,83 @@
+# ター宿のほとり「EOと秒速」の移植（名前・カテゴリ・フレーバーは元のまま。効果はター深用に作り直し）
+
+- id: heo_eo
+  name: EO
+  cat: [速さ]
+  tier: '3'
+  grade: 特上
+  text: 採点されると掛け×1.5
+  flavor: EO。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.5}
+
+- id: heo_oe
+  name: OE
+  cat: [速さ]
+  tier: '3'
+  grade: 特上
+  text: 採点されると掛け×1.5
+  flavor: EOを裏返したもの。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.5}
+
+- id: heo_eoeo
+  name: EOEO
+  cat: [速さ]
+  tier: '4'
+  grade: 上
+  text: 採点されると倍率＋3
+  flavor: EOEO。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 3}
+
+- id: heo_oeo
+  name: OEO
+  cat: [速さ]
+  tier: '3'
+  grade: 上
+  text: 採点されると倍率＋3
+  flavor: EOとOEの間に生まれた。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 3}
+
+- id: heo_byousoku
+  name: 秒速5タームメートル
+  cat: [速さ, ター]
+  tier: '8'
+  grade: 並
+  text: 採点されると札を1枚引く
+  flavor: Tier8。議論の外を、秒速5タームメートルで通り過ぎていく。
+  kw: [呼び水1]
+
+- id: heo_funsoku
+  name: 分速300タームメートル
+  cat: [速さ, ター]
+  tier: '8'
+  grade: 並
+  text: 採点されると倍率＋（組の段位）
+  flavor: 計算すると同じ。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 段位}
+
+- id: heo_passing
+  name: 秒速5タームメートルで通り過ぎた何か
+  cat: [速さ]
+  tier: '1'
+  grade: 極
+  text: 採点されると札を2枚引く。採点されると掛け×2
+  flavor: 何だったのかはわからない。速かった。
+  kw: [呼び水2]
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 2}

@@ -1,0 +1,8 @@
+id: h_fgc
+name: ゲーセン
+unlock: { extract:  1 }          # ほとり第2波（初めて脱出）
+color: "#3a7ac0"
+keywords: []
+intro: 読み合いと確定反撃。ティアを動かした瞬間を狩る。
+wave: 2
+from: ター宿のほとり

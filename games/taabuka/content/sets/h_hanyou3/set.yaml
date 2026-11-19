@@ -1,0 +1,8 @@
+id: h_hanyou3
+name: 汎用の魔導書
+unlock: { overkill:  { 大論破:  50 } }          # ほとり第8波（大論破を累計50回）
+color: "#8a3a8a"
+keywords: []
+intro: ファイアボール、ライトニングボルト、暗殺者。素直に強い除去。
+wave: 8
+from: ター宿のほとり

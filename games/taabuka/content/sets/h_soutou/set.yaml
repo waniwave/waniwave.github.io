@@ -1,0 +1,8 @@
+id: h_soutou
+name: 相当
+unlock: { boss:  layer2 }          # ほとり第4波（第二層主を倒す）
+color: "#3ac07a"
+keywords: []
+intro: 相当老と相当若。早く取るほど若く、時間がたつほど相当になる。台本どおりなら、死も2回起きる。
+wave: 4
+from: ター宿のほとり

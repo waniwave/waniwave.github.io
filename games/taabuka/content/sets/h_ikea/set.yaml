@@ -1,0 +1,8 @@
+id: h_ikea
+name: IKEAとセレブ婚
+unlock: { reach:  6 }          # ほとり第3波（B6到達）
+color: "#7a3ac0"
+keywords: []
+intro: 家具は手番の終わりに組み上がる。アイロボットは素点の低い札を掃除する。
+wave: 3
+from: ター宿のほとり

@@ -22,7 +22,6 @@ import { unlockAudio, setAudioOptions, playBgm, stopBgm, startHeart, stopHeart }
 import { layerAt, layerNo } from '../engine/dive.js';
 import { loadContent, fetchIO } from '../engine/content.js';
 import { createBattle, openBattle, startBattle, makeBattleCard, attachCard } from '../engine/battle.js';
-import { CARDS as TEMP_CARDS } from '../tools/fixtures/cards.mjs';
 
 const BUILD = window.BUILD || 'dev';
 const app = document.getElementById('app');
@@ -92,8 +91,6 @@ try {
   const { content, issues } = await loadContent(fetchIO(location.href, BUILD));
   const errs = issues.filter((i) => i.level === 'error');
   if (errs.length) { fail('読み込みに失敗しました', errs.map((i) => `[${i.tag}] ${i.where}: ${i.msg}`)); throw new Error('content'); }
-  // 仮：ター宿セットを移植するまで、試しの札（tools/fixtures）を「仮」として足す
-  for (const c of TEMP_CARDS) if (!content.cards[c.id]) content.cards[c.id] = { ...c, tier: String(c.tier), set: '仮', listen: [], rules: [], show: [], text: '仮の札（ター宿セットの移植まで）' };
   base = { balance: content.balance, content };
   window.__taabuka = { base, settings };
 } catch (e) {
@@ -102,7 +99,7 @@ try {
 }
 document.getElementById('boot')?.remove();
 
-/** 仮デッキ（試し場用）：入門札3枚＋ター宿の並17枚（ター宿セットの札は移植まで仮の札） */
+/** 試し場の「初期デッキ」：宿泊客の入門札3枚＋ター宿セットの並17枚 */
 export function tempDeck(guestId) { return starterIds(base, guestId); }
 
 let uidN = 0;

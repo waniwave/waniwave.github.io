@@ -1,0 +1,87 @@
+# ター宿のほとり「女将の宿」の移植（名前・カテゴリ・フレーバーは元のまま。効果はター深用に作り直し）
+
+- id: hyado_maap
+  name: マープ
+  cat: [宿]
+  tier: '1'
+  grade: 極
+  text: 採点されると〈宿〉の番付を2段上げる。採点されると掛け×2
+  flavor: ター宿の女将。宿の地図はすべて彼女の頭の中にある。
+  fx:
+  - when: 採点時
+    do:
+    - 番付を上げる: {カテゴリ: 宿, 段: 2}
+  - when: 採点時
+    do:
+    - {掛け: 2}
+
+- id: hyado_tarkaku
+  name: ター角
+  cat: [ター]
+  tier: '1'
+  grade: 特上
+  text: 採点の最初なら掛け×2
+  flavor: 宿の、いちばん角にある。いる。ある。
+  fx:
+  - when: 採点時
+    if: {採点の順番: 最初}
+    do:
+    - {掛け: 2}
+
+- id: hyado_banto
+  name: 番頭
+  cat: [宿]
+  tier: '4'
+  grade: 特上
+  text: 〈宿〉の札が2枚以上採点されると掛け×1.6
+  flavor: そろばんの音で強さを計る。
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: 宿, 枚数以上: 2}
+    do:
+    - {掛け: 1.6}
+
+- id: hyado_soroban
+  name: 番頭のそろばん
+  cat: [宿]
+  tier: '5'
+  grade: 並
+  text: 採点されると倍率＋（組の段位）
+  flavor: パチパチ。権限が増えた。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 段位}
+
+- id: hyado_techou
+  name: マープの手帳
+  cat: [宿]
+  tier: '4'
+  grade: 上
+  text: 採点されると札を1枚引く
+  flavor: 予約は、女将の手帳にしか書かれていない。
+  kw: [呼び水1]
+
+- id: hyado_suzu
+  name: 女将の鈴
+  cat: [宿]
+  tier: '4'
+  grade: 上
+  text: 採点されると〈宿〉の番付を1段上げる
+  flavor: チリン。襖が一斉に開く。
+  fx:
+  - when: 採点時
+    do:
+    - 番付を上げる: {カテゴリ: 宿, 段: 1}
+
+- id: hyado_yukata
+  name: 浴衣
+  cat: [宿, 湯]
+  tier: '5'
+  grade: 並
+  text: 採点されると倍率＋（組の段位）
+  flavor: サイズはフリー。概念にも合う。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 段位}

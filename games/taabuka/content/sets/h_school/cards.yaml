@@ -1,0 +1,81 @@
+# ター宿のほとり「校庭と自己紹介」の移植（名前・カテゴリ・フレーバーは元のまま。効果はター深用に作り直し）
+
+- id: hschool_koutei
+  name: 校庭変化
+  cat: [校庭]
+  tier: '2'
+  grade: 極
+  text: 採点されると札を2枚引く。採点されると掛け×2
+  flavor: 床に白線が引かれはじめたら、それが合図だ。
+  kw: [呼び水2]
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 2}
+
+- id: hschool_seigi
+  name: 正義執行／校庭変化
+  cat: [校庭]
+  tier: '1'
+  grade: 特上
+  text: 採点されると札を2枚引く
+  flavor: 正義が執行されると、だいたい校庭になる。
+  kw: [呼び水2]
+
+- id: hschool_taiikukan
+  name: 体育館変化
+  cat: [校庭]
+  tier: '1'
+  grade: 特上
+  text: 同じ出しに同じカテゴリの札があれば強さ＋60
+  flavor: 雨の日の校庭変化。屋根ごと落ちてくる。
+  fx:
+  - when: 採点時
+    if: {同じカテゴリの札が他に: true}
+    do:
+    - {強さ: 60}
+
+- id: hschool_chourei
+  name: 朝礼台
+  cat: [校庭]
+  tier: '3'
+  grade: 並
+  text: 採点されると札を1枚引く
+  flavor: 校庭変化のたびに、誰かが上で自己紹介をしている。
+  kw: [呼び水1]
+
+- id: hschool_tsuchi
+  name: 自己紹介をする土
+  cat: [校庭]
+  tier: '1'
+  grade: 上
+  text: 採点されると倍率＋3
+  flavor: はじめまして、土です。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 3}
+
+- id: hschool_takou
+  name: 卒業文集
+  cat: [校庭]
+  tier: '4'
+  grade: 上
+  text: 採点されると倍率＋（組の段位）
+  flavor: 「しょうらいのゆめは、Godになることです」
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 段位}
+
+- id: hschool_ishi
+  name: 自己紹介を聞かされた石
+  cat: [校庭, 老]
+  tier: '5'
+  grade: 並
+  text: 採点されると強さ＋12
+  flavor: 土の自己紹介を、もう300回は聞いている。
+  fx:
+  - when: 採点時
+    do:
+    - {強さ: 12}

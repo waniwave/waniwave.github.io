@@ -1,0 +1,8 @@
+id: h_tayu
+name: ター湯とカレー
+unlock: { reach:  9 }          # ほとり第5波（B9到達）
+color: "#c03a5a"
+keywords: []
+intro: ター油は湯に浮く。栓を抜けば全部流れる。ターメリックとライスがそろえばカレー。
+wave: 5
+from: ター宿のほとり

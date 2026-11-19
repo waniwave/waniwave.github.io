@@ -1,0 +1,85 @@
+# ター宿のほとり「水辺と夜の動物」の移植（名前・カテゴリ・フレーバーは元のまま。効果はター深用に作り直し）
+
+- id: hmizube_kame
+  name: カメーム
+  cat: [動物]
+  tier: '2'
+  grade: 極
+  text: 受けに回ると受け＋18。硝子でも割れない。採点されると掛け×2
+  flavor: 万年生きる。この局も、たぶん生き残る。
+  kw: [守り18, 不壊]
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 2}
+
+- id: hmizube_rakko
+  name: ラッコーム
+  cat: [動物]
+  tier: '3'
+  grade: 特上
+  text: 体力が半分以下なら掛け×2
+  flavor: お気に入りの石を、脇の下にしまっている。
+  fx:
+  - when: 採点時
+    if: {体力の割合以下: 0.5}
+    do:
+    - {掛け: 2}
+
+- id: hmizube_fukurou
+  name: フクロウター
+  cat: [動物, ター]
+  tier: '3'
+  grade: 特上
+  text: 採点されると掛け×1.5
+  flavor: ホー。深夜の自販機の前にいる。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.5}
+
+- id: hmizube_hiyoko
+  name: ヒヨコーム
+  cat: [動物]
+  tier: '5'
+  grade: 並
+  text: ターン終了時に手札にあれば受け＋4
+  flavor: ピヨ。そのうちニワトリになる、と本人は言っている。
+  fx:
+  - when: ターン終了
+    do:
+    - {受け: 4}
+
+- id: hmizube_harinezumi
+  name: ハリネズミター
+  cat: [動物, ター]
+  tier: '3'
+  grade: 上
+  text: 採点されると倍率＋3
+  flavor: さわると痛い。さわらなくても痛い。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 3}
+
+- id: hmizube_namakemono
+  name: ナマケモノター
+  cat: [動物, ター]
+  tier: '8'
+  grade: 並
+  text: 採点の最後なら掛け×1.2
+  flavor: 動くのは、最終手番だけ。
+  fx:
+  - when: 採点時
+    if: {採点の順番: 最後}
+    do:
+    - {掛け: 1.2}
+
+- id: hmizube_ferret
+  name: フェレッター
+  cat: [動物, 速さ, ター]
+  tier: '4'
+  grade: 上
+  text: 採点されると札を1枚引く
+  flavor: 靴下が、片方ない。
+  kw: [呼び水1]

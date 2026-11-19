@@ -109,9 +109,9 @@ export function refreshUnlocks(base, H) {
 export function poolOf(base, H, guest) {
   const C = base.content;
   const g = C.guests[guest];
-  const ok = (set) => set === '仮' || H.unlocked.sets.includes(set) || (g && set === g.set);
+  const ok = (set) => H.unlocked.sets.includes(set) || (g && set === g.set);
   const ids = (bucket) => Object.values(C[bucket] || {}).filter((d) => ok(d.set) && !d.id.startsWith('__')).map((d) => d.id);
-  return { cards: ids('cards'), regulars: ids('regulars'), relics: ids('relics') };
+  return { cards: ids('cards'), regulars: ids('regulars'), relics: ids('relics'), items: ids('items') };
 }
 
 // ───────────────────────── 施設 ─────────────────────────

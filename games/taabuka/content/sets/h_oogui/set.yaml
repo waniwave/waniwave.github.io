@@ -1,0 +1,8 @@
+id: h_oogui
+name: 大食い
+unlock: { reach:  9 }          # ほとり第5波（B9到達）
+color: "#c03a5a"
+keywords: []
+intro: 食べ物を並べ、辛さで隣を黙らせる。デザートは別腹。
+wave: 5
+from: ター宿のほとり

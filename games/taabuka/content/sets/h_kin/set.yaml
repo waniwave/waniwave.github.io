@@ -1,0 +1,8 @@
+id: h_kin
+name: 金武町タイム
+unlock: { extract:  1 }          # ほとり第2波（初めて脱出）
+color: "#3a7ac0"
+keywords: []
+intro: いつ取るかで点が変わる。今向かってるタム、まだ寝てるタム。
+wave: 2
+from: ター宿のほとり

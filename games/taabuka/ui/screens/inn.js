@@ -260,7 +260,7 @@ export function stashScreen(ctx) {
         sel('tier', 'Tier', base.balance.tiers.ring.map((t) => [t, slotLabel(t)])),
         sel('grade', '格', base.balance.economy.grades.map((g) => [g, g])),
         sel('origin', '由来', [['orig', '原本'], ['copy', '写し'], ['expiry', '期限'], ['cursed', '曰く付き'], ['bet', '賭け']]),
-        sel('set', 'セット', Object.values(C.sets).map((s) => [s.id, s.name]).concat([['仮', '仮']])),
+        sel('set', 'セット', Object.values(C.sets).map((s) => [s.id, s.name])),
       ]),
       h('h3', { text: `蔵 ${room.used}/${room.cap}（表示 ${rest.length}）` }),
       h('div.things.half', {}, rest.map((x) => thingEl(base, x, { onclick: () => tap(x) }))),
@@ -391,6 +391,15 @@ export function resultScreen(ctx, rep) {
   } else {
     items.forEach((it, i) => T.push({ ms: 140, run: () => { shards(it.getBoundingClientRect(), '#8a8784', 8); if (i < 10 && !q?.skipping) SE.shatter(); it.style.visibility = 'hidden'; } }));
     T.push({ ms: 300, run: () => { if (charmBox.children.length) SE.kiran(); } });
+  }
+  // 新しいセットが解放された：「新スレが立ちました」と、そのセットのひとこと（企画書 第5章）
+  for (const u of rep.unlocked.filter((x) => x.type === 'set')) {
+    const def = ctx.base.content.sets[u.id];
+    T.push({ ms: 1800, run: () => {
+      q?.banner?.(`新スレが立ちました\n「${u.name}」`, 'big', 1600);
+      SE.fanfare?.();
+      if (def?.intro) toast(`「${u.name}」${def.intro}`);
+    } });
   }
   setTimeout(() => {
     if (!q) { for (const t of T) t.run(); return; }

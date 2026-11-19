@@ -26,7 +26,7 @@ import {
   createDive, diveBattle, finishBattle, enterDoor, openDoors, isHidden, answerChase, takeReward, rewardDests, closeReward,
   leaveRoom, buy, useBath, chooseEvent, eventChoices, landingInfo, descend, goBack, useExit, layerAt, defaultPool, genFloor,
 } from '../engine/dive.js';
-import { starterIds } from '../engine/meta.js';
+import { starterIds, newInn, beginDive, finishDive, upgrade, upgradeInfo, sell, stashRoom, refreshUnlocks, canTakeStarter, takeStarter } from '../engine/meta.js';
 import { loadRealContent } from './fixtures/index.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -154,7 +154,7 @@ export function botDive(base, o) {
   const deckIds = [...starterIds(base, o.guest), ...(o.add || []).flatMap((id) => [id, id])];
   const deck = deckIds.map((id, i) => ({ uid: `d${i}`, id, origin: C.cards[id]?.origin ?? 'orig' }));
   const g = C.guests[o.guest];
-  const D = createDive(base, { seed: o.seed, guest: o.guest, depth: o.depth || 0, deck, relics: g?.relic ? [{ uid: 'g', id: g.relic, guest: true }] : [], pool: o.pool });
+  const D = o.D ?? createDive(base, { seed: o.seed, guest: o.guest, depth: o.depth || 0, deck, relics: g?.relic ? [{ uid: 'g', id: g.relic, guest: true }] : [], pool: o.pool });
   const rec = { hands: {}, lastV: [], battles: { 通常: [], 精鋭: [], 層主: [], 追跡者: [], 番人: [] }, floorV: {}, bestV: Big.from(0), killedTaa: false };
   let steps = 0;
   while (D.phase !== 'end' && steps++ < 4000) {
@@ -241,6 +241,57 @@ export function easeBase(base, k) {
   for (const [f, v] of Object.entries(curve.floors)) if (Number(f) > 3) v.claim = Math.max(1, Math.round(v.claim / k ** (Number(f) - 3)));
   curve.beyond = { ...curve.beyond, claimMul: Math.max(1.05, curve.beyond.claimMul / k) };
   return { ...base, balance: { ...base.balance, curve } };
+}
+
+// ───────────────────────── 通しの宿（--campaign） ─────────────────────────
+
+/**
+ * 1つの宿で何回も潜る：脱出で持ち帰った札を次のデッキに入れ、宿銭で施設を改装していく（深い層に届くかを見る）
+ * @returns {{dive:number, deepest:number, outcome:string, deck:string, depth:number}[]}
+ */
+export function runCampaign(base, o) {
+  const C = base.content;
+  const G = base.balance.economy.grades;
+  const H = newInn(base, o.seed);
+  const out = [];
+  for (let n = 1; n <= o.dives; n++) {
+    // 札が足りなければ帳場の素泊まりセットを受け取る
+    if (H.stash.filter((x) => x.type === 'card').length < base.balance.hands.play.deckMin && canTakeStarter(base, H)) takeStarter(base, H, H.unlocked.guests[0]);
+    // デッキ：蔵の札を格・Tierの順に強いほうから（質札は使わない）
+    const cards = H.stash.filter((x) => x.type === 'card' && x.origin !== 'pawn');
+    const tierRank = (x) => base.balance.tiers.tiers[String(C.cards[x.id]?.tier)]?.rank ?? 0;
+    cards.sort((a, b) => G.indexOf(C.cards[b.id]?.grade) - G.indexOf(C.cards[a.id]?.grade) || tierRank(b) - tierRank(a));
+    H.deck = cards.slice(0, Math.min(base.balance.hands.play.deckMax, Math.max(base.balance.hands.play.deckMin, Math.min(22, cards.length)))).map((x) => x.uid);
+    const regs = H.stash.filter((x) => x.type === 'regular').sort((a, b) => G.indexOf(C.regulars[b.id]?.grade) - G.indexOf(C.regulars[a.id]?.grade));
+    H.loadout.seats = regs.slice(0, 3).map((x) => x.uid);
+    H.loadout.charm = []; H.loadout.items = []; H.loadout.insured = [];
+    // 宿泊客：解放済みから順番に。深度は解放済みの一番上
+    const gs = H.unlocked.guests;
+    H.loadout.guest = gs[n % gs.length];
+    H.loadout.depth = o.depthUp ? H.unlocked.depth : 0;
+    let D;
+    try { D = beginDive(base, H, { seed: `${o.seed}c${n}`.replace(/[^0-9a-z]/g, '') || 'c1' }); }
+    catch (e) {
+      H.loadout.seats = [];
+      try { D = beginDive(base, H, { seed: `c${n}` }); } catch (e2) { out.push({ dive: n, deepest: 0, outcome: 'error', error: e2.message }); break; }
+    }
+    let r;
+    try { r = botDive(base, { D, guest: D.guest }); } catch (e) { out.push({ dive: n, deepest: 0, outcome: 'error', error: e.message }); break; }
+    const rep = finishDive(base, H, D);
+    out.push({ why: r.why, maxVlog: r.maxVlog, deck: D.deck.length, dive: n, deepest: D.stats.deepest, outcome: D.result?.outcome, guest: D.guest, depth: D.depth, sets: H.unlocked.sets.length, zeni: H.zeni, taa: D.stats.bosses.includes('core') ? 1 : 0 });
+    // 蔵があふれたら弱い札から売る
+    while (H.overflow || stashRoom(base, H).used > stashRoom(base, H).cap) {
+      const gr = (x) => G.indexOf((x.type === 'card' ? C.cards : x.type === 'regular' ? C.regulars : x.type === 'item' ? C.items : {})[x.id]?.grade);
+      const weak = H.stash.filter((x) => x.type !== 'souvenir' || H.stash.length > stashRoom(base, H).cap + 5).sort((a, b) => (a.type === 'souvenir') - (b.type === 'souvenir') || gr(a) - gr(b))[0];
+      if (!weak) break;
+      sell(base, H, weak.uid);
+      H.overflow = stashRoom(base, H).used > stashRoom(base, H).cap;
+    }
+    // 改装：できるものから（蔵・物置・客間・帳場・神棚・仕込み場の順）
+    for (let k = 0; k < 3; k++) for (const id of ['kura', 'monooki', 'kyakuma', 'chouba', 'kamidana', 'shikomi']) { if (upgradeInfo(base, H, id).ok) upgrade(base, H, id); }
+    refreshUnlocks(base, H);
+  }
+  return out;
 }
 
 // ───────────────────────── まとめ ─────────────────────────

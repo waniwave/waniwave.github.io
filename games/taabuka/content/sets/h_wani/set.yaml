@@ -1,0 +1,8 @@
+id: h_wani
+name: ワニ騒動
+unlock: { boss:  layer2 }          # ほとり第4波（第二層主を倒す）
+color: "#3ac07a"
+keywords: []
+intro: レオンは名前に「ター」が入った札を撃つ。暗闇ではグタームが食べ、泥棒が盗む。
+wave: 4
+from: ター宿のほとり

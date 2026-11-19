@@ -1,0 +1,79 @@
+# ター宿のほとり「ライアンと最強候補」の移植（名前・カテゴリ・フレーバーは元のまま。効果はター深用に作り直し）
+
+- id: hryan_ryan
+  name: ライアン・ゴゴゴーグ
+  cat: [ター]
+  tier: '3'
+  grade: 上
+  text: 〈ター〉の札が2枚以上採点されると倍率＋5
+  flavor: スレに2回書かれている。だから2人いる。
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: ター, 枚数以上: 2}
+    do:
+    - {倍率: 5}
+
+- id: hryan_ryan5
+  name: ライアン・ゴゴゴゴーグ
+  cat: [ター]
+  tier: '3'
+  grade: 上
+  text: 〈ター〉の札が2枚以上採点されると倍率＋5
+  flavor: 「ゴ」が1つ多い。たぶん誤字。
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: ター, 枚数以上: 2}
+    do:
+    - {倍率: 5}
+
+- id: hryan_meishi
+  name: ライアン・ゴゴゴーグの名刺
+  cat: [ター]
+  tier: '2'
+  grade: 極
+  text: 同じ出しに同じカテゴリの札があれば強さ＋100。採点されると掛け×2
+  flavor: 名刺にもゴが3つ。
+  fx:
+  - when: 採点時
+    if: {同じカテゴリの札が他に: true}
+    do:
+    - {強さ: 100}
+  - when: 採点時
+    do:
+    - {掛け: 2}
+
+- id: hryan_gojo
+  name: 五条悟
+  cat: [格ゲー]
+  tier: '4'
+  grade: 並
+  text: 採点されると強さ＋16
+  flavor: このスレではTier3。平均的な強さ、とされている。
+  fx:
+  - when: 採点時
+    do:
+    - {強さ: 16}
+
+- id: hryan_nishijima
+  name: 西島秀俊
+  cat: [格ゲー]
+  tier: '1'
+  grade: 並
+  text: 採点されると倍率＋（組の段位）
+  flavor: スレではTier3（メイン登場人物の中では平均的な強さ）とされている。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 段位}
+
+- id: hryan_barbie
+  name: バービー
+  cat: [格ゲー]
+  tier: '4'
+  grade: 特上
+  text: 採点されると〈格ゲー〉の番付を2段上げる
+  flavor: スレではTier1（作中最強レベル）とされている。
+  fx:
+  - when: 採点時
+    do:
+    - 番付を上げる: {カテゴリ: 格ゲー, 段: 2}

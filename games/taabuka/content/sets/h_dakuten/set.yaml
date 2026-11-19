@@ -1,0 +1,8 @@
+id: h_dakuten
+name: 濁点とスレ立て
+unlock: { boss:  layer2 }          # ほとり第4波（第二層主を倒す）
+color: "#3ac07a"
+keywords: []
+intro: 手札を濁らせて次の人に渡す。スレを立てればレスがつき、土は自己紹介をする。
+wave: 4
+from: ター宿のほとり

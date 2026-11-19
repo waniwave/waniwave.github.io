@@ -1,0 +1,8 @@
+id: h_zoo
+name: 屋上動物園
+unlock: { start:  true }          # ほとり第1波（最初から）
+color: "#c0703a"
+keywords: []
+intro: 動物は食べ物が好き。キターツネは隣の札を化かす。
+wave: 1
+from: ター宿のほとり

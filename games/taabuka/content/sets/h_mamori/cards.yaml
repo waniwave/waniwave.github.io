@@ -1,0 +1,80 @@
+# ター宿のほとり「守りの宿」の移植（名前・カテゴリ・フレーバーは元のまま。効果はター深用に作り直し）
+
+- id: hmamori_m_kagami
+  name: 合わせ鏡
+  cat: [宿]
+  tier: '1'
+  grade: 並
+  text: 受けに回ると受け＋5
+  flavor: 洗面所の鏡と、廊下の鏡が向かい合っている。
+  kw: [守り5]
+
+- id: hmamori_m_kekkai
+  name: 立入禁止テープ
+  cat: [宿]
+  tier: '0'
+  grade: 極
+  text: 採点されると札を2枚引く。採点されると掛け×2
+  flavor: 清掃中。
+  kw: [呼び水2]
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 2}
+
+- id: hmamori_m_migawari
+  name: 身代わりの浴衣
+  cat: [宿]
+  tier: '2'
+  grade: 並
+  text: 採点されると強さ＋24
+  flavor: 中身は、もういない。
+  fx:
+  - when: 採点時
+    do:
+    - {強さ: 24}
+
+- id: hmamori_k_bousai
+  name: 防災ずきん
+  cat: [宿]
+  tier: '2'
+  grade: 上
+  text: 受けに回ると受け＋8
+  flavor: 避難訓練は、毎月第2水曜日。
+  kw: [守り8]
+
+- id: hmamori_k_kekkai2
+  name: 宿の結界
+  cat: [宿]
+  tier: '2'
+  grade: 上
+  text: 採点されると倍率＋3
+  flavor: チェックアウトの直前に、いちばん強く張られる。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 3}
+
+- id: hmamori_m_kakolog
+  name: 過去ログ保存
+  cat: [スレ]
+  tier: '1'
+  grade: 特上
+  text: 採点されると掛け×1.5
+  flavor: dat落ちしても、まとめに残る。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.5}
+
+- id: hmamori_m_kaeshi
+  name: 返し技
+  cat: [格ゲー]
+  tier: '1'
+  grade: 特上
+  text: 採点されると掛け×1.5
+  flavor: 昇龍を読んでいた。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.5}

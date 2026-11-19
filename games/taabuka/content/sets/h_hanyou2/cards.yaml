@@ -1,0 +1,91 @@
+# ター宿のほとり「汎用の城塞」の移植（名前・カテゴリ・フレーバーは元のまま。効果はター深用に作り直し）
+
+- id: hhanyou2_g_soldier
+  name: 歩兵
+  cat: [格ゲー]
+  tier: '1'
+  grade: 並
+  text: 採点されると強さ＋28
+  flavor: どのゲームにもいる。
+  fx:
+  - when: 採点時
+    do:
+    - {強さ: 28}
+
+- id: hhanyou2_g_shield
+  name: 盾兵
+  cat: [格ゲー]
+  tier: '1'
+  grade: 特上
+  text: 採点されると掛け×1.5
+  flavor: 盾を持っている。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.5}
+
+- id: hhanyou2_g_wall
+  name: 城壁
+  cat: [格ゲー]
+  tier: '4'
+  grade: 並
+  text: 〈格ゲー〉の札が2枚以上採点されると倍率＋3
+  flavor: 壁。
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: 格ゲー, 枚数以上: 2}
+    do:
+    - {倍率: 3}
+
+- id: hhanyou2_g_golem
+  name: ゴーレム
+  cat: [格ゲー]
+  tier: God
+  grade: 特上
+  text: 〈格ゲー〉が番付でT1以上なら掛け×1.5
+  flavor: 岩でできている。
+  fx:
+  - when: 採点時
+    if:
+      番付: {カテゴリ: 格ゲー, 以上: '1'}
+    do:
+    - {掛け: 1.5}
+
+- id: hhanyou2_g_dragon
+  name: ドラゴン
+  cat: [格ゲー]
+  tier: God
+  grade: 神
+  text: 出すと、狙った敵の主張を25%削る（層主は半分）。採点されると掛け×3
+  flavor: 強い。
+  fx:
+  - when: 出し
+    do:
+    - 主張を削る: {対象: 狙い, 割合: 0.25, 層主なら: 0.125}
+  - when: 採点時
+    do:
+    - {掛け: 3}
+
+- id: hhanyou2_g_counter
+  name: カウンター
+  cat: [格ゲー]
+  tier: '2'
+  grade: 上
+  text: 採点されると倍率＋3
+  flavor: 反撃する。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 3}
+
+- id: hhanyou2_sample
+  name: 食品サンプル
+  cat: [食べ物]
+  tier: '2'
+  grade: 上
+  text: 採点されると倍率＋3
+  flavor: 食べられないが、強さはそっくり。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 3}

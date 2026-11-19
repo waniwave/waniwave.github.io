@@ -1,0 +1,87 @@
+# ター宿のほとり「スレ崩壊」の移植（名前・カテゴリ・フレーバーは元のまま。効果はター深用に作り直し）
+
+- id: hhoukai_h_arashi
+  name: スレ立て荒らし
+  cat: [スレ]
+  tier: '4'
+  grade: 特上
+  text: 出すと番付の一番高いカテゴリと一番低いカテゴリを入れ替え、掛け×1.6
+  flavor: 「このスレは俺が乗っ取った」
+  fx:
+  - when: 出し
+    do:
+    - 番付を入れ替える: {カテゴリ: 一番低い, 相手: 一番高い}
+    - {掛け: 1.6}
+
+- id: hhoukai_h_kagami
+  name: 逆さ宿の鏡
+  cat: [スレ, 宿]
+  tier: '3'
+  grade: 神
+  text: 出すと番付を上下反転し、倍率＋20。採点されると掛け×3
+  flavor: 鏡の中では、食べ物が神だった。
+  fx:
+  - when: 出し
+    do:
+    - 番付を反転
+    - {倍率: 20}
+  - when: 採点時
+    do:
+    - {掛け: 3}
+
+- id: hhoukai_h_otsu
+  name: '>>1乙'
+  cat: [スレ]
+  tier: '3'
+  grade: 上
+  text: 出すと、狙った敵の主張を8%削る（層主は半分）
+  flavor: 乙と言った者が、次のスレを立てる。
+  fx:
+  - when: 出し
+    do:
+    - 主張を削る: {対象: 狙い, 割合: 0.08, 層主なら: 0.04}
+
+- id: hhoukai_h_jisure
+  name: 次スレ
+  cat: [スレ]
+  tier: '5'
+  grade: 上
+  text: 採点されると、この札の写しをこの戦闘だけ手札に加える
+  flavor: 「次スレはこちら」→ルールが増えている。
+  fx:
+  - when: 採点時
+    do:
+    - {写しを手札に: この札}
+
+- id: hhoukai_h_dat
+  name: dat落ち職人
+  cat: [スレ]
+  tier: '2'
+  grade: 特上
+  text: 出すと、狙った敵が1ターン行動できない
+  flavor: 書き込まないことで、スレを殺す。
+  fx:
+  - when: 出し
+    do:
+    - 行動停止: {対象: 狙い, ターン: 1}
+
+- id: hhoukai_h_jien
+  name: IDの変わる人
+  cat: [スレ]
+  tier: '5'
+  grade: 並
+  text: 採点されると倍率＋（組の段位）
+  flavor: 「自演乙」「別人だが？」
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 段位}
+
+- id: hhoukai_h_matome
+  name: まとめサイト転載
+  cat: [スレ]
+  tier: '8'
+  grade: 並
+  text: 採点されると札を1枚引く
+  flavor: 【悲報】ター宿、まとめられる
+  kw: [呼び水1]

@@ -5,15 +5,15 @@ import { compileOne, parseKw } from '../../engine/content.js';
 import { hint } from '../../engine/vocab/index.js';
 
 const KEY = 'taabuka.lab';
-const DEFAULT = { kw: '', guest: '', hand: '', deck: '仮デッキ', seats: '', relics: '', enemies: 'en_teiki', floor: '1', hp: '', seed: '', banzuke: '' };
+const DEFAULT = { kw: '', guest: '', hand: '', deck: '初期デッキ', seats: '', relics: '', enemies: 'en_teiki', floor: '1', hp: '', seed: '', banzuke: '' };
 
 const PRESETS = {
   十条さとさとる: { hand: 'rk_jujo_satosatoru fx_god fx_kaku fx_udon fx_neko fx_sure fx_hone fx_inu', enemies: 'en_teiki en_jien', guest: '' },
   願望: { hand: 'rk_ganbou fx_neko fx_sure fx_hone fx_inu fx_kaeru fx_ramen fx_robo', enemies: 'en_teiki:3000' },
   交互: { hand: 'rk_yakitori fx_tare fx_soba fx_neko fx_sure fx_kotei fx_hone fx_inu', enemies: 'en_kaiko' },
   死ねーぃ: { hand: 'rk_shineei fx_neko fx_sure fx_kotei fx_hone fx_inu fx_kaeru fx_ramen', enemies: 'en_tsuri en_niwaka' },
-  土: { guest: 'tsuchi', hand: '', deck: '仮デッキ', enemies: 'en_teiki en_jien' },
-  マープ: { guest: 'maap', hand: '', deck: '仮デッキ', enemies: 'en_kaiko en_niwaka' },
+  土: { guest: 'tsuchi', hand: '', deck: '初期デッキ', enemies: 'en_teiki en_jien' },
+  マープ: { guest: 'maap', hand: '', deck: '初期デッキ', enemies: 'en_kaiko en_niwaka' },
 };
 
 const ids = (s) => String(s || '').split(/[\s,、]+/).filter(Boolean);
@@ -46,13 +46,13 @@ export function labScreen(ctx) {
     const missing = [];
     const need = (list, pool) => list.filter((x) => !pool[x]).forEach((x) => missing.push(x));
     let hand = ids(v.hand);
-    const deck = v.deck.trim() === '仮デッキ' ? ctx.tempDeck(v.guest || null) : ids(v.deck);
-    // キーワードを付けた仮の札（Tier3・ター）を手札の先頭に
+    const deck = ['初期デッキ', '仮デッキ'].includes(v.deck.trim()) ? ctx.tempDeck(v.guest || null) : ids(v.deck);
+    // キーワードを付けた試しの札（Tier3・ター）を手札の先頭に
     const kws = ids(v.kw);
     if (kws.length) {
       const bad = kws.filter((w) => !C.kwByName[parseKw(w).name]);
       if (bad.length) { toast(`知らないキーワード「${bad[0]}」。${hint(parseKw(bad[0]).name, Object.keys(C.kwByName))}`); return; }
-      C.cards.__lab_kw = compileOne(C, { id: '__lab_kw', name: `試し（${kws.join('・')}）`, cat: ['ター'], tier: '3', grade: '並', set: '仮', kw: kws, text: '' }, 'cards');
+      C.cards.__lab_kw = compileOne(C, { id: '__lab_kw', name: `試し（${kws.join('・')}）`, cat: ['ター'], tier: '3', grade: '並', set: '試し', kw: kws, text: '' }, 'cards');
       hand = ['__lab_kw', ...(hand.length ? hand : deck.filter((id) => C.cards[id]).slice(0, 7))];
     }
     const enemies = ids(v.enemies).map((s) => { const [id, claim] = s.split(':'); return { id, claim: claim ? Big.from(claim) : null }; });
@@ -72,13 +72,13 @@ export function labScreen(ctx) {
     h('div.ztop', {}, [h('h2', { text: '試し場' }), h('button.btn', { type: 'button', onclick: () => ctx.showFxLab() }, ['演出の一覧'])]),
     h('div.chips', {}, Object.keys(PRESETS).map((k) => h('button.chip', { type: 'button', onclick: () => { set(PRESETS[k]); guestSel.value = v.guest; } }, [k]))),
     h('label', {}, ['宿泊客', guestSel]),
-    field('kw', 'キーワード（付けた仮の札を手札の先頭に。例：呼び水2 消える）'),
+    field('kw', 'キーワード（付けた試しの札を手札の先頭に。例：呼び水2 消える）'),
     h('div.chips', {}, Object.values(C.kwByName).map((k) => h('button.chip', { type: 'button', onclick: () => {
       inputs.kw.value = `${inputs.kw.value} ${k.name}${k.arg ? '2' : ''}`.trim(); v.kw = inputs.kw.value; save();
     } }, [`${k.name}${k.arg ? 'N' : ''}`]))),
     field('hand', '手札（IDを空白で区切る。空なら山札から引く）'),
     h('div.cardlist', {}, [cardChips]),
-    field('deck', '山札（ID。「仮デッキ」で入門札＋仮の札17枚）'),
+    field('deck', '山札（ID。「初期デッキ」で入門札＋ター宿の並17枚）'),
     h('div.grid2', {}, [field('seats', '席（常連客ID）'), field('relics', '置物（空なら宿泊客の最初の置物）')]),
     field('enemies', `敵（ID:主張 も可）：${Object.keys(C.enemies).join(' ')}`),
     h('div.grid2', {}, [field('floor', '階', { inputmode: 'numeric' }), field('hp', '体力（空なら宿泊客の値）', { inputmode: 'numeric' })]),

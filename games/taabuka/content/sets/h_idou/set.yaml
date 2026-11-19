@@ -1,0 +1,8 @@
+id: h_idou
+name: 移動の旅
+unlock: { hand:  { 同類:  50 } }          # ほとり第6波（同類を累計50回）
+color: "#8a8a3a"
+keywords: []
+intro: カードが場から場へ渡り歩く。押しつけ、投げ飛ばし、滑り込む。
+wave: 6
+from: ター宿のほとり

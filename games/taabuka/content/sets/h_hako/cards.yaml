@@ -1,0 +1,80 @@
+# ター宿のほとり「箱と角」の移植（名前・カテゴリ・フレーバーは元のまま。効果はター深用に作り直し）
+
+- id: hhako_johnbox
+  name: ジョン・ボックス
+  cat: [宿]
+  tier: '1'
+  grade: 特上
+  text: 受けに回ると受け＋12
+  flavor: 外の様子は見ていないので知らない。
+  kw: [守り12]
+
+- id: hhako_karabox
+  name: 空のボックス
+  cat: [宿, 速さ]
+  tier: '2'
+  grade: 上
+  text: 受けに回ると受け＋8
+  flavor: ジョン・ボックスが出ていったあとの箱。
+  kw: [守り8]
+
+- id: hhako_kakunokake
+  name: ター角の欠片
+  cat: [ター]
+  tier: '2'
+  grade: 極
+  text: 採点されると〈ター〉の番付を2段上げる。採点されると掛け×2
+  flavor: 角から欠けた。欠けても、角は角。
+  fx:
+  - when: 採点時
+    do:
+    - 番付を上げる: {カテゴリ: ター, 段: 2}
+  - when: 採点時
+    do:
+    - {掛け: 2}
+
+- id: hhako_tarmaru
+  name: ター丸
+  cat: [ター]
+  tier: '3'
+  grade: 並
+  text: 採点されると強さ＋20
+  flavor: ター角の反対側にいる。角ではない。
+  fx:
+  - when: 採点時
+    do:
+    - {強さ: 20}
+
+- id: hhako_cage
+  name: ゆ虐の檻
+  cat: [宿]
+  tier: '2'
+  grade: 並
+  text: 採点されると札を1枚引く
+  flavor: 食べ物よりも弱いが、檻は強い。
+  kw: [呼び水1]
+
+- id: hhako_nafuda
+  name: 佐々木の名札
+  cat: [スレ]
+  tier: '1'
+  grade: 特上
+  text: 同じ出しに同じカテゴリの札があれば強さ＋60
+  flavor: どの佐々木の名札かは、わからない。
+  fx:
+  - when: 採点時
+    if: {同じカテゴリの札が他に: true}
+    do:
+    - {強さ: 60}
+
+- id: hhako_hakusen
+  name: 校庭の白線
+  cat: [校庭]
+  tier: '1'
+  grade: 上
+  text: 採点されると倍率＋（組の段位）
+  flavor: 白線を引き直すと、場所が変わる。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 段位}

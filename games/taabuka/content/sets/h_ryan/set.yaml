@@ -1,0 +1,8 @@
+id: h_ryan
+name: ライアンと最強候補
+unlock: { extract:  1 }          # ほとり第2波（初めて脱出）
+color: "#3a7ac0"
+keywords: []
+intro: スレに2回書かれたライアンは2人いる。最強候補たちは、それぞれの理屈で強い。
+wave: 2
+from: ター宿のほとり

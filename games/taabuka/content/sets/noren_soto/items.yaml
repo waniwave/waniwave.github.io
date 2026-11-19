@@ -1,0 +1,47 @@
+# 暖簾の外側：卓上の小瓶（お品書き・品）
+
+- id: nr_hn_kosho
+  name: S&B テーブルコショー
+  kind: 品
+  use: 戦闘中
+  text: 次の出しの強さ＋80
+  flavor: 屋台で仕入れた小瓶。
+  do:
+  - {次の出しの強さ: 80}
+
+- id: nr_hn_ninniku
+  name: S&B おろし生にんにく
+  kind: 品
+  use: 戦闘中
+  text: このターン受け＋25
+  flavor: 屋台で仕入れた小瓶。
+  do:
+  - {受け: 25}
+
+- id: nr_hn_rayu
+  name: 桃屋 辛そうで辛くない少し辛いラー油
+  kind: 品
+  use: 戦闘中
+  text: 次の出しの強さ＋50、体力＋5
+  flavor: 屋台で仕入れた小瓶。
+  do:
+  - {次の出しの強さ: 50}
+  - {体力: 5}
+
+- id: nr_hn_su
+  name: ミツカン 穀物酢
+  kind: 品
+  use: 戦闘中
+  text: 狙った敵の次の行動を消す
+  flavor: 屋台で仕入れた小瓶。
+  do:
+  - {行動を消す: 狙い}
+
+- id: nr_hn_aji
+  name: 味の素
+  kind: 品
+  use: 戦闘中
+  text: 次の出しの強さ＋150
+  flavor: 屋台で仕入れた小瓶。
+  do:
+  - {次の出しの強さ: 150}

@@ -1,4 +1,4 @@
-# 流行語（企画書 第5章）。動作確認用の6枚
+# 流行語（企画書 第5章）。30枚
 
 - id: rk_jujo_satosatoru
   name: 十条さとさとる
@@ -106,3 +106,296 @@
   test:
     - hand: [rk_shirankedo]
       expect: { V: 48 }
+
+# 流行語の残り24枚（本編で足した札。企画書 第5章の表をター深の語彙で書いたもの）
+
+- id: rk_hame
+  name: ハーメ
+  cat: [動物]
+  tier: 2
+  grade: 上
+  text: 採点されると、手札の札が全部その戦闘のあいだ〈動物〉にもなる
+  flavor: 笛の音について、札が行進していく。
+  fx:
+    - when: 採点時
+      do:
+        - 札を変える: { 対象: 手札全部, カテゴリを足す: 動物, 期間: 戦闘 }
+
+- id: rk_mouee
+  name: もうええでしょう
+  cat: [死]
+  tier: 2
+  grade: 極
+  text: その戦闘を即座に終わらせる（勝ち。報酬は敵の残り主張の割合だけ減る）
+  flavor: 暗転した画面に、それだけが残る。
+  fx:
+    - when: 出しの後
+      do:
+        - ルール: { 名前: 戦闘を即終了, 範囲: この出し }
+
+- id: rk_sodaneei
+  name: そだねーぃ
+  cat: [スレ]
+  tier: 4
+  grade: 上
+  text: このターン2回目の出しなら掛け×2.5（直前の組に、全員がうなずく）
+  flavor: 画面の札が全員うなずく。
+  fx:
+    - when: 採点時
+      if: { このターンの出し: 2 }
+      do: [ { 掛け: 2.5 } ]
+
+- id: rk_baigaeshi
+  name: 倍返しの倍返し
+  cat: [格ゲー]
+  tier: 2
+  grade: 特上
+  text: 採点されると受け＋20、さらに狙った敵の主張を（受け×4）削る
+  flavor: 倍返しだ。倍返しだ。
+  fx:
+    - when: 採点時
+      do:
+        - 受け: 20
+        - 主張を削る: { 対象: 狙い, 量: 受け*4 }
+
+- id: rk_imadeshouka
+  name: 今でしょうか
+  cat: [校庭]
+  tier: 3
+  grade: 特上
+  text: 手札に残るたびに育つ。採点されると掛け×（3＋育ち）
+  flavor: 黒板に「今」と「？」が増えていく。
+  fx:
+    - when: 手札に残る
+      do: [ { 育つ: 1 } ]
+    - when: 採点時
+      do: [ { 掛け: 3+育ち } ]
+
+- id: rk_paon
+  name: ぱおんを超えたぱおん
+  cat: [動物]
+  tier: 3
+  grade: 上
+  text: 採点されると倍率＋（失った体力÷10）
+  flavor: 画面が涙で水没し、象が鳴く。
+  fx:
+    - when: 採点時
+      do: [ { 倍率: 失った体力/10 } ]
+
+- id: rk_jejeje
+  name: じぇじぇじぇじぇ
+  cat: [湯]
+  tier: 4
+  grade: 特上
+  text: この出しで成立した組を、1段上の組として扱う
+  flavor: 「じぇ」が画面を埋め尽くす。
+  fx:
+    - when: 出しの前
+      do:
+        - ルール: { 名前: 組を1段上として扱う, 範囲: この出し }
+
+- id: rk_onetwo
+  name: ワンチーム（二人）
+  cat: [速さ]
+  tier: 3
+  grade: 特上
+  text: ちょうど2枚採点されると掛け×5
+  flavor: 2枚が肩を組んで走る。
+  fx:
+    - when: 出し
+      if: { 採点枚数: 2 }
+      do: [ { 掛け: 5 } ]
+
+- id: rk_haenai
+  name: インスタ映えない
+  cat: [ター]
+  tier: 1
+  grade: 上
+  text: 採点されると倍率＋20
+  flavor: 白飛びした画面に「#映えない」だけ。
+  fx:
+    - when: 採点時
+      do: [ { 倍率: 20 } ]
+
+- id: rk_sontaku
+  name: 忖度ーム
+  cat: [スレ]
+  tier: 2
+  grade: 上
+  text: 出すと番付の一番低いカテゴリを2段上げる
+  flavor: 番付がへりくだって、溝をなでる。
+  fx:
+    - when: 出し
+      do:
+        - 番付を上げる: { カテゴリ: 一番低い, 段: 2 }
+
+- id: rk_totonoi
+  name: ととのいすぎ
+  cat: [湯]
+  tier: 1
+  grade: 極
+  text: この戦闘の3ターン目以降なら、採点されると体力全快・掛け×3
+  flavor: 水風呂の青。外気浴の鳥が鳴く。
+  fx:
+    - when: 採点時
+      if: { 戦闘のターン以上: 3 }
+      do:
+        - 体力: 999
+        - 掛け: 3
+
+- id: rk_kaeruka
+  name: 蛙化現象化現象
+  cat: [動物]
+  tier: 5
+  grade: 特上
+  text: 採点されると、手札で一番強い札がその戦闘のあいだ蛙（Tier8）に変わり、この出しの倍率＋8
+  flavor: 札が次々に蛙になる。
+  fx:
+    - when: 採点時
+      do:
+        - 札を変える: { 対象: 手札の一番強い, Tier: "8", カテゴリを足す: 動物, 期間: 戦闘 }
+        - 倍率: 8
+
+- id: rk_oshinoko
+  name: 推しの子の子の子
+  cat: [ター]
+  tier: 4
+  grade: 特上
+  text: 採点されると、この札の写しをこの戦闘だけ手札に加える（子も子を生む）
+  flavor: 札が増えて画面からあふれる。
+  fx:
+    - when: 採点時
+      do: [ { 写しを手札に: この札 }, { 強さ: 20 } ]
+
+- id: rk_seiseiai
+  name: 生成AIの生成AI
+  cat: [ロボ]
+  tier: 3
+  grade: 上
+  text: 採点されると、手札の乱数の札の写しをこの戦闘だけ手札に加える
+  flavor: 合成された札名が、一文字ずつ打ち出される。
+  fx:
+    - when: 採点時
+      do: [ { 写しを手札に: 手札の乱数 } ]
+
+- id: rk_oyagacha
+  name: 親ガチャSSR
+  cat: [宿]
+  tier: 2
+  grade: 極
+  text: 出すと、その戦闘のあいだ宿泊客の固有の仕組みが乱数の別の宿泊客のものに変わる。倍率＋10
+  flavor: 虹色のガチャ演出。
+  fx:
+    - when: 出し
+      do:
+        - ルール: { 名前: 宿泊客の仕組みを入れ替える, 範囲: 戦闘 }
+        - 倍率: 10
+
+- id: rk_reskill
+  name: リスキリングしすぎ
+  cat: [老]
+  tier: 3
+  grade: 上
+  text: 採点されると札を2枚引き、強さ＋（捨て札の枚数×3）
+  flavor: 札が一斉に老眼鏡をかける。
+  fx:
+    - when: 採点時
+      do: [ { 引く: 2 }, { 強さ: 捨て札枚数*3 } ]
+
+- id: rk_shihon
+  name: 新しい資本主義（旧）
+  cat: [宿]
+  tier: 2
+  grade: 特上
+  text: 採点されると宿銭を10払い、倍率＋（払ったあとの宿銭÷5）
+  flavor: 小判が燃える。
+  fx:
+    - when: 採点時
+      if: { 宿銭以上: 10 }
+      do: [ { 宿銭: -10 }, { 倍率: 宿銭/5 } ]
+
+- id: rk_takaku
+  name: ター角しか勝たん
+  cat: [ター]
+  tier: God
+  grade: 神
+  text: 番付で一番高いカテゴリの札なら掛け×4
+  flavor: 画面の角以外が暗くなる。
+  fx:
+    - when: 採点時
+      if: { カテゴリ: 一番高い }
+      do: [ { 掛け: 4 } ]
+
+- id: rk_gugure
+  name: ググれカスタネット
+  cat: [スレ]
+  tier: 5
+  grade: 並
+  text: 出すと山札の上5枚を見て並べ替える。札を1枚引く
+  flavor: カスタネットが鳴る。
+  fx:
+    - when: 出しの後
+      do:
+        - ルール: { 名前: 山札の上を見る・並べ替える, 枚数: 5, 範囲: この出し }
+        - 引く: 1
+
+- id: rk_numa
+  name: 沼ボーイ
+  cat: [湯]
+  tier: 4
+  grade: 上
+  text: 出すと狙った敵が2ターン行動できず、受け＋10
+  flavor: 敵が沼に首まで沈む。
+  fx:
+    - when: 出し
+      do:
+        - 行動停止: { 対象: 狙い, ターン: 2 }
+        - 受け: 10
+
+- id: rk_cancel
+  name: キャンセル界隈界隈
+  cat: [湯]
+  tier: 3
+  grade: 上
+  text: 出すと狙った敵の次の行動を消し、このターンの流し＋1
+  flavor: 画面じゅうに取り消し線。
+  fx:
+    - when: 出し
+      do:
+        - 行動を消す: 狙い
+        - 流し回数: { 増減: 1 }
+
+- id: rk_yukkuri
+  name: ゆっくりしていってね（早口）
+  cat: [速さ]
+  tier: 4
+  grade: 特上
+  text: この戦闘1回目の出しなら、その戦闘のあいだ出し＋1・手札上限−2
+  flavor: 字幕だけが早口で流れる。
+  fx:
+    - when: 出し
+      if: { 戦闘の出し: 1 }
+      do:
+        - 出し回数: { 増減: 1, 期間: 戦闘 }
+        - 手札上限: { 増減: -2, 期間: 戦闘 }
+
+- id: rk_futehodo
+  name: ふてほど
+  cat: [校庭]
+  tier: 3
+  grade: 上
+  text: 採点の最初なら掛け×2.5
+  flavor: 朝礼台で校長が謝罪する。
+  fx:
+    - when: 採点時
+      if: { 採点の順番: 最初 }
+      do: [ { 掛け: 2.5 } ]
+
+- id: rk_are
+  name: アレ
+  cat: [スレ]
+  tier: 1
+  grade: 特上
+  kw: [伏せ字]
+  text: 何が起きるかは出すまで分からない
+  flavor: 札の名前も効果も、伏せ字のまま。

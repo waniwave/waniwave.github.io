@@ -1,0 +1,8 @@
+id: h_esa
+name: 動物と餌
+unlock: { reach:  9 }          # ほとり第5波（B9到達）
+color: "#c03a5a"
+keywords: []
+intro: 動物は食べ物を食べて強くなる。自分の餌か、隣の餌か。
+wave: 5
+from: ター宿のほとり

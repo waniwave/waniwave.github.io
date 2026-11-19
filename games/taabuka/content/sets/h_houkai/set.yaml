@@ -1,0 +1,8 @@
+id: h_houkai
+name: スレ崩壊
+unlock: { reach:  16 }          # ほとり第9波（B16到達）
+color: "#555555"
+keywords: []
+intro: ティア表をめちゃくちゃにし、親の座を奪い、場の効果を増やす。スレそのものを壊すカードたち。
+wave: 9
+from: ター宿のほとり

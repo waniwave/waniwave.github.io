@@ -1,0 +1,8 @@
+id: h_yado
+name: 女将の宿
+unlock: { extract:  1 }          # ほとり第2波（初めて脱出）
+color: "#3a7ac0"
+keywords: []
+intro: 女将マープと番頭たち。手帳とそろばんで、ティア操作の権利を動かす。
+wave: 2
+from: ター宿のほとり

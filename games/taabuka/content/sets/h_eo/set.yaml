@@ -1,0 +1,8 @@
+id: h_eo
+name: EOと秒速
+unlock: { extract:  1 }          # ほとり第2波（初めて脱出）
+color: "#3a7ac0"
+keywords: []
+intro: EOとOEは揃えば10倍。秒速5タームメートルは場から場へ通り過ぎていく。
+wave: 2
+from: ター宿のほとり

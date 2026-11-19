@@ -1,0 +1,8 @@
+id: h_teishoku
+name: 定食
+unlock: { start:  true }          # ほとり第1波（最初から）
+color: "#c0703a"
+keywords: []
+intro: 小鉢・みそ汁・漬物をそろえて定食を完成させる。フードファイターは隣の食卓を狙う。
+wave: 1
+from: ター宿のほとり

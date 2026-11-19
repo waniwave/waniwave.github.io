@@ -1,0 +1,364 @@
+# プロトコルチャーハン（30枚。ター宿のほとりの4セット28枚＋2枚。名前・カテゴリ・フレーバーは元のまま）
+
+- id: hchahan1_chanker
+  name: チャンカー
+  cat: [ロボ]
+  tier: '3'
+  grade: 上
+  text: 採点されると倍率＋3
+  flavor: 名前はない。「チャンカー」と呼ばれている。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 3}
+
+- id: hchahan1_killchooser
+  name: キルチョイサー
+  cat: [ロボ]
+  tier: '4'
+  grade: 上
+  text: 同じ出しに同じカテゴリの札があれば強さ＋30
+  flavor: 第一章で出会う。距離は、いつも保っている。
+  fx:
+  - when: 採点時
+    if: {同じカテゴリの札が他に: true}
+    do:
+    - {強さ: 30}
+
+- id: hchahan1_oroll
+  name: オロール
+  cat: [ロボ]
+  tier: '2'
+  grade: 特上
+  text: 採点されると掛け×1.5
+  flavor: 温泉でも、甲冑のまま。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.5}
+
+- id: hchahan1_rou
+  name: 料理長・朗（人格データ）
+  cat: [ロボ, 食べ物]
+  tier: '4'
+  grade: 並
+  text: 採点されると強さ＋16
+  flavor: 最下層に眠る、朗々飯店の料理長の人格。
+  fx:
+  - when: 採点時
+    do:
+    - {強さ: 16}
+
+- id: hchahan1_crackspeed
+  name: プロトコルチャーハン・クラックスピード
+  cat: [食べ物, ロボ]
+  tier: '2'
+  grade: 特上
+  text: 採点されると〈食べ物〉の番付を2段上げる
+  flavor: 脳に「実感」を書き込む、唯一の規格。
+  fx:
+  - when: 採点時
+    do:
+    - 番付を上げる: {カテゴリ: 食べ物, 段: 2}
+
+- id: hchahan1_blackhole
+  name: プロトコルチャーハン・ブラックホール
+  cat: [食べ物, ロボ]
+  tier: '8'
+  grade: 並
+  text: 採点されると札を1枚引く
+  flavor: 挿すんじゃない、混ぜるんだ。いちばん重い井戸の底で。
+  kw: [呼び水1]
+
+- id: hchahan1_shumai
+  name: 野良犬シューマイ
+  cat: [動物]
+  tier: '2'
+  grade: 神
+  text: 採点されると倍率＋（捨て札の枚数×1.2）。採点されると掛け×3
+  flavor: 肉まんを2回分けてもらった。3回目で、ついてきた。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 捨て札枚数*1.2}
+  - when: 採点時
+    do:
+    - {掛け: 3}
+
+- id: hchahan2_kaichou
+  name: マンカン会長
+  cat: [ロボ, 老]
+  tier: '1'
+  grade: 特上
+  text: 採点されると掛け×1.5
+  flavor: 若い頃、遠くから朗々飯店へ通った客。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.5}
+
+- id: hchahan2_midou
+  name: ミドウ常務
+  cat: [ロボ]
+  tier: '3'
+  grade: 上
+  text: 〈ロボ〉の札が2枚以上採点されると倍率＋5
+  flavor: 決裁は早い。
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: ロボ, 枚数以上: 2}
+    do:
+    - {倍率: 5}
+
+- id: hchahan2_tsukimi
+  name: ツキミ部長
+  cat: [ロボ]
+  tier: '4'
+  grade: 並
+  text: 採点されると札を1枚引く
+  flavor: 退職の手続きは、まだ終わっていない。
+  kw: [呼び水1]
+
+- id: hchahan2_titan
+  name: 歩行要塞タイタン
+  cat: [ロボ]
+  tier: God
+  grade: 神
+  text: 採点されると掛け×3.5
+  flavor: 第三章の終わりに歩いてくる。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 3.5}
+
+- id: hchahan2_gastro
+  name: ガストロノミカ
+  cat: [ロボ, 食べ物]
+  tier: '2'
+  grade: 特上
+  text: 採点されると〈食べ物〉の番付を2段上げる
+  flavor: 静かの海の、第八厨房にいる。
+  fx:
+  - when: 採点時
+    do:
+    - 番付を上げる: {カテゴリ: 食べ物, 段: 2}
+
+- id: hchahan2_zerocal
+  name: ゼロカロリー
+  cat: [ロボ]
+  tier: '4'
+  grade: 並
+  text: 採点されると強さ＋16
+  flavor: 空腹同盟。集会は第三章のあと。
+  fx:
+  - when: 採点時
+    do:
+    - {強さ: 16}
+
+- id: hchahan2_sommelier
+  name: サイレント・ソムリエ
+  cat: [ロボ]
+  tier: '3'
+  grade: 上
+  text: 採点されると倍率＋3
+  flavor: 戦闘の中で、説得に応じた。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 3}
+
+- id: hchahan3_hongjie
+  name: 紅姐
+  cat: [ロボ, 老]
+  tier: '3'
+  grade: 特上
+  text: 〈ロボ〉の札が2枚以上採点されると掛け×1.6
+  flavor: ノゲのスナック「止まり木」で、往診を受けている。
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: ロボ, 枚数以上: 2}
+    do:
+    - {掛け: 1.6}
+
+- id: hchahan3_pedal
+  name: ペダル
+  cat: [速さ, ロボ]
+  tier: '1'
+  grade: 神
+  text: 採点されると札を3枚引く。採点されると掛け×3
+  flavor: 観覧車に乗りたがる。
+  kw: [呼び水3]
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 3}
+
+- id: hchahan3_wan
+  name: ワン
+  cat: [ロボ, 食べ物]
+  tier: '3'
+  grade: 上
+  text: 採点されると倍率＋3
+  flavor: 倒したあとで、仲間になった。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 3}
+
+- id: hchahan3_xiaolong
+  name: 小籠
+  cat: [ロボ, 食べ物]
+  tier: '3'
+  grade: 上
+  text: 採点されると倍率＋3
+  flavor: ガイノイド。中華街の屋台が好き。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 3}
+
+- id: hchahan3_gantetsu
+  name: ガンテツ
+  cat: [老, 湯]
+  tier: '3'
+  grade: 並
+  text: 受けに回ると受け＋5
+  flavor: カワサキの工場で会う。60代。
+  kw: [守り5]
+
+- id: hchahan3_yumori
+  name: 湯守
+  cat: [ロボ, 湯]
+  tier: '2'
+  grade: 特上
+  text: 採点されると〈湯〉の番付を2段上げる
+  flavor: ハコネの源泉を守るロボット。
+  fx:
+  - when: 採点時
+    do:
+    - 番付を上げる: {カテゴリ: 湯, 段: 2}
+
+- id: hchahan3_pc_nanashi
+  name: ナナシ（野良ドローン）
+  cat: [ロボ, 速さ]
+  tier: '5'
+  grade: 並
+  text: ターン終了時に手札にあれば受け＋4
+  flavor: 埠頭の野良ドローン。
+  fx:
+  - when: ターン終了
+    do:
+    - {受け: 4}
+
+- id: hchahan4_lin
+  name: リン
+  cat: [ロボ]
+  tier: '4'
+  grade: 上
+  text: 採点されると倍率＋（組の段位）
+  flavor: 売り先が決まってから、ノゲで会う。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 段位}
+
+- id: hchahan4_glassjaw
+  name: グラスジョー
+  cat: [格ゲー, ロボ]
+  tier: '1'
+  grade: 神
+  text: 採点されると倍率＋（捨て札の枚数×1.2）。採点されると掛け×3
+  flavor: 闘技場の王者。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 捨て札枚数*1.2}
+  - when: 採点時
+    do:
+    - {掛け: 3}
+
+- id: hchahan4_hijiki
+  name: キャプテン・ヒジキ
+  cat: [ロボ]
+  tier: '3'
+  grade: 特上
+  text: 採点されると掛け×1.5
+  flavor: ホンモクの船乗り。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.5}
+
+- id: hchahan4_whiteglove
+  name: ホワイトグローブ
+  cat: [宿, ロボ]
+  tier: '3'
+  grade: 上
+  text: 採点されると倍率＋3
+  flavor: ヤマテの洋館の給仕。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 3}
+
+- id: hchahan4_mutsuko
+  name: ムツコ
+  cat: [老, ロボ]
+  tier: '4'
+  grade: 特上
+  text: 採点されると〈老〉の番付を2段上げる
+  flavor: カシワ天文台。70代の飛行士。
+  fx:
+  - when: 採点時
+    do:
+    - 番付を上げる: {カテゴリ: 老, 段: 2}
+
+- id: hchahan4_pc_tenin
+  name: テンイン
+  cat: [ロボ]
+  tier: '8'
+  grade: 並
+  text: 〈ロボ〉の札が2枚以上採点されると倍率＋3
+  flavor: メガモール地下5階で働いている。
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: ロボ, 枚数以上: 2}
+    do:
+    - {倍率: 3}
+
+- id: hchahan4_satou
+  name: サトウ
+  cat: [食べ物, ロボ]
+  tier: '4'
+  grade: 並
+  text: 採点されると強さ＋16
+  flavor: カンナイで会う。
+  fx:
+  - when: 採点時
+    do:
+    - {強さ: 16}
+
+- id: chahan_jiro
+  name: 万屋ジロー
+  cat: [ロボ, 宿]
+  tier: '2'
+  grade: 上
+  text: 採点されると宿銭＋2
+  flavor: メモリは埠頭でしか売らない。
+  fx:
+  - when: 採点時
+    do:
+    - {宿銭: 2}
+
+- id: chahan_rouro
+  name: 朗々飯店
+  cat: [食べ物, 宿, 死]
+  tier: '0'
+  grade: 極
+  text: 〈食べ物〉の札が3枚以上採点されると掛け×3
+  flavor: あの一皿は、もう誰も作れない。
+  fx:
+  - when: 出し
+    if: {採点札のカテゴリ: 食べ物, 枚数以上: 3}
+    do:
+    - {掛け: 3}

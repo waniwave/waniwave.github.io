@@ -1,0 +1,8 @@
+id: h_ham
+name: ハーム
+unlock: { start:  true }          # ほとり第1波（最初から）
+color: "#c0703a"
+keywords: []
+intro: 増えるハーム。切れ端ごとティアの波に乗る。食べ物は捨て札でも意味を持つ。
+wave: 1
+from: ター宿のほとり

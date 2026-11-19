@@ -1,0 +1,8 @@
+id: h_taam
+name: TAAM
+unlock: { start:  true }          # ほとり第1波（最初から）
+color: "#c0703a"
+keywords: []
+intro: おばあさんは最初に死に、おじいさんは最後に死ぬ。捨て札が増えるほど強くなる一家。
+wave: 1
+from: ター宿のほとり
