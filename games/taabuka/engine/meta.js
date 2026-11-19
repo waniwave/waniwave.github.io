@@ -443,6 +443,8 @@ export function beginDive(base, H, o) {
     ...(L.shibari ? { shibari: L.shibari } : {}),
   });
   D.innDive = H.records.dives + 1;
+  // 稽古の潜行（最初の1回・女将の案内つき）：倒れても持ち込んだ物は蔵に戻る。懐の拾い物は失う
+  if (o.practice && H.records.dives === 0) D.practice = true;
   H.records.dives += 1;
   H.diving = true;
   return D;
@@ -614,7 +616,16 @@ export function finishDive(base, H, D) {
   } else {
     // 未帰還：お守り袋の中身だけ蔵へ。それ以外は全て失う
     for (const x of D.charm) { const c = clean(x); H.stash.push(c); }
-    const lostThings = D.sudomari ? [] : [
+    // 稽古：持ち込んだ札・常連客・お品書きは蔵へ戻し、デッキの編成もそのまま
+    if (D.practice) {
+      const back = [...D.deck.map((x) => asStash(x, 'card')), ...D.seats.map((x) => asStash(x, 'regular')), ...D.items.map((x) => asStash(x, 'item'))]
+        .filter((x) => !x.borrowed && x.brought).map(clean);
+      for (const x of back) H.stash.push(x);
+      H.deck = back.filter((x) => x.type === 'card').map((x) => x.uid).slice(0, base.balance.hands.play.deckMax);
+      rep.practice = true;
+      rep.kept = back.map((x) => nameOf(base, x));
+    }
+    const lostThings = D.sudomari ? [] : D.practice ? [...D.pouch] : [
       ...D.deck.map((x) => asStash(x, 'card')), ...D.seats.map((x) => asStash(x, 'regular')), ...D.items.map((x) => asStash(x, 'item')), ...D.pouch,
     ].filter((x) => !x.borrowed);
     let kuyoSum = 0;
@@ -633,7 +644,7 @@ export function finishDive(base, H, D) {
     rep.kuyo = Math.round(kuyoSum * E.kuyoRate);
     H.lostLog.length = Math.min(H.lostLog.length, E.lostLogSize);
     R.deaths += 1;
-    H.deck = H.deck.filter((u) => H.stash.some((s) => s.uid === u));
+    if (!D.practice) H.deck = H.deck.filter((u) => H.stash.some((s) => s.uid === u));
   }
   // 両方：記録・素泊まり・戻り待ちの抽選
   for (const id of D.stats.met || []) seen(H, id, false);

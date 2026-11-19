@@ -430,3 +430,34 @@ button { font: inherit; color: inherit; }
 .prow .dtext { font-size: 11px; flex: 1; }
 .stampmini { font-size: 10px; margin-left: 3px; color: var(--acc2); }
 .chips.guests .chip { min-height: 36px; padding: 0 8px; font-size: 13px; }
+
+/* 女将の案内（ui/coach.js） */
+#coach { position: absolute; inset: 0; z-index: 35; pointer-events: none; display: none; }
+#coach.on { display: block; }
+#coach .ccatch { position: absolute; inset: 0; display: none; }
+#coach.block .ccatch { display: block; pointer-events: auto; }
+#coach .cspot { position: absolute; border-radius: 10px; border: 2px solid #f0c75e; box-shadow: 0 0 0 9999px rgba(20, 14, 8, .58); pointer-events: none; transition: left .2s, top .2s, width .2s, height .2s; }
+#coach.doing .cspot { box-shadow: 0 0 0 9999px rgba(20, 14, 8, .38); animation: cpulse 1.2s ease-in-out infinite; }
+#coach.nospot .ccatch { background: rgba(20, 14, 8, .5); }
+@keyframes cpulse { 50% { border-color: #fff3c2; outline: 4px solid #f0c75e66; } }
+#coach .cbub { position: absolute; left: 8px; right: 8px; pointer-events: auto; background: #2a2520f2; color: #f3ead6; border-radius: 14px; padding: 10px 12px; box-shadow: 0 8px 24px #0008; display: flex; flex-direction: column; gap: 6px; max-height: 44%; overflow: auto; }
+#coach .cbub.low { bottom: calc(10px + env(safe-area-inset-bottom)); top: auto; }
+#coach .cbub.high { top: calc(10px + env(safe-area-inset-top)); bottom: auto; }
+#coach .cbub.mid { bottom: auto; top: 50%; transform: translateY(-50%); }
+#coach .cbub:not(.mid) { transform: none; }
+#coach .chead { display: flex; justify-content: space-between; align-items: baseline; }
+#coach .cname { font-family: var(--mincho); font-weight: 700; color: #f0c75e; font-size: 14px; }
+#coach .cname::before { content: '👘 '; }
+#coach .ccount { font-size: 11px; color: #b9aa8e; }
+#coach .ctext p { margin: 0 0 4px; font-size: 14px; line-height: 1.6; }
+#coach .crow { display: flex; gap: 8px; justify-content: flex-end; }
+#coach .crow .btn { background: transparent; color: #f3ead6; border-color: #6e6455; font-size: 13px; }
+#coach .crow .btn.main { background: #b8432c; border-color: #b8432c; color: #fff; flex: 0 0 auto; min-width: 96px; }
+#coach .crow .cquit { margin-right: auto; color: #b9aa8e; }
+
+/* 遊び方 */
+.rules h3 { margin: 6px 0 2px; font-family: var(--mincho); font-size: 16px; }
+.rules ul { margin: 0; padding-left: 1.2em; }
+.rules li { font-size: 14px; line-height: 1.6; margin-bottom: 2px; }
+#coach .cring { position: absolute; border-radius: 10px; border: 3px solid #f0c75e; box-shadow: 0 0 12px #f0c75e; pointer-events: none; animation: cpulse 1.2s ease-in-out infinite; }
+#coach.doing .cspot:has(~ .crings:not(:empty)) { border-color: transparent; animation: none; }

@@ -34,9 +34,9 @@ const put = (el, ...kids) => el.replaceChildren(...kids.flat().filter((k) => k !
 
 function guard(fn) { try { fn(); return true; } catch (e) { if (e.userError) { toast(e.message); return false; } throw e; } }
 
-function top(title, H, back) {
+function top(title, H, back, left = null) {
   return h('header.itop', {}, [
-    back ? h('button.btn', { type: 'button', onclick: back }, ['戻る']) : h('span'),
+    back ? h('button.btn', { type: 'button', onclick: back }, ['戻る']) : left ?? h('span'),
     h('h2', { text: title }),
     h('div.wallet', {}, [h('span', {}, ['宿銭 ', h('b', { text: H.zeni })]), H.kuyo ? h('span', {}, ['供養 ', h('b', { text: H.kuyo })]) : null, H.debt ? h('span.debt', {}, ['借金 ', h('b', { text: H.debt })]) : null]),
   ]);
@@ -55,6 +55,16 @@ function depthText(base, d) {
   if (!d) return '条件なし';
   const lv = base.balance.depth.levels[d] || {};
   return Object.entries(lv).map(([k, v]) => DEPTH_TEXT[k]?.(v) ?? k).join('・') + (d > 1 ? '（これまでの分も）' : '');
+}
+
+/** 遊び方（決まりごとの一覧。中身は ui/lessons.js） */
+export function rulesSheet(ctx) {
+  const s = sheet(ctx.app, [
+    h('h2', { text: '遊び方' }),
+    h('div.rules', {}, ctx.rules().flatMap(([title, lines]) => [h('h3', { text: title }), h('ul', {}, lines.map((t) => h('li', { text: t })))])),
+    h('div.row', {}, [h('button.btn.main', { type: 'button', onclick: () => s.close() }, ['閉じる'])]),
+  ]);
+  return s;
 }
 
 // ───────────────────────── 宿 ─────────────────────────
@@ -76,7 +86,7 @@ export function innScreen(ctx) {
     });
     const room = stashRoom(base, H);
     put(root, 
-      top('宿', H, null),
+      top('宿', H, null, h('button.btn', { type: 'button', onclick: () => rulesSheet(ctx) }, ['遊び方'])),
       ctx.updateReady?.() ? h('button.btn.update', { type: 'button', onclick: () => ctx.applyUpdate() }, ['新しい版があります。更新する']) : null,
       h('div.recs', { text: `最深 B${H.records.deepest}・最大論破値 ${format(H.records.maxV)}・脱出 ${H.records.extracts}・未帰還 ${H.records.deaths}` }),
       h('div.facs', {}, rows),
@@ -360,6 +370,7 @@ export function resultScreen(ctx, rep) {
     ok ? h('p.q', { text: `宿銭 ＋${rep.zeni}${rep.relicCash ? `（置物の換金 ${rep.relicCash}）` : ''}${rep.thanks ? `・謝礼 ${rep.thanks}` : ''}${rep.betZeni ? `・賭け ${rep.betZeni}` : ''}${rep.debtPaid ? `・借金の返済 ${rep.debtPaid}` : ''}` }) : null,
     recordEl,
     h('main.ibody', {}, [
+      rep.practice ? h('p.ok', { text: '稽古だったので、持ち込んだデッキは蔵に戻った。' }) : null,
       h('h3', { text: ok ? '持ち帰った' : '失った' }), gotBox,
       ...((rep.charm || []).length ? [h('h3', { text: 'お守り袋' }), charmBox] : []),
       ...list('期限で消えた', rep.expired),
@@ -450,6 +461,12 @@ export function settingsScreen(ctx) {
         row('効果音', range('se')),
         row('戦闘の速さ', chipsOf('speed', [[1, '×1'], [2, '×2'], [4, '×4']])),
         row('数字の表記', chipsOf('numFmt', [['漢字', '3兆2500億'], ['指数', '3.25e12']])),
+      h('h3', { text: '女将の案内' }),
+        row('案内', h('div.chips', {}, [[true, 'オン'], [false, 'オフ']].map(([v, t]) => h(`button.chip${(ctx.coach?.on() ?? false) === v ? '.on' : ''}`, { type: 'button', onclick: () => { ctx.coach?.setOn(v); render(); } }, [t])))),
+        h('div.row', {}, [
+          h('button.btn', { type: 'button', onclick: () => { ctx.coach?.reset(); toast('案内を最初から聞ける。宿に戻ると始まる'); render(); } }, ['案内を最初から']),
+          h('button.btn', { type: 'button', onclick: () => rulesSheet(ctx) }, ['遊び方']),
+        ]),
       h('h3', { text: '書き出し' }),
       out,
       h('div.row', {}, [

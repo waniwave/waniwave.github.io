@@ -35,6 +35,13 @@ BUILD は `index.html` と `sw.js` にあり、読み込むファイルには `?
 
 既存のIDは `docs/ids.md`（`node tools/check.mjs --ids`）。敵は `content/enemies/`、謎は `content/events/`、キーワード能力は `content/keywords/` に同じように足せます。
 
+## 女将の案内（チュートリアル）
+
+- 中身は `ui/lessons.js`（案内の文と照らす場所、遊び方の一覧）。出し方は `ui/coach.js`
+- 案内は「いまの画面と状態」に合った最初の未読のものが出る。案内を1つ足すときは `LESSONS` に1項目足すだけ
+- 進み具合は宿のセーブ（`H.hints.tut`）。設定の「女将の案内」でオン・オフと「案内を最初から」
+- 最初の1回の潜行は稽古（倒れても持ち込んだデッキが蔵に戻る）
+
 ## 道具
 
 | コマンド | すること |

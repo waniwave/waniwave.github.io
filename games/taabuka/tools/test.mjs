@@ -1125,6 +1125,25 @@ group('段階5：宿と永続（meta.js）');
   eq(H2.stash.length - sdeck, r3.returned.length, '戻った分だけ蔵に増える');
   eq(r3.returned.length + r3.notReturned.length, 10, '戻り待ちは次の潜行の後に全部抽選される');
   eq(H2.insuredPending.length, 0, '戻り待ちは空になる');
+  // 稽古（最初の1回）：倒れても持ち込んだデッキは蔵に戻り、編成もそのまま。懐の拾い物は失う
+  {
+    const Hp = M.newInn(base, 'innP');
+    const deck0 = Hp.deck.slice();
+    const P1 = M.beginDive(base, Hp, { seed: 'p1', practice: true });
+    ok(P1.practice === true, '最初の潜行は稽古になる');
+    P1.pouch.push({ uid: 'pk1', type: 'card', id: P1.deck[0].id, origin: 'orig' });
+    P1.phase = 'battle'; P1.battle = { room: 0, kind: '通常', enemies: ['en_teiki'] };
+    { const { B, env } = Dv.diveBattle(base, P1); startBattle(B, env); B.hp = 0; B.result = 'lose'; Dv.finishBattle(base, P1, B); }
+    const rp = M.finishDive(base, Hp, P1);
+    ok(rp.outcome === 'lost' && rp.practice, '稽古の未帰還');
+    ok(deck0.every((u) => Hp.stash.some((x) => x.uid === u)), '持ち込んだ札は蔵に戻る');
+    eq(Hp.deck.join(), deck0.join(), 'デッキの編成もそのまま');
+    ok(!Hp.stash.some((x) => x.uid === 'pk1') && rp.lost.length === 1, '懐の拾い物は失う');
+    eq(Hp.kuyo, 0, '稽古では供養点も付かない');
+    ok(!rp.starter, '素泊まりセットは配られない');
+    const P2 = M.beginDive(base, Hp, { seed: 'p2', practice: true });
+    ok(!P2.practice, '2回目からは稽古にならない');
+  }
   // 戻り率どおり（多数で）
   let won = 0, all = 0;
   for (let k = 0; k < 40; k++) {
@@ -1647,6 +1666,30 @@ group('完全版：札の中身（ター宿・ほとり・プロトコルチャ�
   ok(!pool.items.some((id) => C.items[id].set === 'noren_soto'), '暖簾の外側の小瓶は解放前は出ない');
   H.records.brought = ['sv_noren']; M.refreshUnlocks(base, H);
   ok(H.unlocked.sets.includes('noren_soto') && M.poolOf(base, H, 'tsuchi').items.some((id) => C.items[id].set === 'noren_soto'), '暖簾の切れ端を持ち帰ると暖簾の外側が出る');
+}
+
+group('読み込みの取り直し（GitHub Pages の 503 対策）');
+{
+  const { fetchIO } = await import('../engine/content.js');
+  const tries = {};
+  let peak = 0, now = 0;
+  const fake = async (u) => {
+    now += 1; peak = Math.max(peak, now);
+    await new Promise((r) => setTimeout(r, 5));
+    now -= 1;
+    const k = u.split('?')[0];
+    tries[k] = (tries[k] || 0) + 1;
+    if (k.endsWith('missing.yaml')) return { ok: false, status: 404 };
+    if (tries[k] <= 2) return { ok: false, status: 503 };
+    return { ok: true, status: 200, text: async () => 'ok' };
+  };
+  const io = fetchIO('http://x/', 'b1', { fetch: fake });
+  const got = await Promise.all(Array.from({ length: 20 }, (_, i) => io.readText(`f${i}.yaml`)));
+  ok(got.every((x) => x === 'ok'), '503 が2回続いても取り直して読める');
+  ok(peak <= 6, `同時に取りに行くのは6本まで（いちばん多いとき ${peak}）`);
+  let err = '';
+  try { await io.readText('missing.yaml'); } catch (e) { err = e.message; }
+  ok(/404/.test(err) && tries['http://x/content/missing.yaml'] === 1, '404 は取り直さずにすぐ知らせる');
 }
 
 group('engine/ に札や敵の個別の処理がない');

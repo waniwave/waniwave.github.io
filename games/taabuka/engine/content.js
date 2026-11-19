@@ -61,15 +61,42 @@ export function fetchIO(base, build, impl = {}) {
   const f = impl.fetch ?? globalThis.fetch;
   const imp = impl.importer ?? ((u) => import(u));
   const url = (p) => new URL(`content/${p}?v=${encodeURIComponent(build)}`, base).href;
+  // 一度に取りに行く数を絞り、混み合い（503・429）や通信の途切れは間をおいて取り直す。
+  // GitHub Pages は数百のファイルを一斉に頼むと 503 を返すことがある
+  let active = 0;
+  const waiting = [];
+  const slot = async (fn) => {
+    if (active >= FETCH_LIMIT) await new Promise((res) => waiting.push(res));
+    active += 1;
+    try { return await fn(); } finally { active -= 1; waiting.shift()?.(); }
+  };
+  const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+  const retry = async (p, fn) => {
+    let last;
+    for (let i = 0; i < FETCH_TRIES; i++) {
+      try { return await fn(i); } catch (e) { last = e; if (e.permanent) throw e; }
+      await sleep(400 * 2 ** i);
+    }
+    throw last;
+  };
   return {
-    readText: async (p) => {
+    readText: (p) => retry(p, () => slot(async () => {
       const r = await f(url(p));
-      if (!r.ok) throw new Error(`content/${p} が読めない（${r.status}）`);
+      if (!r.ok) {
+        const e = new Error(`content/${p} が読めない（${r.status}）`);
+        e.permanent = r.status === 404;
+        throw e;
+      }
       return r.text();
-    },
-    importModule: (p) => imp(url(p)),
+    })),
+    // import() は一度失敗した URL を覚えてしまうので、取り直すときは URL を変える
+    importModule: (p) => retry(p, (i) => slot(() => imp(i ? `${url(p)}&r=${i}` : url(p)))),
   };
 }
+
+/** 同時に取りに行くファイルの数と、取り直す回数 */
+const FETCH_LIMIT = 6;
+const FETCH_TRIES = 5;
 
 /**
  * Node 用の読み方（fs と import()）。dir は content/ のフォルダ

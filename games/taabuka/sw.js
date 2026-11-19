@@ -1,6 +1,6 @@
 // サービスワーカー：オフライン起動。BUILD ごとに先読みし直す（一覧は tools/release.mjs が書く）。
 // 新しい版が入っても勝手に切り替えない。宿の画面の「更新」で切り替える（SKIP_WAITING を受けたら入れ替わる）。
-const BUILD = '0.9.0-1';
+const BUILD = '0.9.1-1';
 const FILES = [
   './content/achievements.yaml',
   './content/balance/curve.yaml',
@@ -231,6 +231,7 @@ const FILES = [
   './manifest.webmanifest',
   './ui/art.js',
   './ui/audio/audio.js',
+  './ui/coach.js',
   './ui/dom.js',
   './ui/fx/flash.js',
   './ui/fx/particles.js',
@@ -238,6 +239,7 @@ const FILES = [
   './ui/fx/shows.js',
   './ui/items.js',
   './ui/labels.js',
+  './ui/lessons.js',
   './ui/main.js',
   './ui/num.js',
   './ui/save.js',
@@ -256,7 +258,18 @@ const FILES = [
 const CACHE = `taabuka-${BUILD}`;
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' })))));
+  // 一斉に頼むと GitHub Pages が 503 を返すことがあるので、6本ずつ、失敗したら間をおいて取り直す。
+  // 取れなかったファイルは先読みしないだけ（開いたときに取りに行く）
+  e.waitUntil((async () => {
+    const c = await caches.open(CACHE);
+    const one = async (f) => {
+      for (let i = 0; i < 4; i++) {
+        try { const r = await fetch(new Request(f, { cache: 'reload' })); if (r.ok) { await c.put(f, r); return; } if (r.status === 404) return; } catch { /* 取り直す */ }
+        await new Promise((res) => setTimeout(res, 500 * 2 ** i));
+      }
+    };
+    for (let i = 0; i < FILES.length; i += 6) await Promise.all(FILES.slice(i, i + 6).map(one));
+  })());
 });
 
 self.addEventListener('activate', (e) => {

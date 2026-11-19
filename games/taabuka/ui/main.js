@@ -21,6 +21,8 @@ import { setNumMode } from './num.js';
 import { unlockAudio, setAudioOptions, playBgm, stopBgm, startHeart, stopHeart } from './audio/audio.js';
 import { layerAt, layerNo } from '../engine/dive.js';
 import { loadContent, fetchIO } from '../engine/content.js';
+import { createCoach } from './coach.js';
+import { rules } from './lessons.js';
 import { createBattle, openBattle, startBattle, makeBattleCard, attachCard } from '../engine/battle.js';
 
 const BUILD = window.BUILD || 'dev';
@@ -68,6 +70,7 @@ function show(screen) {
   hideTip();
   if (current?.el) current.el.remove();
   current = screen;
+  window.__taabuka?.coach?.pause?.(250);
   app.prepend(screen.el);
   for (const id of ['side-l', 'side-r']) if (!screen.sides) document.getElementById(id).replaceChildren();
   screen.render?.();
@@ -165,7 +168,7 @@ function startDive(sudomari, special) {
   try {
     if (special?.daily) D = beginDaily(base, H, { date: special.daily });
     else if (special?.code) D = beginShared(base, H, { code: special.code });
-    else D = beginDive(base, H, { seed: Date.now().toString(36), sudomari });
+    else D = beginDive(base, H, { seed: Date.now().toString(36), sudomari, practice: !sudomari && coach.on() && H.records.dives === 0 });
   }
   catch (e) { if (e.userError) { toast(e.message); return; } throw e; }
   persist('both');   // 持ち込みの確定：蔵から除くのと潜行中セーブを1つの書き込みで
@@ -228,7 +231,7 @@ function showDiveBattle() {
 
 // ───────── 宿 ─────────
 const innCtx = {
-  app, base, settings, saveSettings, queue, applySettings, H: () => H, save: () => persist('inn'),
+  app, base, coach: null, rules: () => rules(base), settings, saveSettings, queue, applySettings, H: () => H, save: () => persist('inn'),
   exportText: async () => { await saving; return exportText(saveInn(H), D ? saveDive(D) : null); },
   importText: async (t) => {
     const o = await importText(t);
@@ -275,4 +278,11 @@ const ctx = {
 };
 function home() { const s2 = dev ? labScreen({ ...ctx, back: home }) : titleScreen({ ...ctx, back: home }); s2.where = 'title'; show(s2); }
 await loadSaves();
+// 女将の案内：宿のセーブ（H.hints）に進み具合を持つ。宿が無い（タイトル・試し場）あいだは出ない
+const coach = dev ? { on: () => false, tick() {}, reset() {}, setOn() {}, pause() {} } : createCoach({
+  app, base, getH: () => H, save: () => persist('inn'), getCurrent: () => current,
+  onQuit: () => toast('案内をやめた。設定の「女将の案内」でまた聞ける'),
+});
+innCtx.coach = coach;
+window.__taabuka.coach = coach;
 home();
