@@ -1,0 +1,11 @@
+# 謎の雛形（content/events/<層>.yaml に並べる）。選択肢は最大3つ。説明しすぎない
+- id: ev_namae
+  title: 題
+  text: 短い、アブストラクトな文。
+  choices:
+    - label: 選ぶ
+      if: { 体力の割合以下: 0.9 }   # 選べる条件（省略可）
+      do: [ { 体力: -10 }, { 宿銭: 15 } ]
+      result: 選んだ後の一行。
+    - label: 選ばない
+      result: 何も起きなかった。

@@ -1,0 +1,11 @@
+# 宿泊客の雛形（content/guests/<ID>/guest.yaml）。固有の仕組みは同じフォルダの custom.js
+id: namae
+name: 宿泊客の名前
+hp: 70
+mechanic: 仕組みの名前          # custom.js の name
+relic: xx_rl_namae             # 最初の置物（専用セットの relics.yaml に置く）
+deck: { set: taajuku, grades: [並], extra: [xx_a, xx_b, xx_c] }   # 初期デッキ：ター宿の並17枚＋入門札3枚
+set: namae                     # 専用セット content/sets/<ID>/（set.yaml に guest: <ID>）
+unlock: { reach: 6 }           # 解放条件（content-guide.md「解放条件」）
+params: {}                     # 仕組みに渡す値（数はここに書く）
+state: {}                      # 戦闘をまたいで残る値の初期値

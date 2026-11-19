@@ -1,0 +1,12 @@
+# 置物の雛形（content/sets/<セット>/relics.yaml）。潜行中ずっと効く。手に入れた順に発動する
+- id: xx_rl_namae
+  name: 置物の名前
+  grade: 並
+  text: 戦闘の最初の出しは強さ＋20
+  flavor: 字が大きい。
+  fx:
+    - when: 出し
+      if: { 戦闘の出し: 1 }
+      do:
+        - 強さ: 20
+  rule: []                   # 持っている間ずっと効くルール（例：[襖を見せる]）

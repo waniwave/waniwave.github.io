@@ -1,0 +1,19 @@
+# キーワード能力の雛形。共通は content/keywords/*.yaml、セット固有は content/sets/<セット>/keywords.yaml に並べる
+# 札の側は kw: [呼び水2] のように名前（＋数字）を書くだけで、ここの中身が札に展開される
+- id: kw_namae             # kw_ ＋名前（英小文字・数字・_）
+  name: 名前               # 札に書く名前。最後に数字を付けない
+  arg: N                   # 数字を取るときだけ。札では「名前2」と書き、中身の N が 2 になる
+  text: 採点されると札をN枚引く
+  fx:                      # 中身は札と同じ語彙で書く
+    - when: 採点時
+      do: [ { 引く: N } ]
+  # rule: [効果文を偽る]    # 持っている間ずっと効くルール
+  # show: [紙吹雪]          # 演出
+  # custom: namae           # 語彙で書けないときは custom/namae.js（kind: rule）を指す。この出しに掛かる
+  # params: { 掛け: 1.5 }   # 特注のルールに渡す値
+  # props: { unbreakable: true }   # 割れない・消えない
+  test:                    # 自己テスト（検査コマンドが実行する）。手札はその場の札で書ける
+    - name: 2枚引く
+      hand: [{ tier: 3, kw: [名前2] }]
+      draw: [{ tier: 1 }, { tier: 1 }, { tier: 1 }]
+      expect: { 手札枚数: 2 }

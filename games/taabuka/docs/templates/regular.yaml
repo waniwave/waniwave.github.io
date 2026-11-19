@@ -1,0 +1,15 @@
+# 常連客の雛形（content/sets/<セット>/regulars.yaml）。席の左から発動する
+- id: xx_r_namae
+  name: 常連客の名前
+  grade: 上
+  text: 出しのたびに倍率×(1＋育ち)。下りた階ごとに育つ
+  flavor: いつもの席にいる。
+  grow: { 増える: 下りた階, 量: 0.05, 永続: true }   # 成長型だけ。増える：下りた階／出し／戦闘／脱出
+  fx:
+    - when: 出し              # 常連客は「出し」で発動する。「採点時」なら採点札1枚ごと
+      do:
+        - 掛け: "1+育ち"
+  test:
+    - hand: [{ tier: 3, cat: [麺] }]
+      seats: [xx_r_namae]
+      expect: { V: 11 }

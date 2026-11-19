@@ -1,0 +1,617 @@
+// 戦闘画面（企画書 第9章の図、仕様書 第10章）
+// 上帯・番付・敵・席・宿泊客の仕組みの1行・計算窓・手札4×2・操作（流す・出す・終了・固有行動）。
+// 計算は engine/ がする。画面は状態を描き、手順列（B.log）を演出キューで再生するだけ。
+
+import { h, tip, toast, pick, sheet, holdButton, esc, fitText } from '../dom.js';
+import { MS } from '../fx/queue.js';
+import { cardArt, enemyArt, smallArt } from '../art.js';
+import {
+  catGlyph, catColor, GRADE_COLOR, ORIGIN_MARK, SEAL_COLOR, tierLabel, slotLabel, cardTip, enemyTip, intentText, fmtNum, fmtMul, kwLines,
+} from '../labels.js';
+import { play, discard, endTurn, predict, guestAction, guestActions, guestStatus, choicesFor, useItem, layerNoAt } from '../../engine/battle.js';
+import { askItem } from '../items.js';
+import { handBase } from '../../engine/hand.js';
+import { Big } from '../../engine/big.js';
+import { num as format, unitColor } from '../num.js';
+import { unitOf } from '../../engine/format.js';
+
+/** 主張の表示（底の主は「？？？」） */
+const claimText = (e, v) => (e?.hideClaim ? '？？？' : format(v));
+import { playShow, playStage, playKetagoe, stageOf, rollNumber } from '../fx/shows.js';
+import { SE, buzz } from '../audio/audio.js';
+import { shards, embers } from '../fx/particles.js';
+
+const SPEEDS = [1, 2, 4];
+
+/**
+ * @param {object} o { app, queue, settings, saveSettings, base, B, env, title, onExit, onRestart, onDone }
+ *   onDone があれば潜行の中の戦闘：終わったら「進む」で onDone(B)。途中でやめられない
+ *   onAction(B) は行動の直後（演出の前）に呼ぶ。自動保存に使う
+ */
+export function battleScreen(o) {
+  const { app, queue, base } = o;
+  const { B, env } = o;
+  const { balance, content } = base;
+  const st = { sel: [], target: B.enemies.findIndex((e) => !e.dead), choices: {} };
+  const root = h('div.scr.battle');
+  let refs = {};
+
+  // ───────── 描く ─────────
+  function render() {
+    refs = { cards: new Map(), foes: new Map(), slots: new Map(), seats: new Map() };
+    if (B.enemies[st.target]?.dead || st.target < 0) st.target = B.enemies.findIndex((e) => !e.dead);
+    root.replaceChildren(renderTop(), renderBanzuke(), renderFoes(), renderSeats(), renderGuest(), renderCalc(), renderHand(), renderOps());
+    updateCalc();
+    renderSides();
+  }
+
+  function renderTop() {
+    const hp = h('span.hp', {}, ['体力 ', h('b', { text: B.hp }), `/${B.maxHp}`]);
+    const gd = h('span.gd', {}, B.guard ? ['受け ', h('b', { text: B.guard })] : []);
+    const zn = h('span.zn', {}, ['宿銭 ', h('b', { text: B.zeni })]);
+    refs.hp = hp; refs.guard = gd; refs.zeni = zn;
+    const speed = h('button.btn', { type: 'button', onclick: () => {
+      const i = (SPEEDS.indexOf(o.settings.speed) + 1) % SPEEDS.length;
+      o.settings.speed = SPEEDS[i]; o.saveSettings(o.settings); speed.textContent = `×${o.settings.speed}`;
+      document.documentElement.style.setProperty('--speed', o.settings.speed);
+    } }, [`×${o.settings.speed}`]);
+    tip(speed, () => '<b>速さ</b><br>演出の速さ ×1・×2・×4。再生中に画面をタップすると早送り');
+    const menu = h('button.btn', { type: 'button', onclick: openMenu }, ['≡']);
+    tip(menu, () => '<b>中断</b><br>速さと、戦闘をやめる');
+    const pres = h('span.pres', {}, [`気配 ${B.presence}`]);
+    tip(pres, () => `<b>気配 ${B.presence}</b><br>4で敵の主張＋20%、8で追跡者、12で主張＋50%`);
+    return h('header.top', {}, [h('div.st', {}, [h('span.fl', { text: `B${B.floor}` }), pres, hp, gd, zn]), speed, menu]);
+  }
+
+  function slotsShown() {
+    const ring = balance.tiers.ring.slice();
+    const no = layerNoAt(content, B.floor);
+    for (const [k, d] of Object.entries(balance.tiers.missing || {})) if (Object.values(B.banzuke).includes(k) || no >= (d.fromLayer ?? 99)) ring.push(k);
+    return ring;
+  }
+
+  function renderBanzuke() {
+    const slots = slotsShown();
+    const el = h('section.banzuke', { style: { '--cols': slots.length } });
+    for (const s of slots) {
+      const cats = balance.tiers.categories.filter((c) => B.banzuke[c] === s);
+      const def = balance.tiers.tiers[s] || balance.tiers.missing[s];
+      const add = typeof def.banzuke === 'number' ? (def.banzuke > 0 ? `+${def.banzuke}` : def.banzuke === 0 ? '±0' : `${def.banzuke}`) : `${def.banzuke.random[0]}〜+${def.banzuke.random[1]}`;
+      const slot = h(`div.slot${cats.length ? '' : '.empty'}`, { dataset: { slot: s } }, [
+        h('div.t', {}, [s === 'God' ? 'God' : String(s).startsWith('欠') ? s : s]),
+        h('div.gl', {}, cats.map((c) => h('span.glyph', { style: { background: catColor(c) }, title: c, dataset: { cat: c } }, [catGlyph(c)]))),
+      ]);
+      tip(slot, () => `<b>${esc(slotLabel(s))}</b>　<span class="q">採点札1枚あたり 倍率 ${esc(add)}${def.perCardMul ? `、×${def.perCardMul}` : ''}</span><br>${cats.length ? cats.map((c) => `〈${esc(c)}〉`).join('') : '<span class="q">いない</span>'}`);
+      refs.slots.set(String(s), slot);
+      el.append(slot);
+    }
+    return el;
+  }
+
+  function renderFoes() {
+    const el = h('section.foes');
+    B.enemies.forEach((e, i) => {
+      const it = intentText(env, e);
+      const bar = h('div.bar', { style: { width: `${pct(e.claim, e.maxClaim)}%` } });
+      const cl = h('div.cl', { text: e.dead ? '論破' : claimText(e, e.claim) });
+      const foe = h(`button.foe${i === st.target ? '.tgt' : ''}${e.dead ? '.dead' : ''}`, { type: 'button', dataset: { uid: e.uid }, onclick: () => {
+        if (e.dead || queue.busy) return;
+        st.target = i;
+        for (const [, f] of refs.foes) f.el.classList.toggle('tgt', f.el === foe);
+        updateCalc();
+      } }, [
+        h('div.art', { html: enemyArt(e) }),
+        h('div.nm', { text: e.name }),
+        ...((env.content.enemies[e.id]?.kwList || []).length ? [h('div.kw', { text: env.content.enemies[e.id].kwList.map((k) => k.label).join('・') })] : []),
+        h(`div.int${it.calm ? '.calm' : ''}`, { text: it.text }),
+        h('div.barw', {}, [bar]),
+        cl,
+      ]);
+      tip(foe, () => enemyTip(env, e));
+      refs.foes.set(e.uid, { el: foe, bar, cl, max: e.maxClaim });
+      el.append(foe);
+    });
+    return el;
+  }
+
+  function renderSeats() {
+    const el = h('section.seats');
+    const n = balance.hands.play.seats;
+    for (let i = 0; i < n; i++) {
+      const r = B.seats[i];
+      if (!r) { el.append(h('div.seat', {}, [])); continue; }
+      const def = content.regulars[r.id] || {};
+      const s = h(`div.seat.on${r.disabled ? '.off' : ''}`, { style: { '--g': GRADE_COLOR[def.grade] }, dataset: { uid: r.uid } }, [h('span', { text: r.name })]);
+      s.insertAdjacentHTML('afterbegin', smallArt(r.id));
+      tip(s, () => `<b>${esc(r.name)}</b>${r.disabled ? '　<span class="q">（席を奪われている）</span>' : ''}<br>${kwLines(def).join('<br>')}${def.flavor ? `<br><span class="fl">${esc(def.flavor)}</span>` : ''}`);
+      refs.seats.set(r.uid, s);
+      el.append(s);
+    }
+    return el;
+  }
+
+  function renderGuest() {
+    const line = B.guest ? guestStatus(B, env) : '';
+    const el = h('div.guestline', { text: line });
+    if (B.guest) {
+      const g = content.guests[B.guestSwap || B.guest];
+      const m = g?.mechanic ? content.vocab.get('mechanic', g.mechanic) : null;
+      const relics = B.relics.map((r) => content.relics[r.id]).filter(Boolean);
+      tip(el, () => `<b>${esc(g?.name ?? '')}</b><br>${esc(m?.text ?? '')}${relics.length ? `<br><span class="q">置物：${relics.map((d) => `${esc(d.name)}（${kwLines(d).join(' ')}）`).join('、')}</span>` : ''}`);
+    }
+    refs.guest = el;
+    return el;
+  }
+
+  function renderCalc() {
+    const hd = h('div.hd');
+    const nums = h('div.nums');
+    const el = h('section.calc', {}, [hd, nums]);
+    tip(el, () => calcTip());
+    refs.calc = el; refs.calcHd = hd; refs.calcNums = nums;
+    return el;
+  }
+
+  function renderHand() {
+    const n = B.hand.length;
+    const cols = Math.max(4, Math.ceil(n / 2));
+    const el = h('section.hand', { style: { '--cols': cols, '--rows': 2 } });
+    B.hand.forEach((c, i) => {
+      const card = cardEl(c);
+      card.classList.toggle('sel', st.sel.includes(i));
+      card.addEventListener('click', () => toggle(i));
+      tip(card, () => cardTip(env, c));
+      refs.cards.set(c.uid, card);
+      el.append(card);
+    });
+    return el;
+  }
+
+  function cardEl(c) {
+    if (c.faceDown) return h('button.card.back', { type: 'button', dataset: { uid: c.uid } }, [h('span.q', { text: '？' })]);
+    const el = h(`button.card${c.ed ? '.ed' : ''}`, { type: 'button', dataset: { uid: c.uid }, style: { '--g': GRADE_COLOR[c.grade] ?? GRADE_COLOR.並 } });
+    el.innerHTML = cardArt(c);
+    el.append(
+      h('span.tier', { text: tierLabel(c.tier) }),
+      h('span.cats', {}, c.cat.map((x) => h('span.glyph', { style: { background: catColor(x) } }, [catGlyph(x)]))),
+      h('span.nm', { text: c.name }),
+    );
+    if (ORIGIN_MARK[c.origin]) el.append(h('span.mark', { text: ORIGIN_MARK[c.origin] }));
+    if (c.enh) el.append(h('span.enh', { text: c.enh }));
+    if (c.seal) el.append(h('span.seal', { style: { background: SEAL_COLOR[c.seal] } }));
+    return el;
+  }
+
+  function renderOps() {
+    const P = balance.hands.play;
+    const el = h('footer.ops');
+    const dis = h('button.btn', { type: 'button', onclick: doDiscard }, ['流す ', h('span.n', { text: B.discardsLeft })]);
+    const ply = h('button.btn.main', { type: 'button', onclick: doPlay }, ['出す ', h('span.n', { text: B.playsLeft })]);
+    const end = h('button.btn', { type: 'button', onclick: doEnd }, ['終了']);
+    tip(dis, () => `<b>流す</b><br>選んだ札（${P.minCards}〜${P.maxDiscardCards}枚）を捨てて、同じ枚数を引く。残り ${B.discardsLeft}${B.sealed.discard ? '<br>封じられている' : ''}`);
+    tip(ply, () => `<b>出す</b><br>選んだ札（${P.minCards}〜${P.maxPlayCards}枚）を狙った敵に出す。採点されない札は受けになる。残り ${B.playsLeft}`);
+    tip(end, () => '<b>終了</b><br>ターンを終える。敵が予告どおりに動く');
+    const itm = h('button.btn', { type: 'button', onclick: openItems }, ['品 ', h('span.n', { text: B.items.length })]);
+    tip(itm, () => `<b>お品書き</b><br>${B.items.length ? B.items.map((it) => esc(itemName(it))).join('、') : '持っていない'}`);
+    refs.ops = { dis, ply, end, itm };
+    el.append(dis, ply, end, itm);
+    for (const a of guestActions(B, env)) {
+      const b = h('button.btn', { type: 'button', onclick: () => doGuest(a) }, [a.label]);
+      const m = content.vocab.get('mechanic', content.guests[B.guestSwap || B.guest]?.mechanic);
+      tip(b, () => `<b>${esc(a.label)}</b><br>${esc(m?.text ?? '')}`);
+      el.append(b);
+    }
+    return el;
+  }
+
+  function renderSides() {
+    const L = document.getElementById('side-l'), R = document.getElementById('side-r');
+    if (!L || !R) return;
+    const names = (list) => list.map((c) => h('li', {}, [h('span', { text: c.faceDown ? '？' : c.name }), h('span.q', { text: tierLabel(c.tier) })]));
+    const drawSorted = B.draw.slice().sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    L.replaceChildren(
+      h('h3', { text: `山札 ${B.draw.length}` }), h('ul', {}, names(drawSorted)),
+      h('h3', { text: `捨て札 ${B.discard.length}` }), h('ul', {}, names(B.discard.slice().reverse())),
+    );
+    const rows = balance.hands.order.map((name) => {
+      const lv = B.handLevels[name] ?? balance.hands.levelStart ?? 1;
+      const b = handBase(name, lv, balance);
+      return h('li', { dataset: { hand: name } }, [h('span', { text: `${name}${lv > 1 ? ` Lv${lv}` : ''}` }), h('span.q', { text: `${b.S} × ${b.M}` })]);
+    });
+    R.replaceChildren(h('h3', { text: '組の表' }), h('ul', { id: 'handtable' }, rows),
+      h('p.q', { text: '1〜8 札を選ぶ ／ Enter 出す ／ D 流す ／ E 終了 ／ T 狙いを変える ／ I お品書き ／ Esc 選び直す' }));
+  }
+
+  // ───────── 計算窓（選んだだけで予測） ─────────
+  let lastPred = null;
+  function updateCalc() {
+    const { calc, calcHd, calcNums } = refs;
+    if (!calc) return;
+    for (const [uid, el] of refs.cards) el.classList.toggle('sel', st.sel.includes(B.hand.findIndex((c) => c.uid === uid)));
+    const cards = st.sel.map((i) => B.hand[i]);
+    const need = choicesFor(env, cards);
+    for (const k of Object.keys(st.choices)) if (!(k in need)) delete st.choices[k];
+    calc.classList.remove('burn', 'empty');
+    lastPred = null;
+    if (!cards.length || B.result) {
+      calc.classList.add('empty');
+      calcHd.replaceChildren(h('b', { text: '―' }));
+      calcNums.replaceChildren(B.result ? '' : '札を選ぶ');
+    } else {
+      try {
+        const p = predict(B, env, st.sel, st.target, { ...defaults(need), ...st.choices });
+        lastPred = p;
+        calcHd.replaceChildren(h('b', { text: p.hand }), `Lv${p.level}`);
+        const kids = [];
+        if (p.uncertain) kids.push(h('span', { text: format(p.S) }), h('span.op', { text: '×' }), h('span', { text: '？' }), h('span.op', { text: '＝' }), h('span.v', { text: '？' }));
+        else kids.push(h('span', { text: format(p.S) }), h('span.op', { text: '×' }), h('span', { text: fmtMul(p.M) }), h('span.op', { text: '＝' }), h('span.v', { text: format(p.V) }));
+        calcNums.replaceChildren(...kids);
+        fitText(calcNums.firstChild);
+        for (const [k, type] of Object.entries(need)) {
+          const cur = st.choices[k] ?? defaults(need)[k];
+          calcNums.append(h('button.btn.ask', { type: 'button', onclick: async (e) => {
+            e.stopPropagation();
+            const v = await askOne(k, type);
+            if (v != null) { st.choices[k] = v; updateCalc(); }
+          } }, [`${k}：${cur} ▾`]));
+        }
+        const t = B.enemies[st.target];
+        if (!p.uncertain && t && !t.dead && !t.hideClaim && p.V.gte(t.claim)) calc.classList.add('burn');
+      } catch (e) {
+        calcHd.replaceChildren(h('b', { text: '―' }));
+        calcNums.replaceChildren(e.userError ? e.message : '予測できない');
+      }
+    }
+    const P = balance.hands.play;
+    const n = st.sel.length;
+    refs.ops.ply.disabled = !!B.result || B.playsLeft <= 0 || n < P.minCards || n > P.maxPlayCards || (B.fixedPlay != null && n !== Math.min(B.fixedPlay, B.hand.length));
+    refs.ops.dis.disabled = !!B.result || B.discardsLeft <= 0 || B.sealed.discard || n < P.minCards || n > P.maxDiscardCards
+      || B.hand.some((c) => c.enh && balance.hands.enhancements[c.enh]?.blocksDiscard);
+    refs.ops.end.disabled = !!B.result;
+    refs.ops.itm.disabled = !!B.result || !B.items.length;
+    const table = document.getElementById('handtable');
+    if (table) for (const li of table.children) li.classList.toggle('on', !!lastPred && li.dataset.hand === lastPred.hand);
+  }
+
+  function defaults(need) {
+    const out = {};
+    for (const [k, type] of Object.entries(need)) if (type === '組') out[k] = balance.hands.order[0];
+    return out;
+  }
+
+  function calcTip() {
+    if (!lastPred) return '<b>計算窓</b><br>札を選ぶと、組と論破値の予測が出る。敵の主張を超えると燃える';
+    const p = lastPred;
+    return `<b>${esc(p.hand)} Lv${p.level}</b><br>強さ ${format(p.S)} × 倍率 ${fmtMul(p.M)}${p.uncertain ? '<br>乱数で変わる（？）' : p.usedRandom ? '<br><span class="q">乱数を使うが、論破値は変わらない</span>' : ''}`;
+  }
+
+  async function askOne(key, type) {
+    if (type === '組') return pick(app, key, balance.hands.order.map((x) => ({ label: x, value: x })));
+    if (type === 'category') return pick(app, key, balance.tiers.categories.map((c) => ({ label: `${c}（${slotLabel(B.banzuke[c])}）`, value: c })));
+    if (type?.type === 'choice') return pick(app, key, type.options);
+    return pick(app, key, (type?.options ?? []).map((v) => ({ label: String(v), value: v })));
+  }
+
+  // ───────── 操作 ─────────
+  function toggle(i) {
+    if (queue.busy || B.result) return;
+    const k = st.sel.indexOf(i);
+    if (k >= 0) st.sel.splice(k, 1);
+    else if (st.sel.length < balance.hands.play.maxPlayCards) st.sel.push(i);
+    else { toast(`選べるのは${balance.hands.play.maxPlayCards}枚まで`); return; }
+    st.sel.sort((a, b) => a - b);
+    updateCalc();
+  }
+
+  async function act(fn) {
+    if (queue.busy || B.result) return;
+    const from = B.log.length;
+    const prev = { claims: new Map(B.enemies.map((e) => [e.uid, e.claim])), target: B.enemies[st.target]?.uid, guard: B.guard };
+    try { fn(); } catch (e) {
+      if (e.userError) { toast(e.message); return; }
+      throw e;
+    }
+    const entries = B.log.slice(from);
+    st.sel = [];
+    if (o.onAction) o.onAction(B);
+    await queue.play(tasksFor(entries, prev));
+    render();
+    if (B.result) showResult();
+  }
+
+  async function doPlay() {
+    if (refs.ops.ply.disabled) return;
+    const cards = st.sel.map((i) => B.hand[i]);
+    const need = choicesFor(env, cards);
+    const choices = { ...defaults(need), ...st.choices };
+    const idx = st.sel.slice();
+    const tgt = st.target;
+    st.choices = {};
+    await act(() => play(B, env, idx, tgt, { choices }));
+  }
+  async function doDiscard() {
+    if (refs.ops.dis.disabled) return;
+    const idx = st.sel.slice();
+    await act(() => discard(B, env, idx));
+  }
+  async function doEnd() { if (!refs.ops.end.disabled) await act(() => endTurn(B, env)); }
+  async function doGuest(a) {
+    if (queue.busy || B.result) return;
+    const args = {};
+    for (const q of a.ask) {
+      if (q.type === 'selected') {
+        const n = st.sel.length;
+        if (n < (q.min ?? 1) || n > (q.max ?? 5)) { toast(`先に手札を${q.min === q.max ? q.min : `${q.min ?? 1}〜${q.max ?? 5}`}枚選ぶ`); return; }
+        args[q.key] = st.sel.slice();
+        continue;
+      }
+      const v = await askOne(q.key, q.type === 'category' ? 'category' : q);
+      if (v == null) return;
+      args[q.key] = v;
+    }
+    st.sel = [];
+    await act(() => guestAction(B, env, a.name, args));
+  }
+
+  // ───────── 手順列 → 演出 ─────────
+  /** 演出部品に渡す場 */
+  const X = () => ({ queue, root, layer: queue.layer, cards: [...refs.cards.values()], foes: [...refs.foes.values()].map((f) => f.el) });
+
+  function tasksFor(rawEntries, prev) {
+    const T = [];
+    // 出しの記録は採点の後に積まれるので、その出しの中で起きたこと（行動停止・番付など）より先に再生する
+    const pi = rawEntries.findIndex((x) => x.t === 'play');
+    const entries = pi > 0 ? [rawEntries[pi], ...rawEntries.slice(0, pi), ...rawEntries.slice(pi + 1)] : rawEntries;
+    const calcSet = (S, M, V) => {
+      const kids = [h('span', { text: format(S) }), h('span.op', { text: '×' }), h('span', { text: fmtMul(M) })];
+      if (V != null) kids.push(h('span.op', { text: '＝' }), h('span.v', { text: format(V) }));
+      refs.calcNums.replaceChildren(...kids);
+      fitText(refs.calcNums.firstChild);
+      refs.calc.classList.remove('empty');
+    };
+    let tgtClaim = prev.target ? prev.claims.get(prev.target) : null;
+    let guardNow = prev.guard;
+    const setGuard = (g) => { guardNow = Math.max(0, g); refs.guard.replaceChildren(...(guardNow ? ['受け ', h('b', { text: guardNow })] : [])); };
+    const burn = (S, M) => {
+      if (!tgtClaim || !Big.from(S).mul(M).gte(tgtClaim)) return;
+      if (!refs.calc.classList.contains('burn')) {
+        refs.calc.classList.add('burn');
+        const r = refs.calc.getBoundingClientRect(); const L = queue.layer.getBoundingClientRect();
+        embers(r.left - L.left + r.width / 2, r.top - L.top + r.height / 2, 18, r.width * 0.8);
+      }
+    };
+    const srcEl = (src) => {
+      if (!src) return refs.calc;
+      if (src.kind === 'card' && src.uid) return refs.cards.get(src.uid) ?? refs.calc;
+      if (src.kind === 'banzuke') return refs.slots.get(String(src.slot)) ?? refs.calc;
+      if (src.kind === 'regular') return refs.seats.get(src.uid) ?? refs.calc;
+      if (src.kind === 'guest' || src.kind === 'relic') return refs.guest;
+      return refs.calc;
+    };
+    const foe = (uid) => refs.foes.get(uid);
+    const foeOf = (uid) => B.enemies.find((x) => x.uid === uid);
+    let pendingStage = null;
+    const flushStage = () => {
+      const p = pendingStage; pendingStage = null;
+      if (!p) return;
+      if (p.stg && p.stg !== '燃える') { let ms = 0; T.push({ get ms() { return ms; }, run: () => { ms = playStage(p.stg, X()); } }); }
+      if (p.unit && o.unitSeen && !o.unitSeen(p.unit)) {
+        let ms = 0;
+        T.push({ get ms() { return ms; }, run: () => { if (o.unitSeen(p.unit)) return; o.markUnit?.(p.unit); ms = playKetagoe(X(), p.unit, unitColor(p.V)); } });
+      }
+    };
+
+    for (const e of entries) {
+      switch (e.t) {
+        case 'play': {
+          tgtClaim = B.enemies[e.target] ? prev.claims.get(B.enemies[e.target].uid) : tgtClaim;
+          // 演出の語彙（仕様書 第9章 show の全て。ui/fx/shows.js）
+          for (const f of e.fx || []) {
+            let ms = 0;
+            T.push({ get ms() { return ms; }, run: () => { ms = playShow(f.show, f.arg, X()); } });
+          }
+          let pitch = 0;
+          for (const s of e.steps) {
+            switch (s.type) {
+              case 'hand': T.push({ ms: 240, run: () => {
+                refs.calcHd.replaceChildren(h('b', { text: s.src.id }), `Lv${s.src.level}`);
+                calcSet(s.S, s.M); queue.slam(refs.calc);
+              } }); break;
+              case 'S': T.push({ ms: s.src?.kind === 'card' ? MS.card : MS.note, run: () => {
+                const from = srcEl(s.src);
+                if (s.src?.kind === 'card') queue.bounce(from);
+                queue.pop(`+${format(s.add)}`, from, refs.calc, 's');
+                SE.score(pitch++);
+                calcSet(s.S, s.M); burn(s.S, s.M);
+              } }); break;
+              case 'M': T.push({ ms: s.src?.kind === 'banzuke' ? MS.banzuke : s.src?.kind === 'regular' ? MS.regular : MS.card, run: () => {
+                const from = srcEl(s.src);
+                if (s.src?.kind === 'banzuke') queue.glow(from);
+                else if (s.src?.kind === 'regular') queue.shake(from, 3, MS.regular);
+                else if (s.src?.kind === 'card') queue.bounce(from);
+                queue.pop(`${s.add.isNeg() ? '' : '+'}${fmtMul(s.add)}`, from, refs.calc, 'm');
+                SE.mult(pitch++);
+                calcSet(s.S, s.M); burn(s.S, s.M);
+              } }); break;
+              case 'xM': case 'xS': case 'xV': T.push({ ms: MS.slam, run: () => {
+                const from = srcEl(s.src);
+                if (s.src?.kind === 'regular') queue.shake(from, 4, MS.regular);
+                queue.pop(`×${fmtMul(s.mul)}`, from, refs.calc, 'x');
+                queue.slam(refs.calc);
+                SE.taiko();
+                if (s.src?.kind === 'regular') buzz(20);
+                calcSet(s.S, s.M); burn(s.S, s.M);
+              } }); break;
+              case 'floorM': T.push({ ms: MS.note, run: () => calcSet(s.S, s.M) }); break;
+              case 'note': T.push({ ms: MS.note, run: () => queue.pop(s.what, srcEl(s.src), null, 'note') }); break;
+              case 'final': T.push({ ms: MS.final + 260, run: () => {
+                calcSet(s.S, s.M, s.V);
+                const v = refs.calcNums.querySelector('.v');
+                if (v) rollNumber(v, format(s.V), queue, unitColor(s.V));
+                queue.slam(refs.calc); burn(s.S, s.M); SE.taiko();
+              } }); break;
+              default: break;
+            }
+          }
+          // 演出の段階（k＝log10（V ÷ 狙った敵の残り主張））と桁越え。再生は与えた後
+          const stg = stageOf(Big.from(e.V), tgtClaim ? Big.from(tgtClaim) : null);
+          const unit = unitOf(e.V);
+          pendingStage = { stg, unit, V: e.V };
+          break;
+        }
+        case 'damage': T.push({ ms: MS.damage + 140, run: () => {
+          const f = foe(e.enemy); if (!f) return;
+          queue.pop(`${e.pierce ? '貫通 ' : ''}−${format(e.amount)}`, refs.calc, f.el, 'dmg', MS.damage * 1.6);
+          queue.later(() => {
+            f.bar.style.width = `${pct(e.after, f.max)}%`;
+            f.cl.textContent = e.killed ? '論破' : claimText(foeOf(e.enemy), e.after);
+            queue.shake(f.el, 4, MS.damage);
+            SE.hit();
+            if (e.killed) { f.el.classList.add('dead'); shards(f.el.getBoundingClientRect(), '#a3322a', 14); SE.crack(); }
+          }, MS.damage * 0.9);
+        } });
+          if (pendingStage && !entries.slice(entries.indexOf(e) + 1).some((x) => x.t === 'damage')) flushStage();
+          break;
+        case 'guard': T.push({ ms: MS.note, run: () => { setGuard(e.guard); queue.pop(`受け+${e.add}`, refs.guard, null, 's'); } }); break;
+        case 'broken': T.push({ ms: MS.note, run: () => queue.pop(`${e.card} が割れた`, refs.calc, null, 'note') }); break;
+        case 'zeni': T.push({ ms: MS.note, run: () => { queue.pop(`宿銭+${e.add}`, refs.zeni, null, 'note'); } }); break;
+        case 'overkill': if (e.level) T.push({ ms: MS.banner, run: () => queue.banner(e.level, 'big') }); break;
+        case 'turn': T.push({ ms: e.n > 1 ? 420 : 0, run: () => { setGuard(0); if (e.n > 1) queue.banner(`${e.n}ターン目`, 'small', 600); } }); break;
+        case 'attack': T.push({ ms: MS.enemy, run: () => {
+          const f = foe(e.enemy);
+          if (f) queue.bounce(f.el, MS.enemy);
+          queue.shake(app, e.loss > 0 ? 5 : 2, MS.enemy);
+          refs.hp.replaceChildren('体力 ', h('b', { text: e.hp }), `/${B.maxHp}`);
+          if (e.guarded) { queue.pop(`受け −${e.guarded}`, refs.guard, null, 's'); setGuard(guardNow - e.guarded); }
+          if (e.loss) queue.pop(`−${e.loss}`, refs.hp, null, 'dmg');
+        } }); break;
+        case 'heal': T.push({ ms: MS.note, run: () => { const f = foe(e.enemy); if (f) queue.pop(`+${format(e.amount)}`, f.el, null, 'm'); } }); break;
+        case 'act': T.push({ ms: MS.note * 1.5, run: () => { const f = foe(e.enemy); if (f) { queue.bounce(f.el); queue.pop(e.act + (e.what ? `（${e.what}）` : ''), f.el, null, 'note'); } } }); break;
+        case 'summon': T.push({ ms: MS.note, run: () => queue.pop(`${e.name}が来た`, refs.calc, null, 'note') }); break;
+        case 'stun': T.push({ ms: MS.note, run: () => { const f = foe(e.enemy); if (f) queue.pop(`動けない ${e.turns}`, f.el, null, 'note'); } }); break;
+        case 'banzuke': T.push({ ms: MS.banzuke * 2, run: () => {
+          queue.glow(refs.slots.get(String(e.to)));
+          queue.pop(`${e.cat} ${slotLabel(e.from)}→${slotLabel(e.to)}`, refs.slots.get(String(e.from)) ?? refs.calc, refs.slots.get(String(e.to)), 'note');
+        } }); break;
+        case 'mod': T.push({ ms: MS.note, run: () => queue.pop(`${{ plays: '出し', discards: '流し', handSize: '手札上限' }[e.key]}${e.delta > 0 ? '+' : ''}${e.delta}`, refs.calc, null, 'note') }); break;
+        case 'level': T.push({ ms: MS.note, run: () => queue.pop(`${e.hand} Lv${e.level}`, refs.calc, null, 'note') }); break;
+        case 'spawn': T.push({ ms: MS.note, run: () => queue.pop(`${e.card}が手札に`, refs.calc, null, 'note') }); break;
+        case 'faceDown': T.push({ ms: MS.note, run: () => queue.pop(`${e.n}枚が裏向きに`, refs.calc, null, 'note') }); break;
+        case 'hp': T.push({ ms: MS.note, run: () => { refs.hp.replaceChildren('体力 ', h('b', { text: e.hp }), `/${B.maxHp}`); queue.pop(`${e.add > 0 ? '+' : ''}${e.add}`, refs.hp, null, e.add < 0 ? 'dmg' : 's'); } }); break;
+        case 'useItem': T.push({ ms: MS.note * 1.5, run: () => queue.banner(e.name, 'small', 700) }); break;
+        case 'note': T.push({ ms: MS.note, run: () => queue.pop(e.what, refs.calc, null, 'note') }); break;
+        case 'hindrance': T.push({ ms: MS.note * 2, run: () => queue.pop(`妨害：${e.what}`, refs.calc, null, 'note') }); break;
+        case 'form': T.push({ ms: MS.banner * 1.4, run: () => {
+          const f = foe(e.enemy); if (!f) return;
+          f.el.classList.remove('dead');
+          f.bar.style.width = '100%';
+          f.max = e.claim;
+          f.cl.textContent = claimText(foeOf(e.enemy), e.claim);
+          queue.shake(app, 8, 700); SE.taiko();
+          queue.banner(`${e.name}　第${e.form}形態`, 'big', 1400);
+          if (e.what) queue.pop(e.what, f.el, null, 'note');
+        } }); break;
+        case 'intent': T.push({ ms: MS.note, run: () => { const f = foe(e.enemy); if (f) queue.pop(`次は${e.act}`, f.el, null, 'note'); } }); break;
+        case 'presence': T.push({ ms: MS.note, run: () => queue.pop(`気配+${e.add}`, refs.calc, null, 'note') }); break;
+        case 'error': T.push({ ms: MS.note, run: () => { console.warn('[記録]', e.hook, e.message); queue.pop('（特注の不具合）', refs.calc, null, 'note'); } }); break;
+        case 'end': flushStage(); T.push({ ms: MS.banner, run: () => queue.banner(e.result === 'win' ? '勝ち' : e.result === 'lose' ? '未帰還' : '脱出', e.result === 'win' ? '' : 'big') }); break;
+        default: break;
+      }
+    }
+    flushStage();
+    return T;
+  }
+
+  // ───────── お品書き ─────────
+  function itemName(it) {
+    const def = it.id ? content.items[it.id] : null;
+    return def?.name ?? (it.kind === '議題' ? `議題「${it.hand}」` : it.kind);
+  }
+  function openItems() {
+    if (queue.busy || B.result || !B.items.length) return;
+    const D = env.dive;
+    const s = sheet(app, [
+      h('h2', { text: 'お品書き' }),
+      ...B.items.map((it, i) => {
+        const def = it.id ? content.items[it.id] : null;
+        const use = def?.use ?? '戦闘中';
+        const once = def?.once === '潜行' && D?.flags?.used?.[def.id];
+        const b = h('button.btn.main', { type: 'button', disabled: use === '戦闘外' || once, onclick: async () => {
+          s.close();
+          const choices = await askItem(app, base, it, { B });
+          if (choices == null) return;
+          await act(() => useItem(B, env, i, choices));
+        } }, [use === '戦闘外' ? '戦闘の外で' : once ? '使った' : '使う']);
+        return h('div.itemrow', {}, [h('div', {}, [h('b', { text: itemName(it) }), h('div.q', { text: def?.text ?? '' })]), b]);
+      }),
+      h('div.row', {}, [h('button.btn', { type: 'button', onclick: () => s.close() }, ['閉じる'])]),
+    ]);
+  }
+
+  // ───────── 窓 ─────────
+  function showResult() {
+    if (o.onDone) {
+      const ok = B.overkill;
+      const s = sheet(app, [
+        h('h2', { text: B.result === 'win' ? '勝ち' : B.result === 'lose' ? '倒れた' : '脱出' }),
+        h('p', { text: `${B.turn}ターン　最大論破値 ${format(B.stats.maxV)}${B.zeni ? `　宿銭 ${B.zeni}` : ''}` }),
+        ok?.level ? h('p', { text: `過剰論破：${ok.level}（×${fmtMul(ok.r)}）` }) : null,
+        h('div.row', {}, [h('button.btn.main', { type: 'button', onclick: () => { s.close(); o.onDone(B); } }, ['進む'])]),
+      ]);
+      return;
+    }
+    const ok = B.overkill;
+    const s = sheet(app, [
+      h('h2', { text: B.result === 'win' ? '勝ち' : B.result === 'lose' ? '未帰還' : '脱出' }),
+      h('p', { text: `${B.turn}ターン　最大論破値 ${format(B.stats.maxV)}　宿銭 ${B.zeni}` }),
+      ok?.level ? h('p', { text: `過剰論破：${ok.level}（×${fmtMul(ok.r)}）` }) : null,
+      h('div.row', {}, [
+        o.onRestart ? h('button.btn.main', { type: 'button', onclick: () => { s.close(); o.onRestart(); } }, ['もう一戦']) : null,
+        h('button.btn', { type: 'button', onclick: () => { s.close(); o.onExit(); } }, ['戻る']),
+      ]),
+    ]);
+  }
+
+  function openMenu() {
+    if (queue.busy) return;
+    const s = sheet(app, [
+      h('h2', { text: '中断' }),
+      h('div.chips', {}, SPEEDS.map((v) => h(`button.chip${o.settings.speed === v ? '.on' : ''}`, { type: 'button', onclick: () => {
+        o.settings.speed = v; o.saveSettings(o.settings); document.documentElement.style.setProperty('--speed', v); s.close(); render();
+      } }, [`速さ ×${v}`]))),
+      h('div.row', {}, [
+        o.onDone ? null : holdButton('戦闘をやめる（長押し）', () => { s.close(); o.onExit(); }),
+        h('button.btn', { type: 'button', onclick: () => s.close() }, ['閉じる']),
+      ]),
+    ]);
+  }
+
+  // ───────── キー操作（PC） ─────────
+  function onKey(e) {
+    if (queue.busy) { queue.skip(); return true; }
+    if (document.querySelector('.sheet-back')) return false;
+    const k = e.key;
+    if (/^[1-9]$/.test(k)) { const i = Number(k) - 1; if (i < B.hand.length) toggle(i); return true; }
+    if (k === 'Enter') { doPlay(); return true; }
+    if (k === 'd' || k === 'D') { doDiscard(); return true; }
+    if (k === 'e' || k === 'E') { doEnd(); return true; }
+    if (k === 't' || k === 'T') {
+      const alive = B.enemies.map((x, i) => (x.dead ? -1 : i)).filter((i) => i >= 0);
+      if (alive.length) { st.target = alive[(alive.indexOf(st.target) + 1) % alive.length]; render(); }
+      return true;
+    }
+    if (k === 'Escape') { st.sel = []; updateCalc(); return true; }
+    if (k === 'i' || k === 'I') { openItems(); return true; }
+    return false;
+  }
+
+  render();
+  if (B.result && o.onDone) setTimeout(showResult, 0);   // 終わったところで閉じて開き直したとき
+  return { el: root, onKey, render, state: st, refs: () => refs };
+}
+
+function pct(a, b) {
+  const B = Big.from(b);
+  if (B.isZero()) return 0;
+  return Math.max(0, Math.min(100, Big.from(a).div(B).toNumber() * 100));
+}

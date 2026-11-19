@@ -1,0 +1,13 @@
+# 層の雛形（content/layers/<層>.yaml）
+id: layerN
+name: 層の名前
+floors: [1, 3]               # この層の階（B1〜B3）
+line: 層に入ったときの一行。
+palette: { bg: "#efe6d2", ink: "#2a2520" }
+doors: { 戦い: 45, 精鋭: 12, 宝: 10, 商い: 10, 湯: 10, 謎: 10 }   # 襖の重み
+groups: [[en_a], [en_b, en_b], [en_c, en_d]]   # 通常戦の組み合わせ（1〜3体）
+elites: [en_e]
+bosses: [en_f, en_g]          # 層主2種から潜行ごとに1種
+warden: en_gesoku             # 帰路の番人
+stalker: en_ashioto           # 追跡者
+quirk: null                   # 層の癖（ルールの名前）

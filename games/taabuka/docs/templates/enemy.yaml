@@ -1,0 +1,10 @@
+# 敵の雛形（content/enemies/<層>.yaml に並べる）
+- id: en_namae
+  name: 敵の名前              # 掲示板の議論に出てくる「振る舞い」
+  layer: [1]
+  kind: 通常                 # 通常 / 精鋭 / 層主 / 追跡者 / 番人 / 底の主
+  hp: 1.0                    # 主張＝その階の標準値×この倍率×種類の倍率
+  atk: 1.0                   # 攻撃＝その階の標準値×この倍率×種類の倍率
+  acts: [攻め, { 伏せ: 1 }, { 攻め: 1.5 }]   # 上から繰り返す。語彙は content-guide.md「敵の行動」
+  line: 一言
+  custom: null               # 特別な動きがあれば特注の名前（content/enemies/custom/*.js）
