@@ -1,0 +1,7 @@
+id: taajuku
+name: ター宿
+unlock: { start: true }
+color: "#b8432c"
+keywords: []
+intro: 宿の床下に、ター深がある。
+# 札（約40枚）は移植で足す。いまは共通のお品書き（items.yaml）だけ

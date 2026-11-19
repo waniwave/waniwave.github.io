@@ -1,0 +1,7 @@
+id: tsuchi
+name: 自己紹介をする土
+guest: tsuchi                    # この宿泊客でしか拾えない
+unlock: { guest: tsuchi }
+color: "#8a6a44"
+keywords: []
+intro: 名乗りは長いほどよい。

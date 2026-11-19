@@ -1,0 +1,33 @@
+# taaaam様専用の専用の常連客
+
+- id: tm_r_shitsuji
+  name: 執事
+  grade: 上
+  text: 専用の札が採点されるたび強さ＋10
+  flavor: 名前は呼ばない。
+  fx:
+  - when: 採点時
+    if: {専用: true}
+    do:
+    - {強さ: 10}
+
+- id: tm_r_fan
+  name: 専用ファン
+  grade: 上
+  text: 出しのたびに倍率＋（専用の札）
+  flavor: うちわも専用。
+  fx:
+  - when: 出し
+    do:
+    - {倍率: 専用の札}
+
+- id: tm_r_shihainin
+  name: 支配人
+  grade: 特上
+  text: 専用の札が4枚以上採点されると掛け×1.5
+  flavor: すべてお見通し。
+  fx:
+  - when: 出し
+    if: {専用の札: 4}
+    do:
+    - {掛け: 1.5}

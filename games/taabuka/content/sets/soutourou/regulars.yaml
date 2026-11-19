@@ -1,0 +1,32 @@
+# 相当老の専用の常連客
+
+- id: so_r_magotoku
+  name: 孫
+  grade: 上
+  text: 出しのたびに体力＋1
+  flavor: お年玉の時だけ来る。
+  fx:
+  - when: 出し
+    do:
+    - {体力: 1}
+
+- id: so_r_rojinkai
+  name: 老人会
+  grade: 上
+  text: 〈老〉の札が採点されるたび倍率＋2
+  flavor: 議題は毎回同じ。
+  fx:
+  - when: 採点時
+    if: {採点札のカテゴリ: 老}
+    do:
+    - {倍率: 2}
+
+- id: so_r_kakarituke
+  name: かかりつけ医
+  grade: 特上
+  text: 戦闘が始まると体力＋5
+  flavor: 「まだまだ大丈夫」
+  fx:
+  - when: 戦闘開始
+    do:
+    - {体力: 5}

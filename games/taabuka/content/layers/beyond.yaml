@@ -1,0 +1,13 @@
+# さらに深く：B17〜。全層の敵が混ざり、3階ごとに全層の層主から乱数で1体（仕様書 第8章）。主張は curve.yaml の beyond で伸び続ける
+id: beyond
+name: さらに深く
+floors: [17, 9999]
+line: 名前のない階が、続いている。
+palette: { bg: "#0d0c10", ink: "#d8d2c8" }
+mix: true
+noName: true
+bossEvery: 3
+doors: { 戦い: 42, 精鋭: 18, 宝: 11, 商い: 9, 湯: 9, 謎: 11 }
+warden: en_kaerimichi
+stalker: en_shisen
+quirk: null

@@ -1,0 +1,10 @@
+id: maap
+name: 女将マープ
+hp: 65
+mechanic: 採配                   # guests/maap/custom.js の name
+relic: mp_r_kannaizu
+deck: { set: taajuku, grades: [並], extra: [mp_aisatsu, mp_aisatsu, mp_saihai] }
+set: maap
+unlock: { extract: 1 }           # 初めて脱出
+params: { 毎ターン: 1, 上限: 3 }   # 採配点の増え方と上限
+state: { 採配点: 0, 採配数: 0 }    # 戦闘をまたいで残る

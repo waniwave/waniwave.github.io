@@ -1,0 +1,31 @@
+# 女将マープの専用の常連客
+
+- id: mp_r_nakaigashira
+  name: 仲居頭
+  grade: 上
+  text: 戦闘が始まると〈宿〉の番付を1段上げる
+  flavor: 女将の右腕。
+  fx:
+    - when: 戦闘開始
+      do:
+        - 番付を上げる: { カテゴリ: 宿, 段: 1 }
+
+- id: mp_r_danna
+  name: 常連の旦那
+  grade: 上
+  text: 戦闘が終わると宿銭＋（採配数）
+  flavor: ツケはきかない。
+  fx:
+    - when: 戦闘終了
+      do:
+        - 宿銭: 採配数
+
+- id: mp_r_minarai
+  name: 下足番見習い
+  grade: 並
+  text: 踊り場に着くたび気配−2
+  flavor: 履物を揃えるのが速い。
+  fx:
+    - when: 踊り場
+      do:
+        - 気配: -2

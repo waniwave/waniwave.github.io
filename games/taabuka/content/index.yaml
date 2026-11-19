@@ -1,0 +1,68 @@
+# 読み込むファイルの一覧。node tools/check.mjs --fix-index で自動で書き直す（手で直さない）
+sets:
+  gentei: [cards.yaml, regulars.yaml, set.yaml]
+  ikea: [cards.yaml, regulars.yaml, relics.yaml, set.yaml]
+  iwaku: [cards.yaml, set.yaml]
+  koutei: [cards.yaml, regulars.yaml, relics.yaml, set.yaml]
+  maap: [cards.yaml, regulars.yaml, relics.yaml, set.yaml]
+  ryukogo: [cards.yaml, custom/kougo.js, custom/nibai.js, custom/sengen.js, keywords.yaml, set.yaml]
+  soutourou: [cards.yaml, regulars.yaml, relics.yaml, set.yaml]
+  taaaam: [cards.yaml, regulars.yaml, relics.yaml, set.yaml]
+  taajuku: [items.yaml, regulars.yaml, relics.yaml, set.yaml]
+  taakaku: [cards.yaml, regulars.yaml, relics.yaml, set.yaml]
+  tatagi: [cards.yaml, regulars.yaml, relics.yaml, set.yaml]
+  tsuchi: [cards.yaml, regulars.yaml, relics.yaml, set.yaml]
+guests:
+  ikea: [custom.js, guest.yaml]
+  koutei: [custom.js, guest.yaml]
+  maap: [custom.js, guest.yaml]
+  soutourou: [custom.js, guest.yaml]
+  taaaam: [custom.js, guest.yaml, senyou_cond.js, senyou_if.js, senyou_var.js]
+  taakaku: [custom.js, guest.yaml]
+  tatagi: [custom.js, guest.yaml]
+  tsuchi: [custom.js, guest.yaml]
+keywords:
+  - base.yaml
+enemies:
+  - core.yaml
+  - custom/anka.js
+  - custom/byousoku.js
+  - custom/datochi.js
+  - custom/fusuma_nushi.js
+  - custom/idgae.js
+  - custom/kakuzukeshi.js
+  - custom/ketsuban.js
+  - custom/netawaku.js
+  - custom/quirk_giron.js
+  - custom/quirk_ketsuban.js
+  - custom/quirk_tier8.js
+  - custom/sakasayado.js
+  - custom/suretate.js
+  - custom/taa.js
+  - custom/tier8.js
+  - custom/tsuchi_nashi.js
+  - custom/yakkan8.js
+  - layer1.yaml
+  - layer2.yaml
+  - layer3.yaml
+  - layer4.yaml
+  - layer5.yaml
+layers:
+  - beyond.yaml
+  - core.yaml
+  - layer1.yaml
+  - layer2.yaml
+  - layer3.yaml
+  - layer4.yaml
+  - layer5.yaml
+events:
+  - layer1.yaml
+  - layer2.yaml
+  - layer3.yaml
+  - layer4.yaml
+  - layer5.yaml
+root:
+  - souvenirs.yaml
+  - facilities.yaml
+  - achievements.yaml
+  - shibari.yaml

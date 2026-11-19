@@ -1,0 +1,21 @@
+id: layer4
+name: 欠番区画
+floors: [10, 12]
+line: 6と7は、最初から無かったことになっている。
+palette: { bg: "#e2dccf", ink: "#2b2418" }
+doors: { 戦い: 44, 精鋭: 14, 宝: 11, 商い: 10, 湯: 9, 謎: 10 }
+groups:
+  - [en_aboon]
+  - [en_kieta]
+  - [en_rokunana]
+  - [en_shiyou]
+  - [en_kakusan, en_aboon]
+  - [en_hikoukai, en_kieta]
+  - [en_rokunana, en_shiyou]
+  - [en_hikoukai, en_hikoukai]
+elites: [en_unei, en_kiyaku, en_etsuran]
+bosses: [en_ketsuban, en_yakkan8]
+warden: en_genkanban
+stalker: en_kidoku
+# 層の癖：欠番の枠が開く。欠番に何もいなければ、戦闘の始めに番付の一番低いカテゴリが欠6へ落ちる
+quirk: { name: 欠番区画, params: { 先: 欠6 } }

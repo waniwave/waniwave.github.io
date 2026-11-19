@@ -1,0 +1,82 @@
+# 報酬と値段（仕様書 第2章「過剰論破」、第3章「報酬」「拾う札の格」「値段と売値」）
+
+grades: [並, 上, 特上, 極, 神]
+
+# 戦闘の報酬。zeni＝base＋perFloor×階
+battleRewards:
+  通常:   { zeni: { base: 4,  perFloor: 1 }, cards: 3, souvenir: 0.1 }
+  精鋭:   { zeni: { base: 10, perFloor: 2 }, cards: 3, minGrade: 上, regulars: 3, souvenir: 0.4 }
+  層主:   { zeni: { base: 25, perFloor: 5 }, cards: 3, minGrade: 特上, relics: 3, souvenir: 1.0 }
+  番人:   { zeni: { base: 0,  perFloor: 0 }, cards: 0, souvenir: 0 }
+  追跡者: { zeni: { base: 15, perFloor: 3 }, cards: 0, souvenir: 1.0, souvenirQuality: 上等 }
+
+# 過剰論破：r＝全滅させた出しのV ÷ 戦闘開始時の敵の主張合計。上の段は下の段の上乗せも全て得る
+overkill:
+  - { name: 論破,     from: 2,    zeni: 2 }
+  - { name: 大論破,   from: 10,   zeni: 5,  extraCards: 1 }
+  - { name: 完全論破, from: 100,  zeni: 10, gradeUp: 1 }
+  - { name: ター深,   from: 1000, zeni: 25, godChance: 0.5, oncePerDive: true }
+
+# 拾う札の格（重み）。層ごと
+gradeWeights:
+  layer1: { 並: 70, 上: 25, 特上: 5,  極: 0,  神: 0 }
+  layer2: { 並: 50, 上: 35, 特上: 13, 極: 2,  神: 0 }
+  layer3: { 並: 30, 上: 40, 特上: 24, 極: 5,  神: 1 }
+  layer4: { 並: 15, 上: 35, 特上: 35, 極: 12, 神: 3 }
+  layer5: { 並: 5,  上: 25, 特上: 40, 極: 22, 神: 8 }
+  deep:   { 並: 0,  上: 0,  特上: 40, 極: 45, 神: 15 }
+# 深度dでは、並の重み×（1−0.04d）、それ以外×（1＋0.05d）
+gradeDepth: { 並: -0.04, other: 0.05 }
+
+# 版が付く確率。深度dで×（1＋0.1d）
+editionChance: { 箔押し: 0.03, ホロ: 0.02, 多色: 0.007, 陰画: 0.005 }
+editionDepth: 0.1
+
+# 商いの値段（札）。×（1＋0.05×階）。常連客は札の×1.5
+price:
+  card: { 並: 10, 上: 18, 特上: 30, 極: 55, 神: 100 }
+  perFloor: 0.05
+  regularMul: 1.5
+  議題: 8
+  番付札: 8
+  品: 12
+  remove: 20
+
+# 売値（札）。版で×。常連客は札の×1.5
+sell:
+  card: { 並: 2, 上: 5, 特上: 12, 極: 30, 神: 80 }
+  edition: { 箔押し: 1.5, ホロ: 2, 多色: 3, 陰画: 3 }
+  regularMul: 1.5
+  item: 4          # お品書き（仕様書に無いので決めた値）
+
+# 置物の換金（脱出時、格ごと）
+relicCash: { 並: 10, 上: 20, 特上: 40, 極: 80, 神: 150 }
+
+# 宝の中身（仕様書 第4章「部屋の中身」）
+treasure: { cards: 1, souvenir: 0.5, item: 0.3 }
+# 商いの品揃え
+shop: { cards: 5, regulars: 2, items: 3, removes: 1 }
+# 湯：体力を上限のこの割合だけ回復
+bath: { heal: 0.3 }
+# 持ち物の枠（宿の改装で増える。段階5）
+carry: { pouch: 8, charm: 1 }
+# 追跡者から逃げる・非常口で、懐が空のとき払う宿銭の割合
+escape: { zeniRate: 0.5 }
+# 上等なお土産（追跡者）は売値の高い方からこの割合の中から
+souvenirQuality: { 上等: 0.5 }
+
+# 宿（仕様書 第6章）
+inn:
+  shikomiCost: { 仕込み: 20, 箔押し: 60, ホロ: 90, 多色: 300, 判: 120, souvenir: sv_banzukekire }   # 仕込み場（＋お土産1）
+  copy: { sellMul: 3, souvenir: sv_waretagarasu }   # 複製：売値×3＋割れた硝子
+  kuyoMul: 2              # 供養：売値×2の供養点で買い戻す
+  kuyoRate: 0.1           # 失った札・常連客の売値のこの割合が供養点に
+  lostLogSize: 20
+  sudomariMax: 2          # 素泊まり潜行の回数の上限
+  sudomariSize: 20        # 素泊まり潜行の借り物デッキ
+  sudomariFloors: 6       # 素泊まり潜行は第二層（B6）まで
+  starterBelow: 15        # 蔵の札がこれ未満なら素泊まりセット（初期デッキ）を渡す
+  pawnThanks: 0.5         # 質札を返したときの謝礼（売値の割合）
+  betZeniPerGrow: 5       # 賭け札：脱出で育ち×5の宿銭
+  depthMax: 20            # 解放できる深度の上限（深度NでB16から脱出で N＋1）
+  pawn: { goods: 3, max: 2, grades: [特上, 極] }   # 質屋：品揃え3枚・2枚まで・質札の格

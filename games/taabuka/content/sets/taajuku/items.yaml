@@ -1,0 +1,315 @@
+# お品書き（仕様書 第5章）。kind: 議題／番付札／品。use: 戦闘中／いつでも／戦闘外（省略時 戦闘中）
+# ask：使う前に画面で選ばせるもの（カテゴリ／札＝デッキの札／札2／手札／敵）。once: 潜行 は1潜行に1回
+
+# 議題（組ごとに1つ。使うとその組の段位＋1）
+- id: tj_gi_tanki
+  name: 議題「単騎」
+  kind: 議題
+  hand: 単騎
+  use: いつでも
+  text: 「単騎」の段位＋1
+  do: [ { 段位を上げる: { 組: 単騎 } } ]
+
+- id: tj_gi_tsui
+  name: 議題「対」
+  kind: 議題
+  hand: 対
+  use: いつでも
+  text: 「対」の段位＋1
+  do: [ { 段位を上げる: { 組: 対 } } ]
+
+- id: tj_gi_nitsui
+  name: 議題「二対」
+  kind: 議題
+  hand: 二対
+  use: いつでも
+  text: 「二対」の段位＋1
+  do: [ { 段位を上げる: { 組: 二対 } } ]
+
+- id: tj_gi_sanzoroi
+  name: 議題「三揃」
+  kind: 議題
+  hand: 三揃
+  use: いつでも
+  text: 「三揃」の段位＋1
+  do: [ { 段位を上げる: { 組: 三揃 } } ]
+
+- id: tj_gi_kaidan
+  name: 議題「階段」
+  kind: 議題
+  hand: 階段
+  use: いつでも
+  text: 「階段」の段位＋1
+  do: [ { 段位を上げる: { 組: 階段 } } ]
+
+- id: tj_gi_dourui
+  name: 議題「同類」
+  kind: 議題
+  hand: 同類
+  use: いつでも
+  text: 「同類」の段位＋1
+  do: [ { 段位を上げる: { 組: 同類 } } ]
+
+- id: tj_gi_manin
+  name: 議題「満員」
+  kind: 議題
+  hand: 満員
+  use: いつでも
+  text: 「満員」の段位＋1
+  do: [ { 段位を上げる: { 組: 満員 } } ]
+
+- id: tj_gi_yonzoroi
+  name: 議題「四揃」
+  kind: 議題
+  hand: 四揃
+  use: いつでも
+  text: 「四揃」の段位＋1
+  do: [ { 段位を上げる: { 組: 四揃 } } ]
+
+- id: tj_gi_douruikaidan
+  name: 議題「同類階段」
+  kind: 議題
+  hand: 同類階段
+  use: いつでも
+  text: 「同類階段」の段位＋1
+  do: [ { 段位を上げる: { 組: 同類階段 } } ]
+
+- id: tj_gi_gozoroi
+  name: 議題「五揃」
+  kind: 議題
+  hand: 五揃
+  use: いつでも
+  text: 「五揃」の段位＋1
+  do: [ { 段位を上げる: { 組: 五揃 } } ]
+
+- id: tj_gi_manindourui
+  name: 議題「満員同類」
+  kind: 議題
+  hand: 満員同類
+  use: いつでも
+  text: 「満員同類」の段位＋1
+  do: [ { 段位を上げる: { 組: 満員同類 } } ]
+
+- id: tj_gi_gozoroidourui
+  name: 議題「五揃同類」
+  kind: 議題
+  hand: 五揃同類
+  use: いつでも
+  text: 「五揃同類」の段位＋1
+  do: [ { 段位を上げる: { 組: 五揃同類 } } ]
+
+- id: tj_gi_kamigumi
+  name: 議題「神組」
+  kind: 議題
+  hand: 神組
+  use: いつでも
+  text: 「神組」の段位＋1
+  do: [ { 段位を上げる: { 組: 神組 } } ]
+
+# 番付札（欠番送りは第四層以降でだけ出る：fromLayer）
+- id: tj_bz_kakuage
+  name: 格上げ
+  kind: 番付札
+  use: いつでも
+  ask: [カテゴリ]
+  text: 選んだカテゴリの番付＋1段
+  do: [ { 番付を上げる: { カテゴリ: 選ぶ, 段: 1 } } ]
+
+- id: tj_bz_gekokujo
+  name: 下剋上
+  kind: 番付札
+  use: いつでも
+  ask: [カテゴリ]
+  text: 選んだカテゴリと、番付で一番高いカテゴリの段を入れ替える
+  do: [ { 番付を入れ替える: { カテゴリ: 選ぶ, 相手: 一番高い } } ]
+
+- id: tj_bz_soirekae
+  name: 総入れ替え
+  kind: 番付札
+  use: いつでも
+  text: 番付を上下反転
+  do: [ 番付を反転 ]
+
+- id: tj_bz_suretate
+  name: スレ立て
+  kind: 番付札
+  use: いつでも
+  text: 乱数の3カテゴリを＋1段
+  do:
+    - 番付を上げる: { カテゴリ: 乱数, 段: 1 }
+    - 番付を上げる: { カテゴリ: 乱数, 段: 1 }
+    - 番付を上げる: { カテゴリ: 乱数, 段: 1 }
+
+- id: tj_bz_datochi
+  name: dat落ち
+  kind: 番付札
+  use: いつでも
+  ask: [カテゴリ]
+  text: 選んだカテゴリをT8へ
+  do: [ { 番付を移す: { カテゴリ: 選ぶ, 先: "8" } } ]
+
+- id: tj_bz_kamikourin
+  name: 神降臨
+  kind: 番付札
+  use: いつでも
+  once: 潜行
+  ask: [カテゴリ]
+  text: 選んだカテゴリをGodへ。1回の潜行で1度だけ
+  do: [ { 番付を移す: { カテゴリ: 選ぶ, 先: God } } ]
+
+- id: tj_bz_ketsubanokuri
+  name: 欠番送り
+  kind: 番付札
+  use: いつでも
+  fromLayer: 4
+  ask: [カテゴリ]
+  text: 選んだカテゴリを欠番「欠7」へ（採点札1枚ごとに倍率×1.5、その札は受けにならない。段では動かなくなる）
+  do: [ { 番付を移す: { カテゴリ: 選ぶ, 先: 欠7 } } ]
+
+- id: tj_bz_narashi
+  name: 均し
+  kind: 番付札
+  use: いつでも
+  text: 全カテゴリをT3へ
+  do: [ { 番付を均す: "3" } ]
+
+- id: tj_bz_binjo
+  name: 便乗
+  kind: 番付札
+  use: 戦闘中
+  text: 手札で一番多いカテゴリを＋2段
+  do: [ { 番付を上げる: { カテゴリ: 手札で一番多い, 段: 2 } } ]
+
+- id: tj_bz_age
+  name: age
+  kind: 番付札
+  use: 戦闘中
+  text: 直前に出した札のカテゴリを＋1段
+  do: [ { 番付を上げる: { カテゴリ: 直前に出した札, 段: 1 } } ]
+
+- id: tj_bz_sage
+  name: sage
+  kind: 番付札
+  use: いつでも
+  ask: [カテゴリ]
+  text: 選んだカテゴリを−1段。宿銭＋5
+  do: [ { 番付を下げる: { カテゴリ: 選ぶ, 段: 1 } }, { 宿銭: 5 } ]
+
+- id: tj_bz_jisure
+  name: 次スレ
+  kind: 番付札
+  use: いつでも
+  text: 番付を、この階に入った時の形に戻す
+  do: [ 番付を階の始めに戻す ]
+
+# 品
+- id: tj_hn_nawabashigo
+  name: 縄梯子
+  kind: 品
+  use: 戦闘外
+  text: その場で脱出する
+  do: [ { 脱出: true } ]
+
+- id: tj_hn_senko
+  name: 線香
+  kind: 品
+  use: いつでも
+  text: 気配−3
+  do: [ { 気配: -3 } ]
+
+- id: tj_hn_oshiki
+  name: 推敷
+  kind: 品
+  use: 戦闘外
+  ask: [札, 札2]
+  text: デッキの札2枚を永続で1枚に（強さは合計、カテゴリは両方、Tierは高い方）
+  do: [ 札を合体 ]
+
+- id: tj_hn_cha
+  name: 茶
+  kind: 品
+  use: いつでも
+  text: 体力＋15
+  do: [ { 体力: 15 } ]
+
+- id: tj_hn_yunomi
+  name: 湯呑み
+  kind: 品
+  use: 戦闘中
+  text: このターン流し＋1
+  do: [ { 流し回数: { 増減: 1, 期間: ターン } } ]
+
+- id: tj_hn_bancha
+  name: 番茶
+  kind: 品
+  use: 戦闘中
+  text: このターン出し＋1
+  do: [ { 出し回数: { 増減: 1, 期間: ターン } } ]
+
+- id: tj_hn_hasami
+  name: 鋏
+  kind: 品
+  use: 戦闘外
+  ask: [札]
+  text: デッキから札を1枚除く
+  do: [ { デッキから除く: 選ぶ } ]
+
+- id: tj_hn_hankobako
+  name: 判子箱
+  kind: 品
+  use: 戦闘外
+  ask: [札]
+  text: デッキの札1枚に乱数の判
+  do: [ { 札に付ける: { 判: 乱数 } } ]
+
+- id: tj_hn_kinpakushi
+  name: 金箔紙
+  kind: 品
+  use: 戦闘外
+  ask: [札]
+  text: デッキの札1枚に金箔
+  do: [ { 札に付ける: { 仕込み: 金箔 } } ]
+
+- id: tj_hn_shakyo
+  name: 写経
+  kind: 品
+  use: 戦闘中
+  ask: [手札]
+  text: 手札1枚の写しを、この戦闘だけ手札に
+  do: [ { 写しを手札に: 手札から選ぶ } ]
+
+- id: tj_hn_fudaire
+  name: 札入れ
+  kind: 品
+  use: 戦闘中
+  text: この戦闘の手札上限＋2
+  do: [ { 手札上限: { 増減: 2, 期間: 戦闘 } } ]
+
+- id: tj_hn_yobirin
+  name: 呼び鈴
+  kind: 品
+  use: 戦闘外
+  text: 次の列の襖に商いを加える
+  do: [ { 襖に足す: { 種類: 商い } } ]
+
+- id: tj_hn_kannaizu
+  name: 館内図の切れ端
+  kind: 品
+  use: 戦闘外
+  text: この階の「？」を全て見せる
+  do: [ 襖を見せる ]
+
+- id: tj_hn_shio
+  name: 塩
+  kind: 品
+  use: 戦闘中
+  ask: [敵]
+  text: 敵一体の次の行動を無効
+  do: [ { 行動を消す: 狙い } ]
+
+- id: tj_hn_fukubiki
+  name: 福引券
+  kind: 品
+  use: 戦闘外
+  text: 乱数の常連客が1人、空いた席に来る
+  do: [ { 常連客を得る: 乱数 } ]

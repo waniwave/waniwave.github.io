@@ -1,0 +1,21 @@
+id: layer3
+name: 議論の淵
+floors: [7, 9]
+line: 声の大きい方へ、番付が傾いていく。
+palette: { bg: "#d9dde3", ink: "#1f2329" }
+doors: { 戦い: 45, 精鋭: 14, 宝: 10, 商い: 10, 湯: 9, 謎: 10 }
+groups:
+  - [en_ronpa]
+  - [en_kotehan]
+  - [en_hanron]
+  - [en_idgae]
+  - [en_sokuresu, en_sokuresu]
+  - [en_hitosore, en_ronpa]
+  - [en_kotehan, en_hanron]
+  - [en_idgae, en_sokuresu]
+elites: [en_source, en_ronsou, en_surechigai]
+bosses: [en_kakuzukeshi, en_sakasayado]
+warden: en_genkanban
+stalker: en_kidoku
+# 層の癖：戦闘の2ターン目から、ターンの始めに先頭の敵が番付を1つ動かす
+quirk: { name: 議論の淵, params: { 毎ターン: 1 } }

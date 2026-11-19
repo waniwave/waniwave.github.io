@@ -1,0 +1,116 @@
+# お土産（仕様書 第5章、先行版の12種）
+# sell：売値　weight：懐の重さ　layers：[出始める層, 最後の層]（省略は最後まで）
+# rate：出やすさ（省略1）　event：その謎でだけ得られる　use：主な使い道（宿の改装・解放。段階5）
+- id: sv_furuikagi
+  name: 古い鍵
+  sell: 15
+  weight: 1
+  layers: [1, 1]
+  use: 蔵Lv2
+  flavor: どの扉にも合わない。
+
+- id: sv_kaketahari
+  name: 欠けた梁
+  sell: 25
+  weight: 2
+  layers: [2, 2]
+  use: 蔵Lv3
+
+- id: sv_taajirushi
+  name: ター印の瓦
+  sell: 40
+  weight: 2
+  layers: [3]
+  use: 蔵Lv4
+
+- id: sv_banzukekire
+  name: 番付の切れ端
+  sell: 10
+  weight: 1
+  layers: [1]
+  use: 仕込み場
+
+- id: sv_yunohana
+  name: 湯の花
+  sell: 12
+  weight: 1
+  layers: [1]
+  use: 神棚
+
+- id: sv_jihankizeni
+  name: 自販機の小銭
+  sell: 20
+  weight: 1
+  layers: [1]
+  use: 換金用
+
+- id: sv_hakusen
+  name: 校庭の白線
+  sell: 18
+  weight: 1
+  layers: [1]
+  use: 物置
+
+- id: sv_waretagarasu
+  name: 割れた硝子
+  sell: 15
+  weight: 1
+  layers: [2]
+  use: 複製
+
+- id: sv_obidome
+  name: 女将の帯留め
+  sell: 60
+  weight: 1
+  layers: [2]
+  use: 客間
+
+- id: sv_tsunokakera
+  name: 角の欠片
+  sell: 80
+  weight: 1
+  layers: [3]
+  use: 帳場Lv3
+
+- id: sv_kuroisara
+  name: 黒い皿
+  sell: 50
+  weight: 1
+  layers: [3]
+  rate: 0.2
+  use: プロトコルチャーハンセットの解放
+
+- id: sv_noren
+  name: 暖簾の切れ端
+  sell: 30
+  weight: 1
+  layers: [2, 2]
+  event: ev_noren
+  use: 暖簾の外側セットの解放
+  flavor: 向こう側の匂いがする。
+
+# 本編（第四層〜）
+- id: sv_ketsubanfuda
+  name: 欠番の名札
+  sell: 60
+  weight: 1
+  layers: [4]
+  use: 換金用
+  flavor: 6とも7とも読める。
+
+- id: sv_hachinoji
+  name: 八の字の結び目
+  sell: 90
+  weight: 1
+  layers: [5]
+  use: 換金用
+  flavor: ほどくと、また8になる。
+
+- id: sv_sokonosuna
+  name: 底の砂
+  sell: 160
+  weight: 2
+  layers: [6]
+  rate: 0.6
+  use: 換金用
+  flavor: さらさらと、上へ落ちる。

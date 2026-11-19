@@ -1,0 +1,33 @@
+# 自己紹介をする土の専用の常連客
+
+- id: ts_r_meishikoukan
+  name: 名刺交換の相手
+  grade: 上
+  text: 1枚だけで採点されると倍率＋3
+  flavor: 両手で受け取る。
+  fx:
+    - when: 採点時
+      if: { 採点枚数: 1 }
+      do:
+        - 倍率: 3
+
+- id: ts_r_katagaki
+  name: 肩書きマニア
+  grade: 上
+  text: 出しのたびに強さ＋（採点枚数×8）
+  flavor: 肩書きだけで一行。
+  fx:
+    - when: 出し
+      do:
+        - 強さ: 採点枚数*8
+
+- id: ts_r_kyoudai
+  name: 土の兄弟
+  grade: 特上
+  text: 〈宿〉の札が採点されるたび掛け×1.25
+  flavor: 名乗りは兄譲り。
+  fx:
+    - when: 採点時
+      if: { 採点札のカテゴリ: 宿 }
+      do:
+        - 掛け: 1.25

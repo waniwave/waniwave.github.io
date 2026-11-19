@@ -1,0 +1,244 @@
+# 曰く札（期限・曰く付き・賭け）。通常の札より強い代わりに、消える・祟る・賭ける
+
+- id: iw_gentei
+  name: 期間限定メニュー
+  cat: [食べ物, 麺]
+  tier: 1
+  grade: 上
+  origin: expiry
+  text: 採点されると倍率＋6
+  flavor: 今月まで。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 6}
+
+- id: iw_timesale
+  name: タイムセールの札
+  cat: [宿, 速さ]
+  tier: 2
+  grade: 上
+  origin: expiry
+  text: この戦闘1回目の出しなら掛け×2
+  flavor: あと五分。
+  fx:
+  - when: 採点時
+    if: {戦闘の出し: 1}
+    do:
+    - {掛け: 2}
+
+- id: iw_kisetsu
+  name: 季節限定の湯
+  cat: [湯]
+  tier: 0
+  grade: 特上
+  origin: expiry
+  text: 採点されると強さ＋40
+  flavor: 冬至だけ。
+  fx:
+  - when: 採点時
+    do:
+    - {強さ: 40}
+
+- id: iw_shoumi
+  name: 賞味期限ぎりぎりの弁当
+  cat: [食べ物, 死]
+  tier: 1
+  grade: 特上
+  origin: expiry
+  text: 採点されると掛け×1.8
+  flavor: 半額シール付き。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.8}
+
+- id: iw_hanabi
+  name: 打ち上げ花火
+  cat: [速さ, 校庭]
+  tier: 0
+  grade: 極
+  origin: expiry
+  text: 5枚採点されると掛け×4
+  flavor: 一瞬だけ、明るい。
+  fx:
+  - when: 出し
+    if: {採点枚数: 5}
+    do:
+    - {掛け: 4}
+
+- id: iw_matsuri
+  name: 最終日の祭り
+  cat: [ター, スレ]
+  tier: God
+  grade: 極
+  origin: expiry
+  text: 採点されると掛け×2.5
+  flavor: 明日には片付けられる。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 2.5}
+
+- id: iw_ningyo
+  name: 曰く付きの日本人形
+  cat: [死, 宿]
+  tier: 1
+  grade: 上
+  origin: cursed
+  text: 採点されると倍率＋8。手札にある間、ターン終了時に体力−2
+  flavor: 髪が伸びている。
+  kw: [祟り2]
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 8}
+
+- id: iw_denwa
+  name: 夜中に鳴る電話
+  cat: [死, ロボ]
+  tier: 1
+  grade: 上
+  origin: cursed
+  text: 採点されると強さ＋45。手札にある間、ターン終了時に体力−2
+  flavor: 出ると、無言。
+  kw: [祟り2]
+  fx:
+  - when: 採点時
+    do:
+    - {強さ: 45}
+
+- id: iw_kagi
+  name: 開かずの間の鍵
+  cat: [宿, 死]
+  tier: 0
+  grade: 特上
+  origin: cursed
+  text: 採点されると掛け×2。手札にある間、ターン終了時に体力−3
+  flavor: 開けてはいけない、と書いてある。
+  kw: [祟り3]
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 2}
+
+- id: iw_banzuke
+  name: 血の滲む番付表
+  cat: [スレ, 死]
+  tier: 0
+  grade: 特上
+  origin: cursed
+  text: 採点されると番付で一番高いカテゴリを2段上げる。手札にある間、体力−3
+  flavor: 誰が書いたのか。
+  kw: [祟り3]
+  fx:
+  - when: 採点時
+    do:
+    - 番付を上げる: {カテゴリ: 一番高い, 段: 2}
+
+- id: iw_video
+  name: 呪いのビデオ
+  cat: [死, スレ]
+  tier: God
+  grade: 極
+  origin: cursed
+  text: 採点されると掛け×3.5。手札にある間、ターン終了時に体力−4
+  flavor: 七日後に、議論が始まる。
+  kw: [祟り4]
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 3.5}
+
+- id: iw_ofuda
+  name: 剥がれかけたお札
+  cat: [死, ター]
+  tier: 0
+  grade: 極
+  origin: cursed
+  text: 採点されると倍率＋（失った体力÷2）。手札にある間、体力−4
+  flavor: 剥がすと、何かが出る。
+  kw: [祟り4]
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 失った体力/2}
+
+- id: iw_kinsho
+  name: ター宿の禁書
+  cat: [ター, 死, スレ]
+  tier: God
+  grade: 神
+  origin: cursed
+  text: 採点されると掛け×6。手札にある間、ターン終了時に体力−6
+  flavor: 読んだ者は、Tierを語らずにいられない。
+  kw: [祟り6]
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 6}
+
+- id: iw_baken
+  name: 外れ馬券
+  cat: [動物, 速さ]
+  tier: 3
+  grade: 上
+  origin: bet
+  text: 下りた階ごとに強さ＋10（育ち）
+  flavor: まだ外れと決まったわけではない。
+
+- id: iw_takarakuji
+  name: 宝くじ
+  cat: [宿, ター]
+  tier: 3
+  grade: 上
+  origin: bet
+  text: 下りた階ごとに強さ＋10（育ち）。育ちが5以上なら倍率＋5
+  flavor: 当たったら宿を建て替える。
+  fx:
+  - when: 採点時
+    if:
+      値: {式: 育ち, 以上: 5}
+    do:
+    - {倍率: 5}
+
+- id: iw_kabu
+  name: 議論銘柄の株券
+  cat: [スレ, ロボ]
+  tier: 2
+  grade: 特上
+  origin: bet
+  text: 下りた階ごとに強さ＋10（育ち）。採点されると倍率＋（育ち）
+  flavor: ストップ高。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 育ち}
+
+- id: iw_shakuyou
+  name: 借用書
+  cat: [宿, 死]
+  tier: 2
+  grade: 特上
+  origin: bet
+  text: 下りた階ごとに強さ＋10（育ち）。育ちが8以上なら掛け×2
+  flavor: 利子も育つ。
+  fx:
+  - when: 採点時
+    if:
+      値: {式: 育ち, 以上: 8}
+    do:
+    - {掛け: 2}
+
+- id: iw_ittenbari
+  name: 一点張り
+  cat: [ター, 格ゲー]
+  tier: 1
+  grade: 極
+  origin: bet
+  text: 下りた階ごとに強さ＋10（育ち）。採点されると掛け×（1＋育ち×0.2）
+  flavor: 全部、ここに。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1+育ち*0.2}

@@ -1,0 +1,43 @@
+# 限定の常連客（縛り潜行の初回脱出の報酬）
+
+- id: gt_r_hitori
+  name: ひとり客
+  grade: 極
+  text: 出しのたびに掛け×1.5
+  flavor: 連れはいない。
+  fx:
+  - when: 出し
+    do:
+    - {掛け: 1.5}
+
+- id: gt_r_kurouto
+  name: 玄人
+  grade: 極
+  text: 5枚採点されると掛け×2
+  flavor: 縛られるほど強い。
+  fx:
+  - when: 出し
+    if: {採点枚数: 5}
+    do:
+    - {掛け: 2}
+
+- id: gt_r_sakusen
+  name: 作戦参謀
+  grade: 極
+  text: この戦闘1回目の出しなら掛け×3
+  flavor: 最初の一手で決める。
+  fx:
+  - when: 出し
+    if: {戦闘の出し: 1}
+    do:
+    - {掛け: 3}
+
+- id: gt_r_nigeashi
+  name: 逃げ足
+  grade: 極
+  text: 戦闘が始まると受け＋20
+  flavor: 非常口の場所は知っている。
+  fx:
+  - when: 戦闘開始
+    do:
+    - {受け: 20}

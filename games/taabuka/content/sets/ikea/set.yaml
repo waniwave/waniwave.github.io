@@ -1,0 +1,7 @@
+id: ikea
+name: IKEA
+guest: ikea                    # この宿泊客でしか拾えない
+unlock: { guest: ikea }
+color: "#2f5ea8"
+keywords: []
+intro: 組み立てれば、家具になる。たぶん。

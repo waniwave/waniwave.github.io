@@ -1,0 +1,28 @@
+# 流行語の目玉ルール（キーワード能力）。中身が語彙で書けないものは custom/ の特注を指す
+- id: kw_nibai
+  name: 二倍
+  text: この札を含む出しは、採点も常連客の発動も全部2回ずつ起きる
+  custom: nibai            # custom/nibai.js
+  show: [文字二回]
+
+- id: kw_kougo
+  name: 交互
+  text: 採点の順番をカテゴリが交互になるように並べ替え、交互が続いた数だけ倍率×1.5
+  custom: kougo            # custom/kougo.js
+  params: { 掛け: 1.5 }
+  show:
+    - 横切る: 串
+
+- id: kw_sengen
+  name: 宣言
+  text: 出すときに好きな組を1つ宣言し、成立していなくてもその組として採点する
+  custom: sengen           # custom/sengen.js
+
+- id: kw_fuseji
+  name: 伏せ字
+  text: 何が起きるかは出すまで分からない（解放済みの目玉ルールから1つ）
+  fx:
+    - when: 出しの前
+      do:
+        - ルール: { 名前: 伏せ字, 範囲: この出し }
+  show: [伏せ字]

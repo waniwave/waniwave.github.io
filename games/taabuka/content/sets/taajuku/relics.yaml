@@ -1,0 +1,170 @@
+# 置物（ター宿セット 18。宿泊客の最初の置物2つと合わせて20）。潜行中ずっと効き、脱出で宿銭に換わる
+
+- id: tj_rl_manekineko
+  name: 招き猫
+  grade: 並
+  text: 戦闘が終わると宿銭＋2
+  flavor: 右手か左手かで揉めた。
+  fx:
+    - when: 戦闘終了
+      do: [ { 宿銭: 2 } ]
+
+- id: tj_rl_daruma
+  name: 片目の達磨
+  grade: 並
+  text: 戦闘が始まると体力＋3
+  flavor: もう片方は、脱出してから。
+  fx:
+    - when: 戦闘開始
+      do: [ { 体力: 3 } ]
+
+- id: tj_rl_kumade
+  name: 熊手
+  grade: 上
+  text: 敵を倒すたび宿銭＋3
+  flavor: かき集める。
+  fx:
+    - when: 敵を倒した時
+      do: [ { 宿銭: 3 } ]
+
+- id: tj_rl_gakubuchi
+  name: 番付表の額
+  grade: 上
+  text: 戦闘が始まると、乱数のカテゴリの番付を1段上げる
+  flavor: 額のほうが立派。
+  fx:
+    - when: 戦闘開始
+      do: [ { 番付を上げる: { カテゴリ: 乱数, 段: 1 } } ]
+
+- id: tj_rl_noren
+  name: 色あせた暖簾
+  grade: 並
+  text: 階に入るたび体力＋5
+  flavor: 「商い中」。
+  fx:
+    - when: 階に入った時
+      do: [ { 体力: 5 } ]
+
+- id: tj_rl_naruko
+  name: 鳴子
+  grade: 並
+  text: 階に入るたび気配−1
+  flavor: 鳴ったら、静かにする。
+  fx:
+    - when: 階に入った時
+      do: [ { 気配: -1 } ]
+
+- id: tj_rl_morijio
+  name: 盛り塩
+  grade: 上
+  text: 部屋に入るたび、4回に1回くらい気配−1
+  flavor: 角が崩れていない。
+  fx:
+    - when: 部屋に入った時
+      if: { 確率: 0.25 }
+      do: [ { 気配: -1 } ]
+
+- id: tj_rl_hashiradokei
+  name: 柱時計
+  grade: 上
+  text: 戦闘の最初の出しは掛け×1.5
+  flavor: 少し進んでいる。
+  fx:
+    - when: 出し
+      if: { 戦闘の出し: 1 }
+      do: [ { 掛け: 1.5 } ]
+
+- id: tj_rl_zundou
+  name: 寸胴鍋
+  grade: 並
+  text: 〈麺〉の札が採点されるたび強さ＋6
+  flavor: 底が見えない。
+  fx:
+    - when: 採点時
+      if: { 採点札のカテゴリ: 麺 }
+      do: [ { 強さ: 6 } ]
+
+- id: tj_rl_yuoke
+  name: 黄色い湯桶
+  grade: 並
+  text: 〈湯〉の札が採点されるたび倍率＋1
+  flavor: 広告が入っている。
+  fx:
+    - when: 採点時
+      if: { 採点札のカテゴリ: 湯 }
+      do: [ { 倍率: 1 } ]
+
+- id: tj_rl_kokuban
+  name: 黒板
+  grade: 並
+  text: 〈校庭〉の札が採点されるたび強さ＋8
+  flavor: 「日直：土」。
+  fx:
+    - when: 採点時
+      if: { 採点札のカテゴリ: 校庭 }
+      do: [ { 強さ: 8 } ]
+
+- id: tj_rl_shougiban
+  name: 将棋盤
+  grade: 上
+  text: 5枚で採点されると倍率＋4
+  flavor: 駒が一枚足りない。
+  fx:
+    - when: 出し
+      if: { 採点枚数: 5 }
+      do: [ { 倍率: 4 } ]
+
+- id: tj_rl_kakejiku
+  name: 「論破」の掛け軸
+  grade: 極
+  text: 戦闘のあいだ、出し＋1
+  flavor: 字が強い。
+  fx:
+    - when: 戦闘開始
+      do: [ { 出し回数: { 増減: 1, 期間: 戦闘 } } ]
+
+- id: tj_rl_zabuton
+  name: 座布団
+  grade: 並
+  text: 札が受けに回るたび受け＋2
+  flavor: 一枚あげて。
+  fx:
+    - when: 受けに回る
+      do: [ { 受け: 2 } ]
+
+- id: tj_rl_chouchin
+  name: 提灯
+  grade: 上
+  text: 戦闘のあいだ、流し＋1
+  flavor: 宿の名前が入っている。
+  fx:
+    - when: 戦闘開始
+      do: [ { 流し回数: { 増減: 1, 期間: 戦闘 } } ]
+
+- id: tj_rl_kinbyoubu
+  name: 金屏風
+  grade: 特上
+  text: 出しのたびに掛け×1.2
+  flavor: 後ろに何か隠れている。
+  fx:
+    - when: 出し
+      do: [ { 掛け: 1.2 } ]
+
+- id: tj_rl_sakaki
+  name: 神棚の榊
+  grade: 特上
+  text: 戦闘が終わったとき体力が半分以下なら体力＋8
+  flavor: 水は毎朝替える。
+  fx:
+    - when: 戦闘終了
+      if: { 体力の割合以下: 0.5 }
+      do: [ { 体力: 8 } ]
+
+- id: tj_rl_choumen
+  name: 帳面
+  grade: 並
+  text: 戦闘が始まると1枚引く
+  flavor: 鉛筆が挟まっている。
+  fx:
+    - when: 戦闘開始
+      do: [ { 引く: 1 } ]

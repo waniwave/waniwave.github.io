@@ -1,0 +1,7 @@
+id: taakaku
+name: ター角
+guest: taakaku                    # この宿泊客でしか拾えない
+unlock: { guest: taakaku }
+color: "#8f3f3f"
+keywords: []
+intro: 角を取った者が、ターを取る。

@@ -1,0 +1,294 @@
+# タタ木の専用札（25枚）
+
+- id: tt_naegi
+  name: 苗木
+  cat: [校庭, 動物]
+  tier: 3
+  grade: 並
+  flavor: 水をやれば、たぶん育つ。
+
+- id: tt_jouro
+  name: じょうろ
+  cat: [校庭, 湯]
+  tier: 4
+  grade: 並
+  text: 植木が3本以上なら強さ＋15
+  flavor: 先が細い。
+  fx:
+  - when: 採点時
+    if:
+      値: {式: 植木数, 以上: 3}
+    do:
+    - {強さ: 15}
+
+- id: tt_ochiba
+  name: 落ち葉
+  cat: [校庭]
+  tier: 5
+  grade: 並
+  text: 受けに回ると受け＋4
+  flavor: 掃いても掃いても。
+  kw: [守り4]
+
+- id: tt_donguri
+  name: どんぐり
+  cat: [動物, 食べ物]
+  tier: 4
+  grade: 並
+  text: 採点されると強さ＋（植木数×4）
+  flavor: 帽子つき。
+  fx:
+  - when: 採点時
+    do:
+    - {強さ: 植木数*4}
+
+- id: tt_kinoko
+  name: 切り株のきのこ
+  cat: [食べ物, 校庭]
+  tier: 3
+  grade: 並
+  text: 同じ出しに同じカテゴリの札があれば倍率＋2
+  flavor: 食べられるかは知らない。
+  kw: [連れ2]
+
+- id: tt_mino
+  name: ミノムシ
+  cat: [動物]
+  tier: 5
+  grade: 並
+  text: 手札に残ると次の出しの強さ＋6
+  flavor: ぶら下がって、待つ。
+  fx:
+  - when: 手札に残る
+    do:
+    - {次の出しの強さ: 6}
+
+- id: tt_kakashi
+  name: かかし
+  cat: [校庭, ロボ]
+  tier: 4
+  grade: 並
+  text: 採点されると受け＋5
+  flavor: 鳥は気にしていない。
+  fx:
+  - when: 採点時
+    do:
+    - {受け: 5}
+
+- id: tt_hiryou
+  name: 肥料袋
+  cat: [食べ物]
+  tier: 5
+  grade: 並
+  text: 採点されると札を1枚引く
+  flavor: 重い。
+  kw: [呼び水1]
+
+- id: tt_nenrin
+  name: 年輪
+  cat: [老, 校庭]
+  tier: 2
+  grade: 上
+  text: 採点されると倍率＋（植樹数÷2）
+  flavor: 数えると眠くなる。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 植樹数/2}
+
+- id: tt_kigi
+  name: 木々のざわめき
+  cat: [動物, スレ]
+  tier: 3
+  grade: 上
+  text: 5枚採点されると倍率＋6
+  flavor: 誰かが噂している。
+  fx:
+  - when: 出し
+    if: {採点枚数: 5}
+    do:
+    - {倍率: 6}
+
+- id: tt_seedling
+  name: 芽吹き
+  cat: [校庭]
+  tier: 3
+  grade: 上
+  text: 植木が1本以上あれば掛け×1.3
+  flavor: 土が少し盛り上がる。
+  fx:
+  - when: 採点時
+    if:
+      値: {式: 植木数, 以上: 1}
+    do:
+    - {掛け: 1.3}
+
+- id: tt_kitsutsuki
+  name: キツツキ
+  cat: [動物, 速さ]
+  tier: 2
+  grade: 上
+  text: この戦闘1回目の出しなら倍率×2
+  flavor: コンコン。
+  kw: [一番槍]
+
+- id: tt_mokuren
+  name: 木蓮の枝
+  cat: [校庭, 湯]
+  tier: 1
+  grade: 上
+  text: 採点されると〈校庭〉の番付を1段上げる
+  flavor: 春だけ偉い。
+  fx:
+  - when: 採点時
+    do:
+    - 番付を上げる: {カテゴリ: 校庭, 段: 1}
+
+- id: tt_kibori
+  name: 木彫りの熊
+  cat: [動物, 宿]
+  tier: 2
+  grade: 上
+  text: 受けに回ると受け＋8
+  flavor: 鮭はくわえていない。
+  kw: [守り8]
+
+- id: tt_ueki
+  name: 植木鉢
+  cat: [宿, 校庭]
+  tier: 3
+  grade: 上
+  text: 採点されると強さ＋（植木数×8）
+  flavor: 穴が空いている。
+  fx:
+  - when: 採点時
+    do:
+    - {強さ: 植木数*8}
+
+- id: tt_ringo
+  name: りんごの木
+  cat: [食べ物, 校庭]
+  tier: 1
+  grade: 上
+  text: 採点されると体力＋3
+  flavor: 一個だけ実っている。
+  fx:
+  - when: 採点時
+    do:
+    - {体力: 3}
+
+- id: tt_tatabayashi
+  name: タタ林
+  cat: [校庭, 動物, ター]
+  tier: 1
+  grade: 特上
+  text: 植木が3本以上なら掛け×1.6
+  flavor: 林になると、急に偉い。
+  fx:
+  - when: 採点時
+    if:
+      値: {式: 植木数, 以上: 3}
+    do:
+    - {掛け: 1.6}
+
+- id: tt_kodama
+  name: こだま
+  cat: [ター, スレ]
+  tier: 0
+  grade: 特上
+  text: 採点されると倍率＋（植樹数）
+  flavor: 呼ぶと、少し遅れて返ってくる。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 植樹数}
+
+- id: tt_morinokami
+  name: 森の番付
+  cat: [校庭, スレ]
+  tier: 1
+  grade: 特上
+  text: 採点されると番付で一番低いカテゴリを2段上げる
+  flavor: 森にも順位はある。
+  fx:
+  - when: 採点時
+    do:
+    - 番付を上げる: {カテゴリ: 一番低い, 段: 2}
+
+- id: tt_kareeda
+  name: 枯れ枝
+  cat: [死, 校庭]
+  tier: 0
+  grade: 特上
+  text: 体力が半分以下なら掛け×2
+  flavor: 折れても、燃える。
+  fx:
+  - when: 採点時
+    if: {体力の割合以下: 0.5}
+    do:
+    - {掛け: 2}
+
+- id: tt_yadorigi
+  name: 宿り木
+  cat: [宿, 動物]
+  tier: 2
+  grade: 特上
+  text: 採点されると育つ（強さ＋育ち×3）
+  flavor: 勝手に住みついた。
+  fx:
+  - when: 採点時
+    do:
+    - {育つ: 1}
+    - {強さ: 育ち*3}
+
+- id: tt_tatamori
+  name: タタ森
+  cat: [校庭, ター, 動物]
+  tier: 0
+  grade: 極
+  text: 植木が5本なら掛け×3
+  flavor: 森の中では、誰も議論しない。
+  fx:
+  - when: 採点時
+    if:
+      値: {式: 植木数, 以上: 5}
+    do:
+    - {掛け: 3}
+
+- id: tt_sekaiju
+  name: 世界樹（自称）
+  cat: [ター, 校庭]
+  tier: God
+  grade: 極
+  text: 採点されると倍率＋（植樹数×2）
+  flavor: 学級園の真ん中に生えている。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 植樹数*2}
+
+- id: tt_hikobae
+  name: ひこばえ
+  cat: [校庭, 老]
+  tier: 1
+  grade: 極
+  text: ターン終了時に手札にあれば、次の出しの強さ＋40
+  flavor: 切り株から、また。
+  fx:
+  - when: ターン終了
+    do:
+    - {次の出しの強さ: 40}
+
+- id: tt_taboku
+  name: 大樹タタ木
+  cat: [ター, 校庭, 動物]
+  tier: God
+  grade: 神
+  text: 植木が3本以上なら掛け×5
+  flavor: 木と呼ぶには、議論が足りない。
+  fx:
+  - when: 採点時
+    if:
+      値: {式: 植木数, 以上: 3}
+    do:
+    - {掛け: 5}

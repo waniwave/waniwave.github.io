@@ -1,0 +1,11 @@
+id: koutei
+name: 校庭変化
+hp: 70
+mechanic: 変化
+relic: kt_r_hakusen              # 白線引き
+deck: { set: taajuku, grades: [並], extra: [kt_chorei, kt_tetsubou, kt_taiikukan] }
+set: koutei
+unlock: { reach: 9 }             # B9に到達
+params: { 校庭のM: 4, 体育館のS: 30, 朝礼台の受け: 2, 朝礼台の単騎: 4, 白線: kt_r_hakusen }
+state: { 場: 0, 白線済: 0 }
+text: 場が毎ターン「校庭→体育館→朝礼台」と移り、得な組が変わる

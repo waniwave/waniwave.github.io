@@ -1,0 +1,11 @@
+id: tatagi
+name: タタ木
+hp: 70
+mechanic: 植樹                   # guests/tatagi/custom.js の name
+relic: tt_r_monohoshi            # 物干し竿
+deck: { set: taajuku, grades: [並], extra: [tt_naegi, tt_naegi, tt_jouro] }
+set: tatagi
+unlock: { reach: 6 }             # B6に到達
+params: { 上限: 5, 一度に: 2, 林: 3, 林の倍: 2, 森: 5, 竿: tt_r_monohoshi }
+state: { 植木数: 0, 植樹数: 0 }   # 植木数＝いま植わっている本数、植樹数＝この潜行で植えた本数
+text: 出しの代わりに札を植える。植木はターンの終わりにまとめて採点される

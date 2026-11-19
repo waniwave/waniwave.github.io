@@ -1,0 +1,152 @@
+# 共通のキーワード能力（仕様書 第9章「初期の共通キーワード」）。どのセットの札にも付けられる
+# 札では名前を書くだけ。数字を取るもの（arg: N）は「呼び水2」のように後ろに数字を付ける
+
+- id: kw_kieru
+  name: 消える
+  text: 出すと捨て札に行かず、その戦闘から除かれる
+  fx:
+    - when: 出しの後
+      do:
+        - 札を消す: { 対象: この札, 期間: 戦闘 }
+  test:
+    - name: 出すとその戦闘から除かれる
+      hand: [{ tier: 3, kw: [消える] }]
+      expect: { 除外枚数: 1, 捨て札枚数: 0 }
+
+- id: kw_shote
+  name: 初手
+  text: 戦闘開始時に必ず手札に入る
+  fx:
+    - when: 戦闘開始
+      do: [山札の上に置く]
+  test:
+    - name: 山札の一番下にあっても最初の手札に入る
+      deck: [{ tier: 1 }, { tier: 1 }, { tier: 1 }, { tier: 1 }, { tier: 1 }, { tier: 1 }, { tier: 1 }, { tier: 1 }, { tier: 1 }, { tier: 1 }, { tier: 1 }, { tier: 1 }, { tier: 5, name: 初手の札, kw: [初手] }]
+      expect: { 手札に: 初手の札 }
+
+- id: kw_yobimizu
+  name: 呼び水
+  arg: N
+  text: 採点されると札をN枚引く
+  fx:
+    - when: 採点時
+      do: [ { 引く: N } ]
+  test:
+    - name: 呼び水2で2枚引く
+      hand: [{ tier: 3, kw: [呼び水2] }]
+      draw: [{ tier: 1 }, { tier: 1 }, { tier: 1 }]
+      expect: { 手札枚数: 2, 山札枚数: 1 }
+
+- id: kw_yoin
+  name: 余韻
+  arg: N
+  text: 採点されると、次の出しの最初に強さ＋N
+  fx:
+    - when: 採点時
+      do: [ { 次の出しの強さ: N } ]
+  test:
+    - name: 次の出しの強さ＋3
+      hand: [{ tier: 3, cat: [麺], kw: [余韻3] }, { tier: 3, cat: [湯] }]
+      steps: [{ play: [0] }, { play: [0] }]
+      expect: { V: 14 }               # 2回目の単騎：(5＋6＋3)×1。余韻なしなら 11
+
+- id: kw_mamori
+  name: 守り
+  arg: N
+  text: 受けに回ると受け＋N
+  fx:
+    - when: 受けに回る
+      do: [ { 受け: N } ]
+  test:
+    - name: 受けに回ると受け＋4
+      hand: [{ tier: God, cat: [麺] }, { tier: 5, cat: [湯], kw: [守り4] }]
+      expect: { 受け: 7 }             # T5 の強さ3＋守り4
+
+- id: kw_tsure
+  name: 連れ
+  arg: N
+  text: 同じ出しに同じカテゴリの札が他にあれば倍率＋N
+  fx:
+    - when: 採点時
+      if: { 同じカテゴリの札が他に: true }
+      do: [ { 倍率: N } ]
+  test:
+    - name: 同じカテゴリが他にあれば倍率＋2
+      hand: [{ tier: 3, cat: [麺], kw: [連れ2] }, { tier: 3, cat: [麺] }]
+      expect: { V: 88, なしより大きい: true }   # 対：(10＋6＋6)×(2＋2)
+    - name: 1枚だけなら何もしない
+      hand: [{ tier: 3, cat: [麺], kw: [連れ2] }]
+      expect: { V: 11 }
+
+- id: kw_ichibanyari
+  name: 一番槍
+  text: その戦闘の最初の出しなら倍率×2
+  fx:
+    - when: 採点時
+      if: { 戦闘の出し: 1 }
+      do: [ { 掛け: 2 } ]
+  test:
+    - name: 戦闘の最初の出しは倍率×2
+      hand: [{ tier: 3, kw: [一番槍] }]
+      expect: { なしの倍: 2 }
+
+- id: kw_todome
+  name: とどめ
+  text: この札を含む出しで敵を倒すと宿銭＋2
+  fx:
+    - when: 敵を倒した時
+      do: [ { 宿銭: 2 } ]
+  test:
+    - name: 倒すと宿銭＋2
+      hand: [{ tier: 3, kw: [とどめ] }]
+      enemies: [{ claim: 1 }]
+      expect: { 宿銭: 9 }             # 過剰論破（論破2＋大論破5）＋とどめ2
+
+- id: kw_kasanekazu
+  name: 重ね数
+  arg: N
+  text: 揃いの判定でN枚分として数える（組は5枚分まで）
+  fx:
+    - when: 出しの前
+      do:
+        - ルール: { 名前: 重ね数, 範囲: この出し, 枚数: N }
+  test:
+    - name: 重ね数2と同じTierの札1枚で三揃
+      hand: [{ tier: 3, cat: [麺], kw: [重ね数2] }, { tier: 3, cat: [湯] }]
+      expect: { 組: 三揃 }
+
+- id: kw_nemawashi
+  name: 根回し
+  text: 採点されると、この札のカテゴリを番付で1段上げる
+  fx:
+    - when: 採点時
+      do:
+        - 番付を上げる: { カテゴリ: この札, 段: 1 }
+  test:
+    - name: この札のカテゴリが1段上がる
+      hand: [{ tier: 3, cat: [麺], kw: [根回し] }]
+      expect: { 番付: { 麺: "2" } }
+
+- id: kw_tatari
+  name: 祟り
+  arg: N
+  text: 手札にある間、ターン終了時に体力−N
+  fx:
+    - when: ターン終了
+      do: [ { 体力: "-N" } ]
+  test:
+    - name: 手札にあるとターン終了時に体力−3
+      hand: [{ tier: 3, kw: [祟り3] }]
+      steps: [{ end: true }]
+      hp: 70
+      expect: { 体力: 67 }
+
+- id: kw_fue
+  name: 不壊
+  text: 硝子でも割れず、消える効果を受けない
+  props: { unbreakable: true }
+  test:
+    - name: 消えるを受けない
+      hand: [{ tier: 3, kw: [不壊, 消える] }]
+      expect: { 除外枚数: 0, 捨て札枚数: 1 }
+

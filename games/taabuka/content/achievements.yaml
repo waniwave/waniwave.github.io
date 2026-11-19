@@ -1,0 +1,564 @@
+# 実績（仕様書 第6章・企画書「やり込み」）。if は解放条件と同じ語彙で、全て成り立つと取れる。zeni＝取ったときの宿銭、hidden＝取るまで名前を伏せる
+- id: ac_reach3
+  name: 帳場の底
+  text: B3に到達する
+  if: {reach: 3}
+  zeni: 10
+- id: ac_reach6
+  name: 襖の向こう
+  text: B6に到達する
+  if: {reach: 6}
+  zeni: 10
+- id: ac_reach9
+  name: 淵をのぞく
+  text: B9に到達する
+  if: {reach: 9}
+  zeni: 10
+- id: ac_reach12
+  name: 欠番を数える
+  text: B12に到達する
+  if: {reach: 12}
+  zeni: 10
+- id: ac_reach15
+  name: すべてが8
+  text: B15に到達する
+  if: {reach: 15}
+  zeni: 10
+- id: ac_reach16
+  name: 底に座るもの
+  text: B16に到達する
+  if: {reach: 16}
+  zeni: 50
+- id: ac_reach20
+  name: 名のない階
+  text: B20に到達する
+  if: {reach: 20}
+  zeni: 50
+- id: ac_reach50
+  name: 五十階
+  text: B50に到達する
+  if: {reach: 50}
+  zeni: 50
+- id: ac_reach100
+  name: 百階
+  text: B100に到達する
+  if: {reach: 100}
+  zeni: 50
+- id: ac_extract1
+  name: ただいま
+  text: 脱出を1回
+  if: {extract: 1}
+  zeni: 2
+- id: ac_extract5
+  name: 帰り道を覚えた
+  text: 脱出を5回
+  if: {extract: 5}
+  zeni: 10
+- id: ac_extract10
+  name: 常連
+  text: 脱出を10回
+  if: {extract: 10}
+  zeni: 20
+- id: ac_extract25
+  name: 顔なじみ
+  text: 脱出を25回
+  if: {extract: 25}
+  zeni: 50
+- id: ac_extract50
+  name: 宿の主のよう
+  text: 脱出を50回
+  if: {extract: 50}
+  zeni: 100
+- id: ac_extract100
+  name: 帰ってくるのが仕事
+  text: 脱出を100回
+  if: {extract: 100}
+  zeni: 200
+- id: ac_from6
+  name: 第二層から帰る
+  text: B6以深から脱出
+  if: {extractFrom: 6}
+  zeni: 20
+- id: ac_from9
+  name: 第三層から帰る
+  text: B9以深から脱出
+  if: {extractFrom: 9}
+  zeni: 20
+- id: ac_from12
+  name: 第四層から帰る
+  text: B12以深から脱出
+  if: {extractFrom: 12}
+  zeni: 20
+- id: ac_from15
+  name: 第五層から帰る
+  text: B15以深から脱出
+  if: {extractFrom: 15}
+  zeni: 20
+- id: ac_from16
+  name: 底から帰る
+  text: B16以深から脱出
+  if: {extractFrom: 16}
+  zeni: 100
+- id: ac_from20
+  name: さらに深くから帰る
+  text: B20以深から脱出
+  if: {extractFrom: 20}
+  zeni: 100
+- id: ac_boss_suretate
+  name: スレ立てを論破
+  text: 層主「スレ立て」を倒す
+  if: {bossId: en_suretate}
+  zeni: 15
+- id: ac_boss_tsuchi_nashi
+  name: 自己紹介をしない土を論破
+  text: 層主「自己紹介をしない土」を倒す
+  if: {bossId: en_tsuchi_nashi}
+  zeni: 15
+- id: ac_boss_fusuma_nushi
+  name: 襖の主を論破
+  text: 層主「襖の主」を倒す
+  if: {bossId: en_fusuma_nushi}
+  zeni: 15
+- id: ac_boss_datochi
+  name: dat落ちを論破
+  text: 層主「dat落ち」を倒す
+  if: {bossId: en_datochi}
+  zeni: 15
+- id: ac_boss_kakuzukeshi
+  name: 格付け師を論破
+  text: 層主「格付け師」を倒す
+  if: {bossId: en_kakuzukeshi}
+  zeni: 15
+- id: ac_boss_sakasayado
+  name: 逆さ宿を論破
+  text: 層主「逆さ宿」を倒す
+  if: {bossId: en_sakasayado}
+  zeni: 15
+- id: ac_boss_ketsuban
+  name: 欠番を論破
+  text: 層主「欠番」を倒す
+  if: {bossId: en_ketsuban}
+  zeni: 15
+- id: ac_boss_yakkan8
+  name: 宿泊約款第8条を論破
+  text: 層主「宿泊約款第8条」を倒す
+  if: {bossId: en_yakkan8}
+  zeni: 15
+- id: ac_boss_tier8
+  name: Tier8を論破
+  text: 層主「Tier8」を倒す
+  if: {bossId: en_tier8}
+  zeni: 15
+- id: ac_boss_byousoku
+  name: 秒速5タームメートルを論破
+  text: 層主「秒速5タームメートル」を倒す
+  if: {bossId: en_byousoku}
+  zeni: 15
+- id: ac_boss_taa
+  name: ターを論破
+  text: 底の主「ター」を倒す
+  if: {bossId: en_taa}
+  zeni: 200
+- id: ac_unit1
+  name: 万の論破
+  text: 1回の出しで論破値 1万 以上
+  if: {maxV: 1e4}
+  zeni: 5
+- id: ac_unit2
+  name: 億の論破
+  text: 1回の出しで論破値 1億 以上
+  if: {maxV: 1e8}
+  zeni: 8
+- id: ac_unit3
+  name: 兆の論破
+  text: 1回の出しで論破値 1兆 以上
+  if: {maxV: 1e12}
+  zeni: 11
+- id: ac_unit4
+  name: 京の論破
+  text: 1回の出しで論破値 1京 以上
+  if: {maxV: 1e16}
+  zeni: 14
+- id: ac_unit5
+  name: 垓の論破
+  text: 1回の出しで論破値 1垓 以上
+  if: {maxV: 1e20}
+  zeni: 17
+- id: ac_unit6
+  name: 秭の論破
+  text: 1回の出しで論破値 1秭 以上
+  if: {maxV: 1e24}
+  zeni: 20
+- id: ac_unit7
+  name: 穣の論破
+  text: 1回の出しで論破値 1穣 以上
+  if: {maxV: 1e28}
+  zeni: 23
+- id: ac_unit8
+  name: 溝の論破
+  text: 1回の出しで論破値 1溝 以上
+  if: {maxV: 1e32}
+  zeni: 26
+- id: ac_unit9
+  name: 澗の論破
+  text: 1回の出しで論破値 1澗 以上
+  if: {maxV: 1e36}
+  zeni: 29
+- id: ac_unit10
+  name: 正の論破
+  text: 1回の出しで論破値 1正 以上
+  if: {maxV: 1e40}
+  zeni: 32
+- id: ac_unit11
+  name: 載の論破
+  text: 1回の出しで論破値 1載 以上
+  if: {maxV: 1e44}
+  zeni: 35
+- id: ac_unit12
+  name: 極の論破
+  text: 1回の出しで論破値 1極 以上
+  if: {maxV: 1e48}
+  zeni: 38
+- id: ac_unit13
+  name: 恒河沙の論破
+  text: 1回の出しで論破値 1恒河沙 以上
+  if: {maxV: 1e52}
+  zeni: 41
+  hidden: true
+- id: ac_unit14
+  name: 阿僧祇の論破
+  text: 1回の出しで論破値 1阿僧祇 以上
+  if: {maxV: 1e56}
+  zeni: 44
+  hidden: true
+- id: ac_unit15
+  name: 那由他の論破
+  text: 1回の出しで論破値 1那由他 以上
+  if: {maxV: 1e60}
+  zeni: 47
+  hidden: true
+- id: ac_unit16
+  name: 不可思議の論破
+  text: 1回の出しで論破値 1不可思議 以上
+  if: {maxV: 1e64}
+  zeni: 50
+  hidden: true
+- id: ac_unit17
+  name: 無量大数の論破
+  text: 1回の出しで論破値 1無量大数 以上
+  if: {maxV: 1e68}
+  zeni: 53
+  hidden: true
+- id: ac_unit_muryo2
+  name: 無量大数の二乗
+  text: 1回の出しで論破値 1無量大数² 以上
+  if: {maxV: 1e136}
+  zeni: 300
+  hidden: true
+- id: ac_unit_taa
+  name: ター
+  text: 1回の出しで論破値 1ター 以上
+  if: {maxV: 1e680}
+  zeni: 1000
+  hidden: true
+- id: ac_hand_51
+  name: 単騎の使い手
+  text: 「単騎」を累計100回出す
+  if:
+    hand: {単騎: 100}
+  zeni: 10
+- id: ac_hand_52
+  name: 対の使い手
+  text: 「対」を累計100回出す
+  if:
+    hand: {対: 100}
+  zeni: 10
+- id: ac_hand_53
+  name: 二対の使い手
+  text: 「二対」を累計50回出す
+  if:
+    hand: {二対: 50}
+  zeni: 10
+- id: ac_hand_54
+  name: 三揃の使い手
+  text: 「三揃」を累計50回出す
+  if:
+    hand: {三揃: 50}
+  zeni: 10
+- id: ac_hand_55
+  name: 階段の使い手
+  text: 「階段」を累計50回出す
+  if:
+    hand: {階段: 50}
+  zeni: 10
+- id: ac_hand_56
+  name: 同類の使い手
+  text: 「同類」を累計50回出す
+  if:
+    hand: {同類: 50}
+  zeni: 10
+- id: ac_hand_57
+  name: 満員の使い手
+  text: 「満員」を累計30回出す
+  if:
+    hand: {満員: 30}
+  zeni: 10
+- id: ac_hand_58
+  name: 四揃の使い手
+  text: 「四揃」を累計20回出す
+  if:
+    hand: {四揃: 20}
+  zeni: 10
+- id: ac_hand_59
+  name: 同類階段の使い手
+  text: 「同類階段」を累計10回出す
+  if:
+    hand: {同類階段: 10}
+  zeni: 10
+- id: ac_hand_60
+  name: 五揃の使い手
+  text: 「五揃」を累計10回出す
+  if:
+    hand: {五揃: 10}
+  zeni: 10
+- id: ac_hand_61
+  name: 満員同類の使い手
+  text: 「満員同類」を累計5回出す
+  if:
+    hand: {満員同類: 5}
+  zeni: 10
+- id: ac_hand_62
+  name: 五揃同類の使い手
+  text: 「五揃同類」を累計3回出す
+  if:
+    hand: {五揃同類: 3}
+  zeni: 10
+- id: ac_hand_63
+  name: 神組の使い手
+  text: 「神組」を累計1回出す
+  if:
+    hand: {神組: 1}
+  zeni: 10
+- id: ac_over_64
+  name: 大論破×50
+  text: 過剰論破「大論破」を累計50回
+  if:
+    overkill: {大論破: 50}
+  zeni: 15
+- id: ac_over_65
+  name: 完全論破×10
+  text: 過剰論破「完全論破」を累計10回
+  if:
+    overkill: {完全論破: 10}
+  zeni: 15
+- id: ac_over_66
+  name: ター深×1
+  text: 過剰論破「ター深」を累計1回
+  if:
+    overkill: {ター深: 1}
+  zeni: 15
+- id: ac_guest_tsuchi
+  name: 自己紹介をする土と帰る
+  text: 自己紹介をする土で脱出する
+  if: {guestExtract: tsuchi}
+  zeni: 10
+- id: ac_guest_maap
+  name: 女将マープと帰る
+  text: 女将マープで脱出する
+  if: {guestExtract: maap}
+  zeni: 10
+- id: ac_guest_tatagi
+  name: タタ木と帰る
+  text: タタ木で脱出する
+  if: {guestExtract: tatagi}
+  zeni: 10
+- id: ac_guest_soutourou
+  name: 相当老と帰る
+  text: 相当老で脱出する
+  if: {guestExtract: soutourou}
+  zeni: 10
+- id: ac_guest_taaaam
+  name: taaaam様専用と帰る
+  text: taaaam様専用で脱出する
+  if: {guestExtract: taaaam}
+  zeni: 10
+- id: ac_guest_koutei
+  name: 校庭変化と帰る
+  text: 校庭変化で脱出する
+  if: {guestExtract: koutei}
+  zeni: 10
+- id: ac_guest_ikea
+  name: IKEAと帰る
+  text: IKEAで脱出する
+  if: {guestExtract: ikea}
+  zeni: 10
+- id: ac_guest_taakaku
+  name: ター角と帰る
+  text: ター角で脱出する
+  if: {guestExtract: taakaku}
+  zeni: 10
+- id: ac_stamp0
+  name: 深度0の印
+  text: 誰かに深度0の印（深度0でB16から脱出）
+  if:
+    stamp: {誰か: 0}
+  zeni: 50
+- id: ac_stamp5
+  name: 深度5の印
+  text: 誰かに深度5の印（深度5でB16から脱出）
+  if:
+    stamp: {誰か: 5}
+  zeni: 100
+- id: ac_stamp10
+  name: 深度10の印
+  text: 誰かに深度10の印（深度10でB16から脱出）
+  if:
+    stamp: {誰か: 10}
+  zeni: 150
+- id: ac_stamp20
+  name: 深度20の印
+  text: 誰かに深度20の印（深度20でB16から脱出）
+  if:
+    stamp: {誰か: 20}
+  zeni: 250
+- id: ac_stamp_all
+  name: 全員の印
+  text: 8人全員に深度0の印
+  if:
+    stamp: {tsuchi: 0, maap: 0, tatagi: 0, soutourou: 0, taaaam: 0, koutei: 0, ikea: 0, taakaku: 0}
+  zeni: 300
+- id: ac_depth1
+  name: 深度1
+  text: 深度1を解放
+  if: {depth: 1}
+  zeni: 25
+- id: ac_depth5
+  name: 深度5
+  text: 深度5を解放
+  if: {depth: 5}
+  zeni: 45
+- id: ac_depth10
+  name: 深度10
+  text: 深度10を解放
+  if: {depth: 10}
+  zeni: 70
+- id: ac_depth15
+  name: 深度15
+  text: 深度15を解放
+  if: {depth: 15}
+  zeni: 95
+- id: ac_depth20
+  name: 深度20
+  text: 深度20を解放
+  if: {depth: 20}
+  zeni: 120
+- id: ac_guests8
+  name: 満室
+  text: 宿泊客を8人とも解放
+  if: {guests: 8}
+  zeni: 100
+- id: ac_death1
+  name: 未帰還
+  text: 初めて未帰還になる
+  if: {death: 1}
+- id: ac_kills100
+  name: 百人斬り
+  text: 敵を累計100体倒す
+  if: {kills: 100}
+  zeni: 10
+- id: ac_fac_chouba
+  name: 帳場の改装
+  text: 帳場を最後の段階まで改装
+  if:
+    facility: {chouba: 4}
+  zeni: 30
+- id: ac_fac_kura
+  name: 蔵の改装
+  text: 蔵を最後の段階まで改装
+  if:
+    facility: {kura: 4}
+  zeni: 30
+- id: ac_fac_monooki
+  name: 物置の改装
+  text: 物置を最後の段階まで改装
+  if:
+    facility: {monooki: 5}
+  zeni: 30
+- id: ac_fac_kyakuma
+  name: 客間の改装
+  text: 客間を最後の段階まで改装
+  if:
+    facility: {kyakuma: 3}
+  zeni: 30
+- id: ac_fac_kamidana
+  name: 神棚の改装
+  text: 神棚を最後の段階まで改装
+  if:
+    facility: {kamidana: 3}
+  zeni: 30
+- id: ac_fac_shikomi
+  name: 仕込み場の改装
+  text: 仕込み場を最後の段階まで改装
+  if:
+    facility: {shikomi: 4}
+  zeni: 30
+- id: ac_owned50
+  name: 図鑑50
+  text: 図鑑で50種を手に入れる
+  if: {owned: 50}
+  zeni: 10
+- id: ac_owned100
+  name: 図鑑100
+  text: 図鑑で100種を手に入れる
+  if: {owned: 100}
+  zeni: 20
+- id: ac_shibari1
+  name: 縛られて帰る
+  text: 縛り潜行を1種脱出
+  if: {shibari: 1}
+  zeni: 5
+- id: ac_shibari20
+  name: 全部縛った
+  text: 縛り潜行を20種脱出
+  if: {shibari: 20}
+  zeni: 100
+- id: ac_daily1
+  name: 今日の潜行
+  text: 日替わり潜行で脱出
+  if: {daily: 1}
+  zeni: 10
+- id: ac_sv_sara
+  name: 黒い皿
+  text: 黒い皿を持ち帰る
+  if: {souvenir: sv_kuroisara}
+  zeni: 20
+- id: ac_sv_noren
+  name: 暖簾の向こう
+  text: 暖簾の切れ端を持ち帰る
+  if: {souvenir: sv_noren}
+  zeni: 20
+- id: ac_sv_suna
+  name: 底の砂
+  text: 底の砂を持ち帰る
+  if: {souvenir: sv_sokonosuna}
+  zeni: 40
+- id: ac_haul500
+  name: 大漁
+  text: 1回の脱出で総額500を持ち帰る
+  if: {haul: 500}
+  zeni: 20
+- id: ac_debt
+  name: 完済
+  text: 質札の借金を返し終える
+  if: {debtFree: true}
+  zeni: 20
+- id: ac_ach50
+  name: 半分
+  text: 実績を50個
+  if: {achievements: 50}
+  zeni: 100
+- id: ac_ach100
+  name: ほとんど全部
+  text: 実績を100個
+  if: {achievements: 100}
+  zeni: 500

@@ -1,0 +1,35 @@
+# IKEAの専用の常連客
+
+- id: ik_r_tenin
+  name: 黄色い服の店員
+  grade: 上
+  text: 家具が採点されるたび強さ＋12
+  flavor: 質問すると増える。
+  fx:
+  - when: 採点時
+    if:
+      値: {式: 部品, 以上: 2}
+    do:
+    - {強さ: 12}
+
+- id: ik_r_kumitateya
+  name: 組み立て屋
+  grade: 上
+  text: 出しのたびに倍率＋（組立数）
+  flavor: 一時間で三台。
+  fx:
+  - when: 出し
+    do:
+    - {倍率: 組立数}
+
+- id: ik_r_soukocho
+  name: 倉庫長
+  grade: 特上
+  text: 家具が4点以上の部品なら掛け×1.5
+  flavor: 棚番号を全部覚えている。
+  fx:
+  - when: 採点時
+    if:
+      値: {式: 部品, 以上: 4}
+    do:
+    - {掛け: 1.5}

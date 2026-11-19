@@ -1,0 +1,6 @@
+id: gentei
+name: 限定
+unlock: { never: true }          # 拾えない。縛り潜行の初回脱出でだけもらえる
+color: "#2a6a6a"
+keywords: []
+intro: 縛られた者にだけ、渡されるもの。

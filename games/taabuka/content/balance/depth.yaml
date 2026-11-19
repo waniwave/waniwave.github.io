@@ -1,0 +1,31 @@
+# 深度（仕様書 第6章「深度」）。効果は累積する
+# 各深度で、拾う札の格（economy.yaml の gradeDepth）と宿銭が積み上がる
+zeniPerDepth: 0.05
+max: 20
+
+# 累積のしかた：名前が Mul で終わるものは掛け、true/false はどれかが true なら true、
+# overrides に挙げたものは一番深い値で上書き、それ以外は足す
+overrides: [stalkerChance, bossForms, charmSlotsMax]
+
+# 深度ごとに加わる条件（数値は加算で累積）
+levels:
+  1:  { enemyClaim: 0.10 }
+  2:  { eliteDoorMul: 2 }
+  3:  { wardenClaim: 0.25 }
+  4:  { insuranceReturn: -0.10 }
+  5:  { bossExtraHindrance: 1 }
+  6:  { presenceGainMul: 1.5 }
+  7:  { charmSlots: -1 }
+  8:  { bathHealMul: 0.5 }
+  9:  { noEmergencyExit: true }
+  10: { insuranceReturn: -0.20, cursedHighGrades: true }
+  11: { enemyClaim: 0.10 }
+  12: { handSize: -1 }
+  13: { shopPrice: 0.25 }
+  14: { stalkerChance: 0.4 }
+  15: { enemyAtk: 0.15 }
+  16: { enemyClaim: 0.15 }
+  17: { bossExtraHindrance: 1 }
+  18: { bossDiscards: -1 }
+  19: { maxHp: -0.10 }
+  20: { bossForms: 4, charmSlotsMax: 0 }

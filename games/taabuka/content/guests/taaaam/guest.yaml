@@ -1,0 +1,11 @@
+id: taaaam
+name: taaaam様専用
+hp: 60
+mechanic: 専用
+relic: tm_r_kagi                 # 専用の鍵
+deck: { set: taajuku, grades: [並], extra: [tm_noren, tm_noren, tm_fuda] }
+set: taaaam
+unlock: { hand: { 同類: 50 } }    # 同類を累計50回
+params: { 倍: 2, 下限: "0" }
+choose: { key: 専用, type: category, text: 専用にするカテゴリ（この潜行のあいだ） }
+text: 選んだカテゴリの札だけが採点され、倍率×2。それ以外は受けに回る

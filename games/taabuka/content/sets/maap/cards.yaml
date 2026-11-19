@@ -1,0 +1,302 @@
+# 女将マープの専用札（10枚）
+
+- id: mp_aisatsu
+  name: 挨拶
+  cat: [宿]
+  tier: 3
+  grade: 並
+  text: 採配した回数だけ倍率＋
+  flavor: いらっしゃいませ。
+  fx:
+    - when: 採点時
+      do:
+        - 倍率: 採配数
+  test:
+    - hand: [mp_aisatsu]
+      guest: maap
+      state: { 採配数: 3 }
+      expect: { V: 44 }          # (5＋6)×(1＋3)
+
+- id: mp_saihai
+  name: 采配
+  cat: [宿, 老]
+  tier: 2
+  grade: 並
+  text: 採点されると〈宿〉の番付を1段上げる
+  flavor: 帳場の一声。
+  fx:
+    - when: 採点時
+      do:
+        - 番付を上げる: { カテゴリ: 宿, 段: 1 }
+  test:
+    - hand: [mp_saihai]
+      expect: { V: 13, 番付: { 宿: '2' } }
+
+- id: mp_ochadashi
+  name: お茶出し
+  cat: [宿, 湯]
+  tier: 4
+  grade: 並
+  kw: [呼び水1]
+  flavor: 熱すぎず、ぬるすぎず。
+
+- id: mp_heyawari
+  name: 部屋割り
+  cat: [宿]
+  tier: 3
+  grade: 並
+  text: 〈宿〉の番付がT2以上なら、採点されると強さ＋12
+  flavor: 角部屋は常連さんに。
+  fx:
+    - when: 採点時
+      if: { 番付: { カテゴリ: 宿, 以上: "2" } }
+      do:
+        - 強さ: 12
+
+- id: mp_chouba
+  name: 帳場の算盤
+  cat: [宿, 老]
+  tier: 3
+  grade: 並
+  text: 敵を倒すと宿銭＋2
+  flavor: 指が覚えている。
+  kw: [とどめ]
+
+- id: mp_nakai
+  name: 仲居の目配せ
+  cat: [宿, 速さ]
+  tier: 2
+  grade: 上
+  text: 採点されると倍率＋（採配数×2）
+  flavor: 一言もいらない。
+  fx:
+    - when: 採点時
+      do:
+        - 倍率: 採配数*2
+
+- id: mp_nori
+  name: 糊のきいた浴衣
+  cat: [湯]
+  tier: 3
+  grade: 上
+  kw: [守り6]
+  flavor: 袖を通すと、背筋が伸びる。
+
+- id: mp_banzuke
+  name: 女将の番付表
+  cat: [宿, スレ]
+  tier: 1
+  grade: 特上
+  text: 採点されると、番付で一番低いカテゴリを2段上げる
+  flavor: 帳場の壁に貼ってある。
+  fx:
+    - when: 採点時
+      do:
+        - 番付を上げる: { カテゴリ: 一番低い, 段: 2 }
+
+- id: mp_okami
+  name: 女将の一声
+  cat: [宿, ター]
+  tier: 0
+  grade: 特上
+  text: 〈宿〉の札がほかに採点されると掛け×1.5
+  flavor: 宿が、静かになる。
+  fx:
+    - when: 採点時
+      if: { 同じカテゴリの札が他に: true }
+      do:
+        - 掛け: 1.5
+
+- id: mp_mantei
+  name: 満室御礼
+  cat: [宿, 食べ物]
+  tier: God
+  grade: 極
+  text: 5枚採点されると掛け×3
+  flavor: 札が、宿いっぱいに。
+  fx:
+    - when: 出し
+      if: { 採点枚数: 5 }
+      do:
+        - 掛け: 3
+
+# 本編で足した札（段階8b）
+
+- id: mp_zabuton
+  name: 客間の座布団
+  cat: [宿]
+  tier: 5
+  grade: 並
+  text: 受けに回ると受け＋5
+  flavor: ひっくり返して出す。
+  kw: [守り5]
+
+- id: mp_oshibori
+  name: おしぼり
+  cat: [湯, 宿]
+  tier: 4
+  grade: 並
+  text: 採点されると体力＋2
+  flavor: 熱い。
+  fx:
+  - when: 採点時
+    do:
+    - {体力: 2}
+
+- id: mp_yoyaku
+  name: 予約帳
+  cat: [宿, スレ]
+  tier: 4
+  grade: 並
+  text: 採点されると札を1枚引く
+  flavor: 鉛筆で書く。
+  kw: [呼び水1]
+
+- id: mp_soroban
+  name: 帳場の算盤
+  cat: [宿, ロボ]
+  tier: 3
+  grade: 並
+  text: 採配数×強さ＋3
+  flavor: パチパチ。
+  fx:
+  - when: 採点時
+    do:
+    - {強さ: 採配数*3}
+
+- id: mp_ofuro
+  name: 大浴場の札
+  cat: [湯, 宿]
+  tier: 3
+  grade: 上
+  text: 採点されると倍率＋（2＋採配点×2）
+  flavor: 男女が入れ替わる。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 2+採配点*2}
+
+- id: mp_kaiseki
+  name: 会席料理
+  cat: [食べ物, 宿]
+  tier: 2
+  grade: 上
+  text: 5枚採点されると倍率＋5
+  flavor: 一品ずつ出てくる。
+  fx:
+  - when: 出し
+    if: {採点枚数: 5}
+    do:
+    - {倍率: 5}
+
+- id: mp_kiyaku
+  name: 宿泊約款（抜粋）
+  cat: [宿, スレ]
+  tier: 3
+  grade: 上
+  text: 採点されると番付で一番高いカテゴリをもう1段上げる
+  flavor: 第8条は読まない。
+  fx:
+  - when: 採点時
+    do:
+    - 番付を上げる: {カテゴリ: 一番高い, 段: 1}
+
+- id: mp_omotenashi
+  name: おもてなし
+  cat: [宿, 動物]
+  tier: 2
+  grade: 上
+  text: 採点されると掛け×（1.2＋採配点×0.1）
+  flavor: 先回り。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.2+採配点*0.1}
+
+- id: mp_nakai2
+  name: 新人の仲居
+  cat: [宿, 速さ]
+  tier: 3
+  grade: 上
+  text: 同じ出しに同じカテゴリの札があれば倍率＋3
+  flavor: 廊下を走る。
+  kw: [連れ3]
+
+- id: mp_hanare
+  name: 離れの間
+  cat: [宿, 老]
+  tier: 1
+  grade: 特上
+  text: 採配数×倍率＋1
+  flavor: 女将しか入らない。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 採配数}
+
+- id: mp_furoshiki
+  name: 女将の風呂敷
+  cat: [宿, 食べ物]
+  tier: 1
+  grade: 特上
+  text: 受けに回ると受け＋（採配数×2）
+  flavor: 何でも包む。
+  fx:
+  - when: 受けに回る
+    do:
+    - {受け: 採配数*2}
+
+- id: mp_kanban2
+  name: 老舗の看板
+  cat: [宿, 老, スレ]
+  tier: 0
+  grade: 特上
+  text: 〈宿〉が番付でT1以上なら掛け×1.5
+  flavor: 百年もの。
+  fx:
+  - when: 採点時
+    if:
+      番付: {カテゴリ: 宿, 以上: '1'}
+    do:
+    - {掛け: 1.5}
+
+- id: mp_saihai2
+  name: 采配の扇
+  cat: [宿, ター]
+  tier: 0
+  grade: 極
+  text: 採点されると掛け×（1.5＋採配数×0.2）
+  flavor: ひと振りで番付が動く。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 1.5+採配数*0.2}
+
+- id: mp_okami2
+  name: 三代目女将
+  cat: [宿, 老, ター]
+  tier: God
+  grade: 極
+  text: 採点されると倍率＋（採配数×2）
+  flavor: 先代は今も帳場にいる。
+  fx:
+  - when: 採点時
+    do:
+    - {倍率: 採配数*2}
+
+- id: mp_maap
+  name: 女将マープの采配
+  cat: [宿, ター, スレ]
+  tier: God
+  grade: 神
+  text: 採点されると掛け×2。採配数が3以上ならさらに掛け×2
+  flavor: 宿の番付は、ここで決まる。
+  fx:
+  - when: 採点時
+    do:
+    - {掛け: 2}
+  - when: 採点時
+    if:
+      値: {式: 採配数, 以上: 3}
+    do:
+    - {掛け: 2}

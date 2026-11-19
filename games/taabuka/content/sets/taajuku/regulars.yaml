@@ -1,0 +1,364 @@
+# 常連客（ター宿セット 34人。成長型5人を含む）。席の左から発動する
+
+- id: tj_r_nanashi
+  name: 名無しさん
+  grade: 並
+  text: 出しのたびに倍率＋2
+  flavor: 名前は、まだ無い。
+  fx:
+    - when: 出し
+      do:
+        - 倍率: 2
+
+- id: tj_r_rom
+  name: ROM専
+  grade: 並
+  text: 出しのたびに強さ＋15
+  flavor: 書き込まない。読んでいる。
+  fx:
+    - when: 出し
+      do:
+        - 強さ: 15
+
+- id: tj_r_kote
+  name: コテハン
+  grade: 上
+  text: 〈スレ〉の札が採点されるたび倍率＋3
+  flavor: 名乗るほうの名無し。
+  fx:
+    - when: 採点時
+      if: { 採点札のカテゴリ: スレ }
+      do:
+        - 倍率: 3
+
+- id: tj_r_tierhyou
+  name: Tier表職人
+  grade: 上
+  text: 5枚で採点されると掛け×2
+  flavor: 罫線にこだわる。
+  fx:
+    - when: 出し
+      if: { 採点枚数: 5 }
+      do:
+        - 掛け: 2
+
+- id: tj_r_godrenko
+  name: God連呼おじさん
+  grade: 特上
+  text: TierがGodの札が採点されるたび掛け×1.5
+  flavor: とりあえずGod。
+  fx:
+    - when: 採点時
+      if: { Tier: God }
+      do:
+        - 掛け: 1.5
+
+- id: tj_r_menuchi
+  name: 麺打ち
+  grade: 並
+  text: 〈麺〉の札が採点されるたび強さ＋10
+  flavor: 朝は早い。
+  fx:
+    - when: 採点時
+      if: { 採点札のカテゴリ: 麺 }
+      do:
+        - 強さ: 10
+
+- id: tj_r_yumori
+  name: 湯守
+  grade: 並
+  text: 〈湯〉の札が採点されるたび倍率＋2
+  flavor: 湯加減は、指一本で。
+  fx:
+    - when: 採点時
+      if: { 採点札のカテゴリ: 湯 }
+      do:
+        - 倍率: 2
+
+- id: tj_r_kouteinonushi
+  name: 校庭の主
+  grade: 並
+  text: 〈校庭〉の札が採点されるたび強さ＋12
+  flavor: 鉄棒の下にいる。
+  fx:
+    - when: 採点時
+      if: { 採点札のカテゴリ: 校庭 }
+      do:
+        - 強さ: 12
+
+- id: tj_r_hayasa
+  name: 速さ厨
+  grade: 上
+  text: 〈速さ〉の札が採点されるたび倍率＋3
+  flavor: 結論から言え。
+  fx:
+    - when: 採点時
+      if: { 採点札のカテゴリ: 速さ }
+      do:
+        - 倍率: 3
+
+- id: tj_r_kakuge
+  name: 格ゲー勢
+  grade: 上
+  text: 〈格ゲー〉の札が採点されるたび掛け×1.2
+  flavor: フレームで話す。
+  fx:
+    - when: 採点時
+      if: { 採点札のカテゴリ: 格ゲー }
+      do:
+        - 掛け: 1.2
+
+- id: tj_r_shinise
+  name: 老舗の大将
+  grade: 上
+  text: 〈老〉の札が採点されるたび倍率＋4
+  flavor: 創業はスレより古い。
+  fx:
+    - when: 採点時
+      if: { 採点札のカテゴリ: 老 }
+      do:
+        - 倍率: 4
+
+- id: tj_r_robo
+  name: ロボ好き
+  grade: 並
+  text: 〈ロボ〉の札が採点されるたび強さ＋15
+  flavor: 合体の順番を言える。
+  fx:
+    - when: 採点時
+      if: { 採点札のカテゴリ: ロボ }
+      do:
+        - 強さ: 15
+
+- id: tj_r_doubutsu
+  name: 動物好き
+  grade: 並
+  text: 〈動物〉の札が採点されるたび倍率＋2
+  flavor: 猫には敬語。
+  fx:
+    - when: 採点時
+      if: { 採点札のカテゴリ: 動物 }
+      do:
+        - 倍率: 2
+
+- id: tj_r_flag
+  name: 死亡フラグ職人
+  grade: 上
+  text: 〈死〉の札が採点されるたび掛け×1.2
+  flavor: 「この戦いが終わったら」。
+  fx:
+    - when: 採点時
+      if: { 採点札のカテゴリ: 死 }
+      do:
+        - 掛け: 1.2
+
+- id: tj_r_kuishinbou
+  name: 食いしん坊
+  grade: 並
+  text: 〈食べ物〉の札が採点されるたび強さ＋10
+  flavor: おかわりは自由。
+  fx:
+    - when: 採点時
+      if: { 採点札のカテゴリ: 食べ物 }
+      do:
+        - 強さ: 10
+
+- id: tj_r_tashinja
+  name: ター信者
+  grade: 特上
+  text: 〈ター〉の札が採点されるたび掛け×1.3
+  flavor: 全部ターで説明できる。
+  fx:
+    - when: 採点時
+      if: { 採点札のカテゴリ: ター }
+      do:
+        - 掛け: 1.3
+
+- id: tj_r_banzukechuu
+  name: 番付厨
+  grade: 上
+  text: 戦闘が始まると、乱数のカテゴリの番付を1段上げる
+  flavor: 番付しか見ていない。
+  fx:
+    - when: 戦闘開始
+      do:
+        - 番付を上げる: { カテゴリ: 乱数, 段: 1 }
+
+- id: tj_r_gekokujo
+  name: 下剋上派
+  grade: 上
+  text: 戦闘が始まると、番付で一番低いカテゴリを2段上げる
+  flavor: 弱いほうに賭ける。
+  fx:
+    - when: 戦闘開始
+      do:
+        - 番付を上げる: { カテゴリ: 一番低い, 段: 2 }
+
+- id: tj_r_jikkyou
+  name: 実況民
+  grade: 並
+  text: ターンの最初の出しの後、1枚引く
+  flavor: 「きたああ」。
+  fx:
+    - when: 出しの後
+      if: { このターンの出し: 1 }
+      do:
+        - 引く: 1
+
+- id: tj_r_matome
+  name: まとめ民
+  grade: 並
+  text: 流すと、次の出しの強さ＋10
+  flavor: 流れたものも、拾う。
+  fx:
+    - when: 流した時
+      do:
+        - 次の出しの強さ: 10
+
+- id: tj_r_kosan
+  name: 古参
+  grade: 上
+  text: 出しのたびに倍率＋階
+  flavor: 昔はよかった。
+  fx:
+    - when: 出し
+      do:
+        - 倍率: 階
+
+- id: tj_r_shinzan
+  name: 新参
+  grade: 並
+  text: 戦闘の最初の出しは掛け×1.5
+  flavor: 半年ROMれ。
+  fx:
+    - when: 出し
+      if: { 戦闘の出し: 1 }
+      do:
+        - 掛け: 1.5
+
+- id: tj_r_aori
+  name: 煽り屋
+  grade: 並
+  text: 敵を倒すたび宿銭＋3
+  flavor: 「顔真っ赤」。
+  fx:
+    - when: 敵を倒した時
+      do:
+        - 宿銭: 3
+
+- id: tj_r_bantou
+  name: 宿の番頭
+  grade: 上
+  text: 戦闘が終わると宿銭＋5
+  flavor: 帳簿は合っている。
+  fx:
+    - when: 戦闘終了
+      do:
+        - 宿銭: 5
+
+- id: tj_r_sentou
+  name: 銭湯の常連
+  grade: 並
+  text: 戦闘が終わると体力＋4
+  flavor: 番台と顔なじみ。
+  fx:
+    - when: 戦闘終了
+      do:
+        - 体力: 4
+
+- id: tj_r_annai
+  name: 案内係
+  grade: 上
+  text: 階に入るたび気配−2
+  flavor: 足音を数えている。
+  fx:
+    - when: 階に入った時
+      do:
+        - 気配: -2
+
+- id: tj_r_kaerimichi
+  name: 帰り道の常連
+  grade: 特上
+  text: 踊り場に着くたび体力＋10
+  flavor: 近道を知っている。
+  fx:
+    - when: 踊り場
+      do:
+        - 体力: 10
+
+- id: tj_r_hitotenbari
+  name: 一点張り
+  grade: 上
+  text: 1枚だけで採点されると掛け×2
+  flavor: 単騎で行く。
+  fx:
+    - when: 出し
+      if: { 採点枚数: 1 }
+      do:
+        - 掛け: 2
+
+- id: tj_r_zenbunose
+  name: 全部乗せ
+  grade: 上
+  text: 5枚で採点されると倍率＋8
+  flavor: トッピングは全部。
+  fx:
+    - when: 出し
+      if: { 採点枚数: 5 }
+      do:
+        - 倍率: 8
+
+- id: tj_r_furukabu
+  name: 古株
+  grade: 上
+  text: 出しのたびに掛け×（1＋育ち）。下りた階ごとに＋0.05（永続）
+  flavor: 宿より先にいた。
+  grow: { 増える: 下りた階, 量: 0.05, 永続: true }
+  fx:
+    - when: 出し
+      do:
+        - 掛け: "1+育ち"
+
+- id: tj_r_kaikin
+  name: 皆勤賞
+  grade: 上
+  text: 出しのたびに倍率＋育ち。戦闘ごとに＋0.5（永続）
+  flavor: 雨の日も来る。
+  grow: { 増える: 戦闘, 量: 0.5, 永続: true }
+  fx:
+    - when: 出し
+      do:
+        - 倍率: 育ち
+
+- id: tj_r_tatakiage
+  name: 叩き上げ
+  grade: 特上
+  text: 出しのたびに強さ＋育ち×3。出しごとに＋1（その潜行のあいだ）
+  flavor: 皿洗いから始めた。
+  grow: { 増える: 出し, 量: 1 }
+  fx:
+    - when: 出し
+      do:
+        - 強さ: 育ち*3
+
+- id: tj_r_kaettekita
+  name: 帰ってきた人
+  grade: 特上
+  text: 出しのたびに掛け×（1＋育ち）。脱出ごとに＋0.1（永続）
+  flavor: また来た。
+  grow: { 増える: 脱出, 量: 0.1, 永続: true }
+  fx:
+    - when: 出し
+      do:
+        - 掛け: "1+育ち"
+
+- id: tj_r_nobishiro
+  name: 伸びしろ
+  grade: 並
+  text: 出しのたびに強さ＋育ち×2。下りた階ごとに＋1（永続）
+  flavor: まだ若い。
+  grow: { 増える: 下りた階, 量: 1, 永続: true }
+  fx:
+    - when: 出し
+      do:
+        - 強さ: 育ち*2

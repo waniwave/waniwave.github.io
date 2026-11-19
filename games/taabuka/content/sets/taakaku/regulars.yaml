@@ -1,0 +1,33 @@
+# ター角の専用の常連客
+
+- id: tk_r_kadoya
+  name: 角屋の主人
+  grade: 上
+  text: 角の札が採点されるたび強さ＋12
+  flavor: 店は角にある。
+  fx:
+  - when: 採点時
+    if: {手札の位置: 端}
+    do:
+    - {強さ: 12}
+
+- id: tk_r_shikaku
+  name: 視覚の死角
+  grade: 上
+  text: 出しのたびに倍率＋2
+  flavor: 見えていない。
+  fx:
+  - when: 出し
+    do:
+    - {倍率: 2}
+
+- id: tk_r_kakutouka
+  name: 格闘家
+  grade: 特上
+  text: 角の札が採点されるたび掛け×1.25
+  flavor: 壁を背にしない。
+  fx:
+  - when: 採点時
+    if: {手札の位置: 端}
+    do:
+    - {掛け: 1.25}

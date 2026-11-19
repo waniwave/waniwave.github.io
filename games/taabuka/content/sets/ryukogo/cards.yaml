@@ -1,0 +1,108 @@
+# 流行語（企画書 第5章）。動作確認用の6枚
+
+- id: rk_jujo_satosatoru
+  name: 十条さとさとる
+  cat: [ター]
+  tier: God
+  grade: 神
+  kw: [二倍]
+  text: 採点されると敵全員が2ターン行動できない
+  flavor: 五条悟の二倍の強さを誇る。
+  fx:
+    - when: 採点時
+      do:
+        - 行動停止: { 対象: 敵全員, ターン: 2 }   # 二倍なので4ターン
+  show:
+    - 二重像
+    - カットイン: 領域領域てんかてんか展開むりょむりょ無量くうしょくうしょ
+  test:
+    - hand: [rk_jujo_satosatoru, { tier: God, cat: [ター] }]
+      expect: { 組: 対, V: 140, 行動停止: { 0: 4 }, なしより大きい: true, 演出: [文字二回] }
+
+- id: rk_shineei
+  name: 死ねーぃ
+  cat: [死]
+  tier: 1
+  grade: 特上
+  text: 狙った敵の主張を0にする（層主・底の主は半分）。その戦闘の残りは出し−1
+  flavor: 一言で終わる。
+  fx:
+    - when: 採点時
+      do:
+        - 主張を削る: { 対象: 狙い, 割合: 1.0, 層主なら: 0.5 }
+        - 出し回数: { 増減: -1, 期間: 戦闘 }
+  show:
+    - 筆文字: 死ねーぃ
+    - 斬る
+  test:
+    - hand: [rk_shineei, { tier: 3, cat: [麺] }]
+      play: [0]
+      enemies: [{ claim: 1000 }]
+      expect: { enemy0: 0, 結果: win }
+    - hand: [rk_shineei, { tier: 3, cat: [麺] }]
+      play: [0]
+      enemies: [{ claim: 1000, kind: 層主 }]
+      expect: { enemy0: 485, 出し残り: 0 }
+
+- id: rk_ganbou
+  name: 願望
+  cat: [ター]
+  tier: 0
+  grade: 極
+  kw: [宣言]
+  flavor: 願えば、そうなる。
+  show:
+    - 吹き出し: そうであってほしい
+  test:
+    - hand: [rk_ganbou, { tier: 3, cat: [麺] }]
+      choices: { 宣言: 神組 }
+      expect: { 組: 神組, V: 4360 }
+
+- id: rk_yakitori
+  name: チンポとネギが交互の焼き鳥ちんぽま
+  cat: [食べ物]
+  tier: 3
+  grade: 上
+  kw: [交互]
+  flavor: 串の順番には意味がある。
+  test:
+    - hand: [rk_yakitori, { tier: 3, cat: [食べ物] }, { tier: 3, cat: [麺] }]
+      expect: { 組: 三揃, V: 324, なしより大きい: true }
+
+- id: rk_taipa
+  name: タイパ悪すぎ
+  cat: [速さ]
+  tier: 2
+  grade: 上
+  text: 演出が止まり、早送りできない。代わりに論破値×10
+  flavor: 倍速で見ても長い。
+  fx:
+    - when: 出しの前
+      do:
+        - ルール: { 名前: 演出を早送り不可に, 範囲: この出し }
+    - when: 採点時
+      do:
+        - 論破値を掛ける: 10
+  show:
+    - 読み込み中
+  test:
+    - hand: [rk_taipa]
+      expect: { V: 130 }
+
+- id: rk_shirankedo
+  name: 知らんけど
+  cat: [スレ]
+  tier: 5
+  grade: 並
+  text: 倍率＋5
+  flavor: 説明文がうそをつく。
+  rule: [効果文を偽る]
+  fx:
+    - when: 採点時
+      do:
+        - 倍率: 5
+  show:
+    - 文字化け
+  test:
+    - hand: [rk_shirankedo]
+      expect: { V: 48 }

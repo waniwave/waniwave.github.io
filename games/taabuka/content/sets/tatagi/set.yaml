@@ -1,0 +1,7 @@
+id: tatagi
+name: タタ木
+guest: tatagi                    # この宿泊客でしか拾えない
+unlock: { guest: tatagi }
+color: "#4f7a3a"
+keywords: []
+intro: 植えれば、議論より先に育つ。

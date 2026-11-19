@@ -1,0 +1,33 @@
+# 校庭変化の専用の常連客
+
+- id: kt_r_tannin
+  name: 担任
+  grade: 上
+  text: 出しのたびに強さ＋15
+  flavor: 出席番号で呼ぶ。
+  fx:
+  - when: 出し
+    do:
+    - {強さ: 15}
+
+- id: kt_r_yogo
+  name: 保健の先生
+  grade: 上
+  text: 戦闘が始まると体力＋4
+  flavor: とりあえず冷やす。
+  fx:
+  - when: 戦闘開始
+    do:
+    - {体力: 4}
+
+- id: kt_r_kyoto
+  name: 教頭
+  grade: 特上
+  text: 朝礼台の場なら出しのたびに掛け×1.5
+  flavor: 校長より話が短い。
+  fx:
+  - when: 出し
+    if:
+      値: {式: 場, 以上: 2, 以下: 2}
+    do:
+    - {掛け: 1.5}

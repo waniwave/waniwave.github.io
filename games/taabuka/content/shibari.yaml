@@ -1,0 +1,105 @@
+# 縛り潜行（企画書「やり込み」、約20種）。持ち物を持ち込む普通の潜行に、縛りを掛ける。
+# rule：その潜行の全ての戦闘に掛けるルール（{ 名前, …引数 } か名前だけ）
+# dive：潜行の決まり（hp＝体力の倍、noDoors＝出ない襖、noSeats＝常連客を連れていけない、noRelic＝最初の置物なし、
+#       eliteDoorMul＝精鋭の襖の重みの倍、presenceGainMul＝気配の増え方の倍、noEmergencyExit＝非常口なし）
+# reward：初めて脱出したときにだけもらえる（card／regular は限定セット、zeni は宿銭）
+- id: sb_food
+  name: 食べ物の札だけ
+  text: 〈食べ物〉の札だけが採点される
+  rule: [{ 名前: 採点札を限定, 条件: { カテゴリ: 食べ物 } }]
+  reward: { card: gt_shokuji }
+- id: sb_men
+  name: 麺の札だけ
+  text: 〈麺〉の札だけが採点される
+  rule: [{ 名前: 採点札を限定, 条件: { カテゴリ: 麺 } }]
+  reward: { zeni: 300 }
+- id: sb_oneplay
+  name: 出しはターンに1回
+  text: 出しがターンに1回
+  rule: [{ 名前: 回数を変える, 出し: -1 }]
+  reward: { card: gt_ippon }
+- id: sb_nodiscard
+  name: 流しなし
+  text: 流しが使えない
+  rule: [{ 名前: 回数を変える, 流し: -1 }]
+  reward: { card: gt_nagasanai }
+- id: sb_hand6
+  name: 手札6枚
+  text: 手札の上限が6枚
+  rule: [{ 名前: 回数を変える, 手札上限: -2 }]
+  reward: { card: gt_rokumai }
+- id: sb_tanki
+  name: 単騎だけ
+  text: 出す札はいつも1枚
+  rule: [{ 名前: 出せる枚数を固定, 枚数: 1 }]
+  reward: { card: gt_tanki }
+- id: sb_gomai
+  name: 五枚出し
+  text: 出す札はいつも5枚
+  rule: [{ 名前: 出せる枚数を固定, 枚数: 5 }]
+  reward: { card: gt_gomai }
+- id: sb_noguard
+  name: 守らない
+  text: 出した札が受けにならない
+  rule: [受けを無効]
+  reward: { card: gt_mamorazu }
+- id: sb_sakasa
+  name: 逆さ宿の夜
+  text: 戦闘のあいだ番付が上下反転し、採点は右から
+  rule: [番付を反転, 採点順を逆に]
+  reward: { card: gt_sakasa }
+- id: sb_tier8
+  name: 全部Tier8
+  text: 組の判定で、全ての札がTier8扱い
+  rule: [{ 名前: 全札を同Tier扱い, Tier: "8" }]
+  reward: { card: gt_hachi }
+- id: sb_kotei
+  name: 動かない番付
+  text: 番付が動かない
+  rule: [番付を固定]
+  reward: { card: gt_kotei }
+- id: sb_kimagure
+  name: 気まぐれな敵
+  text: 敵の行動が予告どおりにならない（並びから乱数）
+  rule: [敵の行動を乱数に]
+  reward: { zeni: 300 }
+- id: sb_half
+  name: 体力半分
+  text: 体力の上限が半分
+  dive: { hp: 0.5 }
+  reward: { card: gt_hanbun }
+- id: sb_noshop
+  name: 商いなし
+  text: 商いの襖が出ない
+  dive: { noDoors: [商い] }
+  reward: { zeni: 300 }
+- id: sb_nobath
+  name: 湯なし
+  text: 湯の襖が出ない
+  dive: { noDoors: [湯] }
+  reward: { card: gt_mukyu }
+- id: sb_hitori
+  name: ひとり旅
+  text: 常連客を連れていけない
+  dive: { noSeats: true }
+  reward: { regular: gt_r_hitori }
+- id: sb_tebura
+  name: 手ぶら
+  text: 最初の置物を持たずに潜る
+  dive: { noRelic: true }
+  reward: { regular: gt_r_sakusen }
+- id: sb_seiei
+  name: 精鋭だらけ
+  text: 精鋭の襖が3倍出やすい
+  dive: { eliteDoorMul: 3 }
+  reward: { regular: gt_r_kurouto }
+- id: sb_kehai
+  name: 気配が倍
+  text: 気配の増え方が2倍
+  dive: { presenceGainMul: 2 }
+  reward: { zeni: 300 }
+- id: sb_noexit
+  name: 非常口なし
+  text: 非常口が出ない
+  dive: { noEmergencyExit: true }
+  reward: { regular: gt_r_nigeashi }

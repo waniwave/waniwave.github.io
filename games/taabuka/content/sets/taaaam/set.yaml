@@ -1,0 +1,7 @@
+id: taaaam
+name: taaaam様専用
+guest: taaaam                    # この宿泊客でしか拾えない
+unlock: { guest: taaaam }
+color: "#b0853a"
+keywords: []
+intro: 様をつけろ。専用以外は、いらない。

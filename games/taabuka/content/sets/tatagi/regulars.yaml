@@ -1,0 +1,34 @@
+# タタ木の専用の常連客
+
+- id: tt_r_niwashi
+  name: 庭師
+  grade: 上
+  text: 植木が3本以上の採点なら倍率＋6
+  flavor: 剪定はしない主義。
+  fx:
+  - when: 出し
+    if:
+      値: {式: 植木数, 以上: 3}
+    do:
+    - {倍率: 6}
+
+- id: tt_r_risu
+  name: リス
+  grade: 上
+  text: 出しのたびに強さ＋（植樹数×3）
+  flavor: どんぐりを隠した場所は忘れた。
+  fx:
+  - when: 出し
+    do:
+    - {強さ: 植樹数*3}
+
+- id: tt_r_shinrin
+  name: 森林組合
+  grade: 特上
+  text: 5枚採点されると掛け×1.5
+  flavor: 会議は森で。
+  fx:
+  - when: 出し
+    if: {採点枚数: 5}
+    do:
+    - {掛け: 1.5}

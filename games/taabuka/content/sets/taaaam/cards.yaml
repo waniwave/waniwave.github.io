@@ -1,0 +1,295 @@
+# taaaam様専用の専用札（25枚）
+
+- id: tm_noren
+  name: 専用の暖簾
+  cat: [ター, 宿, 麺]
+  tier: 3
+  grade: 並
+  flavor: 「関係者以外」
+
+- id: tm_fuda
+  name: 専用札
+  cat: [ター, スレ, 湯]
+  tier: 4
+  grade: 並
+  text: 専用の札が3枚以上採点されると倍率＋4
+  flavor: 名前が書いてある。
+  fx:
+  - when: 出し
+    if: {専用の札: 3}
+    do:
+    - {倍率: 4}
+
+- id: tm_zabuton
+  name: 専用座布団
+  cat: [宿, 老, 校庭]
+  tier: 4
+  grade: 並
+  text: 受けに回ると受け＋5
+  flavor: 他人が座ると怒られる。
+  kw: [守り5]
+
+- id: tm_hashi
+  name: 専用の箸
+  cat: [食べ物, 麺, ター]
+  tier: 4
+  grade: 並
+  text: 専用の札なら強さ＋10
+  flavor: 名前が彫ってある。
+  fx:
+  - when: 採点時
+    if: {専用: true}
+    do:
+    - {強さ: 10}
+
+- id: tm_kasa
+  name: 専用の傘
+  cat: [湯, 速さ, 動物]
+  tier: 5
+  grade: 並
+  text: 専用の札なら倍率＋2
+  flavor: 置き傘ではない。
+  fx:
+  - when: 採点時
+    if: {専用: true}
+    do:
+    - {倍率: 2}
+
+- id: tm_locker
+  name: 専用ロッカー
+  cat: [校庭, ロボ, 宿]
+  tier: 5
+  grade: 並
+  text: 採点されると札を1枚引く
+  flavor: 鍵は一本だけ。
+  kw: [呼び水1]
+
+- id: tm_yunomi
+  name: 専用の湯呑み
+  cat: [湯, 老, 死]
+  tier: 4
+  grade: 並
+  text: 手札に残ると次の出しの強さ＋6
+  flavor: 洗ってはいけない。
+  fx:
+  - when: 手札に残る
+    do:
+    - {次の出しの強さ: 6}
+
+- id: tm_seki
+  name: 専用席
+  cat: [スレ, 格ゲー, 動物]
+  tier: 3
+  grade: 並
+  text: 専用の札が採点されるたび受け＋2
+  flavor: 予約の札が立っている。
+  fx:
+  - when: 採点時
+    if: {専用: true}
+    do:
+    - {受け: 2}
+
+- id: tm_mug
+  name: 専用マグ
+  cat: [食べ物, 湯, ロボ]
+  tier: 2
+  grade: 上
+  text: 専用の札なら掛け×1.3
+  flavor: 取っ手が欠けている。
+  fx:
+  - when: 採点時
+    if: {専用: true}
+    do:
+    - {掛け: 1.3}
+
+- id: tm_pen
+  name: 専用ペン
+  cat: [スレ, 速さ, ター]
+  tier: 3
+  grade: 上
+  text: 専用の札が採点された数だけ強さ＋（×8）
+  flavor: インクは青。
+  fx:
+  - when: 出し
+    do:
+    - {強さ: 専用の札*8}
+
+- id: tm_kaban
+  name: 専用のカバン
+  cat: [宿, 動物, 麺]
+  tier: 3
+  grade: 上
+  text: 5枚採点されると倍率＋5
+  flavor: 中身は秘密。
+  fx:
+  - when: 出し
+    if: {採点枚数: 5}
+    do:
+    - {倍率: 5}
+
+- id: tm_heya
+  name: 専用の部屋
+  cat: [宿, ター, 校庭]
+  tier: 2
+  grade: 上
+  text: 専用の札なら倍率＋3
+  flavor: 札が下がっている。
+  fx:
+  - when: 採点時
+    if: {専用: true}
+    do:
+    - {倍率: 3}
+
+- id: tm_kagami
+  name: 専用の鏡
+  cat: [死, 湯, 格ゲー]
+  tier: 3
+  grade: 上
+  text: 採点の最初なら掛け×1.5
+  flavor: 映るのは本人だけ。
+  fx:
+  - when: 採点時
+    if: {採点の順番: 最初}
+    do:
+    - {掛け: 1.5}
+
+- id: tm_mic
+  name: 専用マイク
+  cat: [スレ, ロボ, 速さ]
+  tier: 2
+  grade: 上
+  text: 専用の札が4枚以上採点されると倍率＋6
+  flavor: カラオケでも離さない。
+  fx:
+  - when: 出し
+    if: {専用の札: 4}
+    do:
+    - {倍率: 6}
+
+- id: tm_controller
+  name: 専用コントローラー
+  cat: [格ゲー, ロボ, ター]
+  tier: 2
+  grade: 上
+  text: 同じ出しに同じカテゴリの札があれば倍率＋3
+  flavor: ボタンがすり減っている。
+  kw: [連れ3]
+
+- id: tm_gakubuchi
+  name: 専用の額縁
+  cat: [宿, 老, スレ]
+  tier: 3
+  grade: 上
+  text: 採点されると宿銭＋1
+  flavor: 中身はまだ無い。
+  fx:
+  - when: 採点時
+    do:
+    - {宿銭: 1}
+
+- id: tm_hanko
+  name: 専用の判子
+  cat: [ター, 宿, 死]
+  tier: 1
+  grade: 特上
+  text: 専用の札なら掛け×1.5
+  flavor: 朱肉も専用。
+  fx:
+  - when: 採点時
+    if: {専用: true}
+    do:
+    - {掛け: 1.5}
+
+- id: tm_sign
+  name: 専用サイン
+  cat: [ター, スレ, 格ゲー]
+  tier: 0
+  grade: 特上
+  text: 専用の札が採点された数×倍率＋2
+  flavor: 読めない。
+  fx:
+  - when: 出し
+    do:
+    - {倍率: 専用の札*2}
+
+- id: tm_room
+  name: 専用ラウンジ
+  cat: [宿, 湯, 食べ物]
+  tier: 1
+  grade: 特上
+  text: 専用の札が5枚採点されると掛け×2
+  flavor: 飲み物は飲み放題。
+  fx:
+  - when: 出し
+    if: {専用の札: 5}
+    do:
+    - {掛け: 2}
+
+- id: tm_kanban
+  name: 専用看板
+  cat: [スレ, 校庭, ター]
+  tier: 1
+  grade: 特上
+  text: 採点されると、この札のカテゴリを番付で1段上げる
+  flavor: 「taaaam様専用」
+  kw: [根回し]
+
+- id: tm_staff
+  name: 専用スタッフ
+  cat: [宿, 動物, 速さ]
+  tier: 2
+  grade: 特上
+  text: 受けに回ると受け＋10
+  flavor: 名札も専用。
+  kw: [守り10]
+
+- id: tm_kaisatsu
+  name: 専用改札
+  cat: [速さ, ロボ, ター]
+  tier: 0
+  grade: 極
+  text: 専用の札なら掛け×2
+  flavor: 通れるのは一人だけ。
+  fx:
+  - when: 採点時
+    if: {専用: true}
+    do:
+    - {掛け: 2}
+
+- id: tm_card
+  name: ブラックカード（専用）
+  cat: [ター, 宿, 食べ物]
+  tier: God
+  grade: 極
+  text: 専用の札が採点された数×倍率＋4
+  flavor: 限度額は議論中。
+  fx:
+  - when: 出し
+    do:
+    - {倍率: 専用の札*4}
+
+- id: tm_kanmuri
+  name: 専用の冠
+  cat: [ター, 老, 死]
+  tier: God
+  grade: 極
+  text: 5枚採点されると掛け×3
+  flavor: サイズは合わない。
+  fx:
+  - when: 出し
+    if: {採点枚数: 5}
+    do:
+    - {掛け: 3}
+
+- id: tm_sama
+  name: taaaam様
+  cat: [ター, 宿, スレ]
+  tier: God
+  grade: 神
+  text: 専用の札なら掛け×4
+  flavor: 様をつけろ。
+  fx:
+  - when: 採点時
+    if: {専用: true}
+    do:
+    - {掛け: 4}

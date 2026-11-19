@@ -1,0 +1,11 @@
+id: ikea
+name: IKEA
+hp: 70
+mechanic: 組み立て
+relic: ik_r_rench                # 六角レンチ
+deck: { set: taajuku, grades: [並], extra: [ik_neji, ik_neji, ik_setsumeisho] }
+set: ikea
+unlock: { overkill: { 大論破: 50 } }   # 大論破を累計50回
+params: { 最小: 2, 最大: 5 }
+state: { 組立数: 0 }
+text: 手札の2〜5枚を1枚の家具に組み立てる。家具は強さが合計、カテゴリは全部

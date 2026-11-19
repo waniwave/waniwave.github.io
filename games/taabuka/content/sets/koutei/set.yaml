@@ -1,0 +1,7 @@
+id: koutei
+name: 校庭変化
+guest: koutei                    # この宿泊客でしか拾えない
+unlock: { guest: koutei }
+color: "#3f6f8f"
+keywords: []
+intro: 校庭は、毎ターン別の場所になる。

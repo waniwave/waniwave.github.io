@@ -1,0 +1,12 @@
+# 最深部：B16 は底の主との最終戦だけ（襖は無い）
+id: core
+name: ター深
+floors: [16, 16]
+line: 底に、何かが座っている。主張は、読めない。
+palette: { bg: "#141217", ink: "#efe8dc" }
+onlyBoss: true
+doors: {}
+bosses: [en_taa]
+warden: en_kaerimichi
+stalker: en_shisen
+quirk: null

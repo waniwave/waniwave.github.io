@@ -1,0 +1,20 @@
+id: layer1
+name: 地下帳場
+floors: [1, 3]
+line: 宿の床下に、ター深がある。
+palette: { bg: "#efe6d2", ink: "#2a2520" }
+doors: { 戦い: 45, 精鋭: 12, 宝: 10, 商い: 10, 湯: 10, 謎: 10 }
+groups:
+  - [en_niwaka]
+  - [en_teiki]
+  - [en_tsuri]
+  - [en_kaiko]
+  - [en_copipe, en_copipe]
+  - [en_teiki, en_jien]
+  - [en_niwaka, en_tsuri]
+  - [en_jien, en_kaiko]
+elites: [en_chobun, en_anka]
+bosses: [en_suretate, en_tsuchi_nashi]
+warden: en_gesoku
+stalker: en_ashioto
+quirk: null

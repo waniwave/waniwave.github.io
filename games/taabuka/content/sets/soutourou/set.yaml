@@ -1,0 +1,7 @@
+id: soutourou
+name: 相当老
+guest: soutourou                    # この宿泊客でしか拾えない
+unlock: { guest: soutourou }
+color: "#7b6a55"
+keywords: []
+intro: 手札に残したものほど、味が出る。

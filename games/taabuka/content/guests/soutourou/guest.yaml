@@ -1,0 +1,10 @@
+id: soutourou
+name: 相当老
+hp: 75
+mechanic: 熟成
+relic: so_r_ireba                # 入れ歯
+deck: { set: taajuku, grades: [並], extra: [so_ochanoma, so_ochanoma, so_engawa] }
+set: soutourou
+unlock: { death: 3 }             # 未帰還3回
+params: { S: 3, M: 0.5, 手札: 7 }
+text: 手札に残した札が熟成し、採点のとき強くなる。手札の上限は7

@@ -1,0 +1,56 @@
+# 宿の施設と段階（仕様書 第6章）。一度上げた段階は下がらない
+# levels の1つめが初期（Lv1）。cost は { zeni, souvenirs: { お土産ID: 個数 } }。
+# effect は上の段階の値で上書きされる（書いていない項目は前の段階のまま）。
+# 本編で全段階を改装できる。
+- id: chouba
+  name: 帳場
+  text: 札を買う。素泊まりセットを渡す
+  levels:
+    - { effect: { shopCards: 5, shopGrades: [並, 上] } }
+    - { cost: { zeni: 300 }, effect: { shopCards: 7, shopGrades: [並, 上, 特上] } }
+    - { cost: { zeni: 1500, souvenirs: { sv_tsunokakera: 1 } }, effect: { pawnshop: true } }
+    - { cost: { zeni: 6000 }, effect: { shopCards: 9, shopGrades: [並, 上, 特上, 極] } }
+
+- id: kura
+  name: 蔵
+  text: 持ち物をしまう。複製
+  levels:
+    - { effect: { capacity: 40, copyUpTo: null } }
+    - { cost: { zeni: 300, souvenirs: { sv_furuikagi: 1 } }, effect: { capacity: 80, copyUpTo: 上 } }
+    - { cost: { zeni: 1200, souvenirs: { sv_kaketahari: 2 } }, effect: { capacity: 150 } }
+    - { cost: { zeni: 5000, souvenirs: { sv_taajirushi: 3 } }, effect: { capacity: 300, copyUpTo: 特上 } }
+
+- id: monooki
+  name: 物置
+  text: 懐とお守り袋の大きさ
+  levels:
+    - { effect: { pouch: 8, charm: 1 } }
+    - { cost: { zeni: 200, souvenirs: { sv_hakusen: 1 } }, effect: { pouch: 10 } }
+    - { cost: { zeni: 800, souvenirs: { sv_hakusen: 2 } }, effect: { pouch: 12, charm: 2 } }
+    - { cost: { zeni: 2000 }, effect: { pouch: 14 } }
+    - { cost: { zeni: 6000, souvenirs: { sv_tsunokakera: 1 } }, effect: { pouch: 16, charm: 3 } }
+
+- id: kyakuma
+  name: 客間
+  text: 潜行に連れていく常連客の数
+  levels:
+    - { effect: { seats: 1 } }
+    - { cost: { zeni: 500, souvenirs: { sv_obidome: 1 } }, effect: { seats: 2 } }
+    - { cost: { zeni: 4000, souvenirs: { sv_obidome: 2 } }, effect: { seats: 3 } }
+
+- id: kamidana
+  name: 神棚
+  text: 保険と供養
+  levels:
+    - { effect: { returnRate: 0.70, premium: 0.30 } }
+    - { cost: { zeni: 600, souvenirs: { sv_yunohana: 2 } }, effect: { returnRate: 0.75, premium: 0.25 } }
+    - { cost: { zeni: 3000, souvenirs: { sv_yunohana: 4 } }, effect: { returnRate: 0.80, premium: 0.20 } }
+
+- id: shikomi
+  name: 仕込み場
+  text: 札に仕込み・版・判を付ける
+  levels:
+    - { effect: { enh: [金箔, 鋼, 守, 重し], ed: [], seal: [] } }
+    - { cost: { zeni: 400, souvenirs: { sv_banzukekire: 3 } }, effect: { enh: [金箔, 鋼, 硝子, 多才, 石, 祝, 守, 重し] } }
+    - { cost: { zeni: 1500, souvenirs: { sv_waretagarasu: 2 } }, effect: { ed: [箔押し, ホロ] } }
+    - { cost: { zeni: 5000, souvenirs: { sv_tsunokakera: 2 } }, effect: { ed: [箔押し, ホロ, 多色], seal: [朱判, 金判, 青判, 紫判] } }

@@ -1,0 +1,7 @@
+id: maap
+name: 女将マープ
+guest: maap
+unlock: { guest: maap }
+color: "#7a3b5e"
+keywords: []
+intro: 番付は、帳場で決まる。

@@ -1,0 +1,6 @@
+id: ryukogo
+name: 流行語
+unlock: { boss: layer4 }          # 第四層主を倒すと解放（先行版では最初からだった）
+color: "#e8508a"
+keywords: [二倍, 交互, 宣言, 伏せ字]   # このセットが足す目玉ルール（keywords.yaml に定義）
+intro: 流行語が、少しずつ壊れている。

@@ -1,0 +1,6 @@
+id: iwaku
+name: 曰く札
+unlock: { start: true }          # 拾えるのは第二層以降（曰く付きの極・神は深度10以上）。質札は質屋でだけ借りられる
+color: "#5a4a6a"
+keywords: []
+intro: 強い札には、たいてい曰くがある。

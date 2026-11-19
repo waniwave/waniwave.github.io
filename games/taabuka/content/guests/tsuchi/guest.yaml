@@ -1,0 +1,9 @@
+id: tsuchi
+name: 自己紹介をする土
+hp: 70
+mechanic: 名乗り                 # guests/tsuchi/custom.js の name
+relic: ts_r_nafuda               # 最初の置物
+deck: { set: taajuku, grades: [並], extra: [ts_nanori, ts_meishi, ts_jikoshokai] }
+set: tsuchi                      # 専用セット content/sets/tsuchi/
+unlock: { start: true }
+params: { 上限: 12 }              # 名乗り：文字数の上限

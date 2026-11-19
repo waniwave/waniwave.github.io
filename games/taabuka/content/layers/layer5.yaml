@@ -1,0 +1,21 @@
+id: layer5
+name: Tier8
+floors: [13, 15]
+line: ここでは、何もかもが8になりうる。
+palette: { bg: "#d6d0da", ink: "#221c26" }
+doors: { 戦い: 44, 精鋭: 15, 宝: 11, 商い: 10, 湯: 9, 謎: 10 }
+groups:
+  - [en_zako]
+  - [en_kaso]
+  - [en_hachi]
+  - [en_kanzen]
+  - [en_shoshin, en_hachi]
+  - [en_owakon, en_zako]
+  - [en_kaso, en_shoshin]
+  - [en_owakon, en_kanzen]
+elites: [en_kamige, en_kusoge, en_saikyo]
+bosses: [en_tier8, en_byousoku]
+warden: en_kaerimichi
+stalker: en_shisen
+# 層の癖：ターンの始めに、この確率で「このターン全札がTier8扱い」の罠を踏む
+quirk: { name: Tier8の罠, params: { 確率: 0.25 } }

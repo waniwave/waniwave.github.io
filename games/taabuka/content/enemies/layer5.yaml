@@ -1,0 +1,124 @@
+# 第五層「Tier8」の敵（本編）
+- id: en_zako
+  name: 雑魚認定
+  layer: [5]
+  kind: 通常
+  hp: 1.0
+  atk: 1.0
+  acts: [{ 格下げ: 2 }, 攻め]
+  line: Tier8で十分
+
+- id: en_kaso
+  name: 過疎
+  layer: [5]
+  kind: 通常
+  hp: 1.4
+  atk: 0.8
+  acts: [{ 居座り: 0.2 }, 攻め, 攻め]
+  line: 誰もいない
+
+- id: en_hachi
+  name: ハチ
+  layer: [5]
+  kind: 通常
+  hp: 0.8
+  atk: 1.3
+  acts: [攻め, 攻め, 溜め]
+  line: 8
+
+- id: en_shoshin
+  name: 初心者狩り
+  layer: [5]
+  kind: 通常
+  hp: 0.9
+  atk: 1.1
+  acts: [攻め, { 伏せ: 2 }, 攻め]
+  line: 初心者さん？
+
+- id: en_kanzen
+  name: 完全論破
+  layer: [5]
+  kind: 通常
+  hp: 1.1
+  atk: 1.0
+  acts: [全体攻め, 格下げ]
+  line: 完全に論破した
+
+- id: en_owakon
+  name: オワコン
+  layer: [5]
+  kind: 通常
+  hp: 1.0
+  atk: 1.0
+  acts: [{ 封じ: 最多カテゴリ }, 攻め]
+  line: もう誰もやってない
+
+# 精鋭
+- id: en_kamige
+  name: 神ゲー認定
+  layer: [5]
+  kind: 精鋭
+  hp: 1.2
+  atk: 1.0
+  acts: [全体攻め, { 居座り: 0.1 }, 攻め]
+  line: 異論は認めない
+
+- id: en_kusoge
+  name: クソゲー認定
+  layer: [5]
+  kind: 精鋭
+  hp: 1.0
+  atk: 1.1
+  acts: [{ 格下げ: 2 }, 全体攻め]
+  line: 全部Tier8
+
+- id: en_saikyo
+  name: 最強議論
+  layer: [5]
+  kind: 精鋭
+  hp: 1.0
+  atk: 1.0
+  acts: [席を奪う, { 封じ: 最後の組 }, 攻め]
+  line: 結局誰が一番強いの
+
+# 層主
+- id: en_tier8
+  name: Tier8
+  layer: [5]
+  kind: 層主
+  hp: 1.0
+  atk: 1.0
+  acts: [攻め, 攻め, 溜め]
+  custom: Tier8
+  bind: 奇数ターンは全札がTier8扱い
+  line: 8
+
+- id: en_byousoku
+  name: 秒速5タームメートル
+  layer: [5]
+  kind: 層主
+  hp: 0.9
+  atk: 1.1
+  acts: [攻め, 全体攻め, 攻め]
+  custom: 秒速5タームメートル
+  bind: ターンの終わりに、手札が全て流れ去る
+  line: どれほどの速さで流れれば
+
+# 追跡者・帰路の番人（第五層以降）
+- id: en_shisen
+  name: 視線
+  layer: [5]
+  kind: 追跡者
+  hp: 1.0
+  atk: 1.0
+  acts: [攻め, 溜め, 攻め]
+  line: 　
+
+- id: en_kaerimichi
+  name: 帰り道
+  layer: [5]
+  kind: 番人
+  hp: 1.0
+  atk: 1.0
+  acts: [攻め, 溜め]
+  line: 来た道は、もう無い

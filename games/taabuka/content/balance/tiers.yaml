@@ -1,0 +1,32 @@
+# Tier と番付（仕様書 第3章「Tier」）
+# 札の強さ・輪の位置・番付倍率。数値はここだけに書く。
+
+# 共通の13カテゴリ（企画書 第4章）。並び順は「同数のときどれを選ぶか」にも使う。
+categories: [食べ物, 死, 宿, 動物, スレ, 湯, 校庭, 速さ, 格ゲー, ター, 老, 麺, ロボ]
+
+# Tierの輪（God→0→1→2→3→4→5→8→God）。位置番号は並び順の0〜7。
+ring: [God, "0", "1", "2", "3", "4", "5", "8"]
+
+# 札のTier。strength＝札の強さ、banzuke＝番付でこの段にいるカテゴリの倍率（採点札1枚あたり）
+# rank＝番付で「一番高い」を決める順（大きいほど上）
+tiers:
+  God: { strength: 15, banzuke: 6,    rank: 10 }
+  "0": { strength: 12, banzuke: 3,    rank: 9 }
+  "1": { strength: 10, banzuke: 2,    rank: 8 }
+  "2": { strength: 8,  banzuke: 1,    rank: 7 }
+  "3": { strength: 6,  banzuke: 0,    rank: 6 }
+  "4": { strength: 5,  banzuke: -0.5, rank: 5 }
+  "5": { strength: 3,  banzuke: -1,   rank: 4 }
+  "8": { strength: 1,  banzuke: { random: [-1, 6] }, rank: 3 }   # 出しごとに整数を乱数で
+
+# 欠番の枠（第四層以降）。番付にだけ現れ、「欠番へ移す」効果でだけ入る。
+# perCardMul＝採点札1枚ごとの M× 、noGuard＝そのカテゴリの札は受けにならない
+missing:
+  欠6: { banzuke: 0, perCardMul: 1.2, rank: 11, fromLayer: 4 }
+  欠7: { banzuke: 0, perCardMul: 1.5, rank: 12, noGuard: true, fromLayer: 4 }
+
+# 潜行開始時の番付（全カテゴリ）
+banzukeStart: "3"
+
+# 番付を1段上げる／下げるときの並び（下→上）。欠番は「移す」でだけ出入りする
+banzukeSteps: ["8", "5", "4", "3", "2", "1", "0", God]

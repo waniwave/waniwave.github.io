@@ -1,0 +1,11 @@
+id: taakaku
+name: ター角
+hp: 55
+mechanic: 角
+relic: tk_r_kado                 # 角
+deck: { set: taajuku, grades: [並], extra: [tk_hashira, tk_hashira, tk_sumi] }
+set: taakaku
+unlock: { extractFrom: 16 }      # B16から脱出
+params: { 角の掛け: 3, 両角: 2, 入れ替え: 1, 置物: tk_r_kado }
+state: { 入れ替え: 0 }
+text: 手札の左端と右端の札が「角」。角の札は掛け×3。手札は並ばない

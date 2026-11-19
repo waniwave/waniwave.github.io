@@ -1,0 +1,6 @@
+- id: mp_r_kannaizu
+  name: 館内図
+  grade: 並
+  text: 襖の「？」が全て見える
+  flavor: 女将の手書き。
+  rule: [襖を見せる]

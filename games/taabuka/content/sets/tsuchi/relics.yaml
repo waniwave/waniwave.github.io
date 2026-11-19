@@ -1,0 +1,18 @@
+- id: ts_r_nafuda
+  name: 名札
+  grade: 並
+  text: 戦闘の最初の出しは強さ＋20
+  flavor: 字が大きい。
+  fx:
+    - when: 出し
+      if: { 戦闘の出し: 1 }
+      do:
+        - 強さ: 20
+  test:
+    - hand: [{ tier: 3, cat: [麺] }]
+      relics: [ts_r_nafuda]
+      expect: { V: 31 }          # (5＋6＋20)×1
+    - hand: [{ tier: 3, cat: [麺] }, { tier: 5, cat: [死] }]
+      relics: [ts_r_nafuda]
+      steps: [{ play: [0] }, { play: [0] }]
+      expect: { V: 8 }           # 2回目の出しには付かない：(5＋3)×1
