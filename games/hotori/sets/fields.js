@@ -10,8 +10,9 @@ F({ id: 'f_gamecenter', name: 'ゲーセン大会', e: '🕹️', color: '#ff6ad
   rules: { hooks: { tierMod: (g, m) => m * 2 } } });
 
 F({ id: 'f_sakasa', name: '逆さ宿', e: '🙃', color: '#5ec4c9',
-  text: '【逆さ宿】この局は、ティア表の補正がひっくり返る。下の段ほど点が上がり、Godは1枚−12になる。',
-  rules: { hooks: { tierMod: (g, m) => -m } } });
+  text: '【逆さ宿】この局は、ティア表の補正がひっくり返る。下の段ほど点が上がり、Godは1枚−12になる。この局のティアの動きは次の局に持ち越さない。',
+  // carryReset：局の終わりに、共通カテゴリをこの局の始めの位置に戻して次の局へ渡す（ひっくり返った局の沈め合いを持ち越さない）
+  rules: { carryReset: true, hooks: { tierMod: (g, m) => -m } } });
 
 F({ id: 'f_gyakushin', name: '逆神の局', e: '🌀', color: '#a3a8bd',
   text: '【逆神の局】この局は、点数が一番低い人が1位になる。',
@@ -28,10 +29,6 @@ F({ id: 'f_kaso', name: '過疎スレ', e: '🕸️', color: '#6d6a7a',
 F({ id: 'f_manin', name: '満員御礼', e: '🈵', color: '#ea6450',
   text: '【満員御礼】この局は、選ばれていないセットのカードが全員の手札に1枚ずつ乱入し、8手番になる。',
   rules: { onRoundStart: (g) => g.addTurn(1, '満員御礼！ 選ばれていないセットのカードが1枚ずつ乱入し、この局は8手番。') } });
-
-F({ id: 'f_byousoku', name: '秒速', e: '💨', color: '#7fd0ff',
-  text: '【秒速】4手番目が終わると、手札が秒速でもう1人先まで飛ぶ（向かいの人の手札が届く）。',
-  rules: { onTurnEnd: (g) => { if (g.turn === 4) { g.passHands(1); g.log('★ 秒速！ 手札がもう1人先まで飛んだ。向かいの人の手札が届く。', true); } } } });
 
 F({ id: 'f_yakkan8', name: '宿泊約款第8条', e: '📜', color: '#b385f2',
   text: '【宿泊約款第8条】局の始めに、ランダムなカテゴリ2つが欠番になる（補正0で動かせない。理由は聞かない）。',

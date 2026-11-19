@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ター宿のほとり</title>
+<meta property="og:type" content="website"><meta property="og:title" content="ター宿のほとり">
+<meta property="og:description" content="強さ議論スレの宿で、4人で札を取りあう。ティアを動かして点を競うドラフト型カードゲーム。">
+<meta property="og:url" content="https://waniwave.com/games/hotori/"><meta property="og:image" content="https://waniwave.com/games/hotori/thumb.jpg">
+<meta name="twitter:card" content="summary_large_image"><link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
@@ -514,6 +518,14 @@ button.chip:hover:not(:disabled){border-color:var(--andon)}
 .tpop .x{background:#333;color:#ccc;min-width:26px}
 .tb-must{background:var(--andon);color:var(--sumi);font-weight:700;font-size:13px;border-radius:6px;padding:3px 8px;animation:pulse 1.4s ease-in-out infinite}
 .tb-hint{font-size:11.5px;color:#cfe8dc;padding:0 2px}
+.tb-flip{background:#5ec4c9;color:var(--sumi);font-weight:700;font-size:12.5px;border-radius:6px;padding:3px 8px;text-align:center}
+.tierboard.flipped{box-shadow:inset 0 0 0 2px #5ec4c9}
+.tierboard.flipped .tb-h b{display:inline-block;transform:rotate(180deg)}
+.trow.modchg .tlab small{font-weight:800}
+.trow.modchg .tlab{gap:1px;overflow:hidden}
+.trow.modchg .tlab b{font-size:15px}
+.tlab small.mp{color:#0b5a2a;background:#c8f7d6;border-radius:3px;padding:0 1px;letter-spacing:-.03em}
+.tlab small.mn{color:#fff;background:#b8323a;border-radius:3px;padding:0 1px;letter-spacing:-.03em}
 .tierboard.musttier{box-shadow:0 0 0 3px var(--andon),0 0 22px rgba(242,182,72,.5)}
 .card.discardable:hover{outline:3px dashed #ff9a6a;outline-offset:-3px}
 .card.discardable:not(.cutsel)::after{content:'捨てる';position:absolute;right:4%;bottom:4%;background:#b0301e;color:#fff;font-size:7.5cqw;padding:1px 6px;border-radius:4px;opacity:0;transition:opacity .15s}
@@ -681,7 +693,7 @@ div.sp-i{cursor:default}
 <div id="app" class="wrap"></div>
 <div id="fx"></div>
 <script>
-window.TJ_BUILD = '20261118-1';
+window.TJ_BUILD = '20261118-2';
 window.TJ_LOAD_ERRORS = [];
 (function () {
   // ?v= を付けて、更新したときに古いファイルがキャッシュから読まれないようにする

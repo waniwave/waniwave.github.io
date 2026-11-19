@@ -107,6 +107,14 @@ TJ.modOf = (st, pos) => {
   return t.k === '8' ? st.t8 : t.mod;
 };
 TJ.seatName = (st, p) => st.seats[p].name;
+// 場の効果（お題）だけを通したティア補正。画面の表示用（カード固有の効果は通さない）
+TJ.fieldMod = (st, m) => {
+  const g = TJ.api(st);
+  TJ.ruleIds(st).forEach(sid => { const f = TJ.SETS[sid].rules.hooks && TJ.SETS[sid].rules.hooks.tierMod; if (f) { try { m = f(g, m, null, null, -1); } catch (e) { /* noop */ } } });
+  return m;
+};
+// いまの局で、補正がひっくり返っているか
+TJ.tierFlipped = st => TJ.fieldMod(st, 1) < 0;
 
 // ===== 状態 =====
 TJ.newGame = function (o) {
@@ -456,7 +464,7 @@ TJ.api = function (st) {
     // ティア表を上下ひっくり返す（God⇔Tier5、0⇔4、1⇔3）
     flipTiers: () => { const mx = TJ.TIERS.length - 2; Object.keys(st.tiers).forEach(k => { const from = st.tiers[k]; if (from === TJ.KESU || from > mx) return; const to = mx - from; if (to !== from) { st.tiers[k] = to; push(st, { k: 'tier', cat: k, from, to, src: curSrc(st) }); afterTier(st, k, from, to); } }); },
     // この局に場の効果（お題）を1枚足す
-    addRule: (id) => { const pool = TJ.FIELD_ORDER.filter(f => !st.rules.includes(f) && !TJ.SETS[f].tutOnly); const fid = id || pool[rnd(pool.length)]; if (!fid) return null; st.rules.push(fid); ((TJ.SETS[fid].rules.extraCats) || []).forEach(k => { if (st.tiers[k] == null) st.tiers[k] = TJ.START; }); push(st, { k: 'addRule', sid: fid, src: curSrc(st) }); log(st, `★ 新しい場の効果が追加された：${TJ.SETS[fid].rules.text}`, 1); return fid; },
+    addRule: (id) => { const pool = TJ.FIELD_ORDER.filter(f => !st.rules.includes(f) && !TJ.SETS[f].tutOnly); const fid = id || pool[rnd(pool.length)]; if (!fid) return null; st.rules.push(fid); st.usedFields = st.usedFields || []; if (!st.usedFields.includes(fid)) st.usedFields.push(fid); ((TJ.SETS[fid].rules.extraCats) || []).forEach(k => { if (st.tiers[k] == null) st.tiers[k] = TJ.START; }); push(st, { k: 'addRule', sid: fid, src: curSrc(st) }); log(st, `★ 新しい場の効果が追加された：${TJ.SETS[fid].rules.text}`, 1); return fid; },
     // p をスレ主（親）にする。次の手番から p から順に解決される
     makeOya: p => { if (st.oya === p) return; st.oya = p; push(st, { k: 'oya', p, src: curSrc(st) }); log(st, `★ ${g.name(p)}がスレ主の座を奪った！ 次の手番から${g.name(p)}から順に解決する。`, 1); },
     // 2人の場（取ったカード）を丸ごと入れ替える
@@ -640,7 +648,13 @@ TJ.endRound = function (st) {
   try { res.story = TJ.roundStory(st, res); } catch (e) { console.error(e); res.story = []; }
   res.lost = [0, 1, 2, 3].map(p => st.discard.filter(e => e.how === 'kill' && e.p === p).length);
   st.results.push(res);
-  Object.keys(st.tiers).forEach(k => { if (TJ.CATS[k] && TJ.CATS[k].common) st.carry[k] = st.tiers[k]; });
+  // 共通カテゴリは次の局へ引き継ぐ。ただし「逆さ宿」のように、その局だけ補正がひっくり返る場の効果があった局は、局の始めの位置に戻して引き継ぐ
+  const reset = TJ.ruleIds(st).some(id => TJ.SETS[id].rules.carryReset);
+  Object.keys(st.tiers).forEach(k => {
+    if (!(TJ.CATS[k] && TJ.CATS[k].common)) return;
+    st.carry[k] = reset && st.tiersStart && st.tiersStart[k] != null ? st.tiersStart[k] : st.tiers[k];
+  });
+  if (reset) log(st, '★ ひっくり返った局のティアの動きは、次の局に持ち越さない（共通カテゴリは局の始めの位置に戻る）。', 1, 'sys');
   // 局をまたぐカード
   st.players.forEach((P, p) => P.table.forEach(c => { const d = DEF(c); if (d.carry && d.carry(g, p, c)) c.x.keep = 1; }));
   push(st, { k: 'roundEnd', res });

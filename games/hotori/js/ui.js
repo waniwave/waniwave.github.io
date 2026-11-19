@@ -940,7 +940,7 @@ function cardHTML(c, o) {
   o = o || {}; const d = TJ.CARD[c.id]; const st = A.st;
   const cats = (c.cats || d.cats).map(k => {
     const pos = st && st.tiers[k] != null ? st.tiers[k] : null;
-    const m = pos == null ? null : TJ.modOf(st, pos) * (d.tierX || 1) * (d.invert || (c.x && c.x.invert) ? -1 : 1);
+    const m = pos == null ? null : TJ.fieldMod(st, TJ.modOf(st, pos) * (d.tierX || 1) * (d.invert || (c.x && c.x.invert) ? -1 : 1));
     return `<span class="cat" style="--catc:${catColor(k)}">${esc(catName(k))}${pos != null && !d.noTier ? `<i>${tierShort(pos)}${m ? ' ' + fmt(m) : ''}</i>` : ''}</span>`;
   }).join('');
   // 左上の大きな数字：このカードの点。手札なら「取ったら何点か」、場なら「いま何点か」、図鑑では基本の点
@@ -1084,7 +1084,7 @@ function highlight(u) {
   e.r.parts.forEach(([k, m]) => { if (m) mark(`.chip[data-cat="${k}"]`, m); });
   if (e.r.rule) { const R = ruleNameWith('cardScore'); if (R) mark(`.field[data-rule="${R.id}"]`, e.r.rule); }
   const tm = TJ.ruleIds(A.st).find(id => { const R = TJ.SETS[id].rules; return R && R.hooks && R.hooks.tierMod; });
-  if (tm && e.r.parts.some(([k]) => k === 'fgc')) mark(`.field[data-rule="${tm}"]`, 1);
+  if (tm && e.r.parts.some(([, m]) => m)) mark(`.field[data-rule="${tm}"]`, 1);
 }
 function highlightTotal(p) {
   clearHL(); A.hl = { p };
@@ -1372,11 +1372,16 @@ function tierboardHTML() {
   const cats = Object.keys(tiers);
   const rows = TJ.TIERS.map((t, i) => {
     const here = cats.filter(k => tiers[k] === i);
-    const mod = t.mod == null ? `今${fmt(st.t8)}` : fmt(t.mod);
-    return `<div class="trow"><div class="tlab" style="background:${t.color}" title="${esc(t.desc)}"><b>${t.k === 'G' ? 'God' : t.k}</b><small>${mod}</small></div><div class="tchips">${here.map(chip).join('')}</div></div>`;
+    // 場の効果（逆さ宿・ゲーセン大会など）を通した、実際の1枚あたりの補正を出す
+    const raw = t.mod == null ? st.t8 : t.mod; const eff = TJ.fieldMod(st, raw);
+    const mod = (t.mod == null ? '今' : '') + fmt(eff);
+    const chg = eff !== raw;
+    return `<div class="trow ${chg ? 'modchg' : ''}"><div class="tlab" style="background:${t.color}" title="${esc(t.desc)}${chg ? `（場の効果で ${fmt(raw)} → ${fmt(eff)}）` : ''}"><b>${t.k === 'G' ? 'God' : t.k}</b><small class="${chg ? (eff > 0 ? 'mp' : eff < 0 ? 'mn' : '') : ''}">${mod}</small></div><div class="tchips">${here.map(chip).join('')}</div></div>`;
   }).join('');
   const kes = cats.filter(k => tiers[k] === TJ.KESU);
-  return `<div class="tierboard ${clickable ? 'canop' : ''} ${must ? 'musttier' : ''}" aria-label="ティア表">
+  const flip = TJ.tierFlipped(st);
+  return `<div class="tierboard ${clickable ? 'canop' : ''} ${must ? 'musttier' : ''} ${flip ? 'flipped' : ''}" aria-label="ティア表">
+    ${flip ? '<div class="tb-flip">🙃 逆さ宿：この局は補正がひっくり返っている。下の段ほど点が高い</div>' : ''}
     ${must ? '<div class="tb-must">👆 スレ主の権限：まずカテゴリを押して、上げるか下げるかを選ぶ（必須）</div>' : clickable && !sel.cat ? '<div class="tb-hint">カテゴリを押すと上げ下げできる（そのかわり手札を1枚捨てる）</div>' : ''}
     <div class="tb-h"><span>【ター宿】強さ議論スレ ティア表</span><b>v${st.round + 1}.${st.turn}</b></div>
     ${rows}
