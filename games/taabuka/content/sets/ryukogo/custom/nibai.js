@@ -10,9 +10,9 @@ export default {
     'fx.queue': (ctx, next) => { ctx.fx.push({ show: '文字二回', arg: null, src: { kind: 'rule', name: '二倍' } }); next(); },
   },
   tests: [
-    // 対（God・God）：二倍なら S＝10＋(15＋15)×2＝70、M＝2 → 140。二倍なしなら 80
-    { name: '採点が2回ずつ', hand: ['rk_jujo_satosatoru', { tier: 'God', cat: ['ター'] }], expect: { V: 140, なしより大きい: true } },
-    // 札が1枚でも2回採点：単騎 S＝5＋15×2＝35 → 35（なしは20）
-    { name: '1枚でも2回', hand: ['rk_jujo_satosatoru'], expect: { V: 35, 演出: '文字二回' } },
+    // ター2枚（T3とGod）：二倍なら S＝(10＋60)×2＝140、重なり×1.5 → 210。二倍なしなら 105
+    { name: '採点が2回ずつ', hand: [{ tier: 3, cat: ['ター'], kw: ['二倍'] }, { tier: 'God', cat: ['ター'] }], expect: { V: 210, なしより大きい: true } },
+    // 札が1枚でも2回採点：10×2＝20（なしは10）
+    { name: '1枚でも2回', hand: [{ tier: 3, cat: ['ター'], kw: ['二倍'] }], expect: { V: 20, 演出: '文字二回' } },
   ],
 };

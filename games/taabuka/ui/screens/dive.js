@@ -1,8 +1,9 @@
 // 潜行の画面：階（襖の列3つ）・追跡者・報酬・商い・湯・謎・非常口・踊り場・脱出／未帰還（仕様書 第4章・第10章）
 // 状態 D は engine/dive.js が持つ。画面は D を描いて、dive.js の関数を呼ぶだけ。戦闘は battle 画面に任せる。
 
+import { thingEl as sharedThing } from '../things.js';
 import { h, tip, toast, pick, sheet, holdButton, esc } from '../dom.js';
-import { GRADE_COLOR, catGlyph, catColor, tierLabel, kwLines, bindText } from '../labels.js';
+import { GRADE_COLOR, catGlyph, catColor, tierLabel, kwLines, bindText, rarOfCard } from '../labels.js';
 import { askItem, ownedName } from '../items.js';
 import {
   openDoors, isHidden, enterDoor, answerChase, fleeCost, chaseInfo, takeReward, rewardDests, closeReward, leaveRoom, buy,
@@ -46,9 +47,11 @@ export function diveScreen(o) {
     revealed.add(R);
     const q = o.queue;
     if (!q) return;
-    const grades = base.balance.economy.grades;
-    const top = R.groups.flatMap((g) => g.options).reduce((m, x) => Math.max(m, grades.indexOf(content.cards[x.id]?.grade ?? content.regulars?.[x.id]?.grade)), 0);
-    const god = R.groups.flatMap((g) => g.options).find((x) => x.type === 'card' && content.cards[x.id]?.grade === '神');
+    // 宝箱の揺れはレアリティの高さだけ。ユニーク以上の札が出たら神降臨の演出
+    const RO = base.balance.rarity.order;
+    const rarI = (x) => (x.type === 'card' ? RO.indexOf(rarOfCard(base.balance, x, content.cards[x.id])) : 0);
+    const top = R.groups.flatMap((g) => g.options).reduce((m, x) => Math.max(m, rarI(x)), 0);
+    const god = R.groups.flatMap((g) => g.options).filter((x) => x.type === 'card' && rarI(x) >= RO.indexOf('ユニーク')).sort((a, b) => rarI(b) - rarI(a))[0];
     const panel = root.querySelector('.reward');
     const isChest = ['宝', '寄り道'].includes(R.kind);
     if (!isChest && !god) return;
@@ -60,7 +63,7 @@ export function diveScreen(o) {
       X.chest = chest; X.cover = cover;
     } }] : []).concat(isChest ? Array.from({ length: top + 1 }, (_, i) => ({ ms: 380, run: () => { SE.chest(); X.chest?.animate([{ transform: 'rotate(0)' }, { transform: `rotate(${i % 2 ? 9 : -9}deg) translateY(-${3 + i * 2}px)` }, { transform: 'rotate(0)' }], { duration: q.dur(260) }); } }))
       .concat([{ ms: 300, run: () => { SE.open(); if (X.chest) shards(X.chest.getBoundingClientRect(), '#c89a5a', 12); X.cover?.remove(); } }]) : [])
-      .concat(god ? [{ ms: 2200, run: () => godDescent(X, content.cards[god.id].name) }] : []));
+      .concat(god ? [{ ms: 2200, run: () => godDescent(X, `${rarOfCard(base.balance, god, content.cards[god.id])}　${content.cards[god.id].name}`) }] : []));
     root.querySelector('.chestcover')?.remove();
   }
 
@@ -172,16 +175,7 @@ export function diveScreen(o) {
   }
 
   function thingEl(x) {
-    const C = content;
-    const def = x.type === 'card' ? C.cards[x.id] : x.type === 'regular' ? C.regulars[x.id] : x.type === 'relic' ? C.relics[x.id] : x.type === 'item' ? C.items[x.id] : C.souvenirs[x.id];
-    const grade = def?.grade;
-    const kids = [h('b', { text: nameOf(base, x) })];
-    if (x.type === 'card') kids.push(h('span.sub', {}, [`${tierLabel(def?.tier)}　`, ...(def?.cat || []).map((c) => h('span.glyph', { style: { background: catColor(c) } }, [catGlyph(c)]))]));
-    else kids.push(h('span.sub', { text: { regular: '常連客', relic: '置物', item: 'お品書き', souvenir: `お土産・重さ${def?.weight ?? 1}` }[x.type] ?? '' }));
-    if (x.ed) kids.push(h('span.ed', { text: x.ed }));
-    const el = h('div.thing', { style: { '--g': GRADE_COLOR[grade] ?? 'var(--line)' } }, kids);
-    tip(el, () => `<b>${esc(nameOf(base, x))}</b>${grade ? `　<span class="q">${esc(grade)}</span>` : ''}<br>${(def?.kwList?.length ? kwLines(def) : [esc(def?.text ?? def?.use ?? '')]).join('<br>')}${x.ed ? `<br>版「${esc(x.ed)}」` : ''}<br><span class="q">売値 ${sellValue(base, x)}</span>${def?.flavor ? `<br><span class="fl">${esc(def.flavor)}</span>` : ''}`);
-    return el;
+    return sharedThing(base, x);
   }
 
   function renderReward() {
@@ -398,7 +392,7 @@ export function diveScreen(o) {
   }
 
   function openDeck() {
-    const list = D.deck.map((c) => ({ c, def: content.cards[c.id] })).sort((a, b) => String(a.def?.tier).localeCompare(String(b.def?.tier)));
+    const list = D.deck.map((c) => ({ c, def: content.cards[c.id] })).sort((a, b) => String(a.def?.cat?.[0]).localeCompare(String(b.def?.cat?.[0]), 'ja'));
     const s = sheet(app, [
       h('h2', { text: `デッキ ${D.deck.length}枚` }),
       h('div.things.deck', {}, list.map(({ c }) => thingEl({ ...c, type: 'card' }))),

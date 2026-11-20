@@ -6,9 +6,9 @@ floors:
   1:  { claim: 1100,    atk: 3 }
   2:  { claim: 1650,    atk: 4 }
   3:  { claim: 2350,    atk: 4 }
-  4:  { claim: 4400,    atk: 5 }
-  5:  { claim: 7200,    atk: 6 }
-  6:  { claim: 11600,    atk: 7 }
+  4:  { claim: 5000,    atk: 5 }
+  5:  { claim: 8300,    atk: 6 }
+  6:  { claim: 13300,    atk: 7 }
   7: { claim: 17700, atk: 8 }
   8: { claim: 25700, atk: 9 }
   9: { claim: 37000, atk: 10 }

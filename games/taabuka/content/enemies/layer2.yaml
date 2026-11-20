@@ -70,7 +70,7 @@
   kind: 精鋭
   hp: 1.0
   atk: 1.0
-  acts: [{ 封じ: 最後の組 }, 攻め]
+  acts: [{ 封じ: 最多カテゴリ }, 攻め]
   line: 無断転載しました
 
 - id: en_arashi

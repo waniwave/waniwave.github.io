@@ -30,8 +30,8 @@ export default {
     return `熟成：手札の札が育つ（いちばん熟れた札 ${max}）`;
   },
   tests: [
-    // 熟成2の札：単騎 S＝5＋6＋6＝17、M＝1＋1＝2 → 34
+    // 熟成2の札：S＝10＋6＝16、M＝1＋1＝2 → 32
     { name: '熟成で強くなる', guest: 'soutourou', hand: [{ tier: 3, cat: ['麺'] }, { tier: 5, cat: ['死'] }],
-      steps: [{ end: true }, { end: true }, { play: [0] }], expect: { V以上: 34 } },
+      steps: [{ end: true }, { end: true }, { play: [0] }], expect: { V以上: 32 } },
   ],
 };

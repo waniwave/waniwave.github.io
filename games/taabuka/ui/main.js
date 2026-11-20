@@ -60,7 +60,7 @@ function ambience(where, D = null) {
   app2.classList.toggle('deep2', no >= 3);
   if (where === 'landing') { stopBgm(); startHeart(); return; }
   stopHeart();
-  if (where === 'inn') playBgm('宿');
+  if (where === 'inn' || where === 'title') playBgm('宿', where === 'title' ? -5 : 0);
   else if (where === 'boss') playBgm('層主', -(no - 1) * 2);
   else if (where === 'dive') playBgm(L?.id ?? 'layer1', -((D?.floor ?? 1) - 1));
   else if (where === 'title') stopBgm();
@@ -91,7 +91,7 @@ function fail(title, lines) {
 
 let base;
 try {
-  const { content, issues } = await loadContent(fetchIO(location.href, BUILD));
+  const { content, issues } = await loadContent(fetchIO(location.href, BUILD, { onProgress: (p) => window.bootProgress?.(p) }));
   const errs = issues.filter((i) => i.level === 'error');
   if (errs.length) { fail('読み込みに失敗しました', errs.map((i) => `[${i.tag}] ${i.where}: ${i.msg}`)); throw new Error('content'); }
   base = { balance: content.balance, content };

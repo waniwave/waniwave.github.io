@@ -2,17 +2,19 @@
 // 加算と掛け算を発動した順にその場で適用し、各段で「何が、SとMをどう変えたか」を手順列に積む。
 // 演出はこの手順列をそのまま再生する。仕込み・版・判もここで扱う。
 //
-//  1. S＝組の強さ、M＝組の倍率（段位込み）
+//  1. S＝0、M＝1（hands.yaml の base）
 //  2. 採点札を左から（差し込み口 score.card）。1枚ごとに
-//     a 札の強さ  b 番付倍率  c 仕込み  d 版  e 札の効果  f 宿泊客の仕組み（e・fは合図「採点時」）
-//     g 朱判なら a〜f をもう一度
+//     a 札の強さ（カテゴリのTier）  b 欠番の掛け  c 仕込み  d 版  e 札の効果  f 宿泊客の仕組み（e・fは合図「採点時」）
+//     g 朱判・レアリティの繰り返しなら a〜f をもう一度
+//  2'. 重なり：採点札の同じカテゴリの枚数で掛ける（score.overlap）
 //  3. 手札に残った札を左から（score.held）：鋼、合図「手札に残る」
 //  4. 常連客を左の席から（score.regulars）：版、合図「出し」
 //  5. 置物を手に入れた順に（score.relics）：合図「出し」
 //  6. M が下限未満なら下限に。V＝S×M（score.final）
 
 import { Big, ZERO } from './big.js';
-import { cardView } from './hand.js';
+import { cardView, overlapMuls } from './hand.js';
+import { rarDef } from './rarity.js';
 
 /** 札の出どころ（手順列・記録用） */
 export function srcOf(kind, obj) {
@@ -20,15 +22,21 @@ export function srcOf(kind, obj) {
   return { kind, id: obj.id ?? null, uid: obj.uid ?? null, name: obj.name ?? null };
 }
 
-/** 札の強さ（Tierの強さ＋上乗せ）。石は0（石の S＋ は仕込みの段で入る） */
-export function cardStrength(card, balance) {
-  const view = cardView(card, balance);
+/** 段の強さ（Tier8 は出しごとの乱数 roll。roll が無ければ範囲の真ん中） */
+export function slotStrength(slot, balance, roll) {
+  const t = balance.tiers.tiers[slot] || balance.tiers.missing?.[slot];
+  if (!t) return 0;
+  const st = t.strength;
+  if (typeof st === 'number') return st;
+  if (st && Array.isArray(st.random)) return roll ?? Math.round((st.random[0] + st.random[1]) / 2);
+  return 0;
+}
+
+/** 札の強さ＝Tier（カテゴリの番付の段）の強さ＋上乗せ。石は0（石の S＋ は仕込みの段で入る） */
+export function cardStrength(card, balance, banzuke, roll) {
+  const view = cardView(card, balance, banzuke);
   let s = 0;
-  if (!view.stone && view.tier != null) {
-    const t = balance.tiers.tiers[view.tier];
-    if (!t) throw new Error(`知らないTier「${view.tier}」（${card.id}）`);
-    s = t.strength;
-  }
+  if (!view.stone && view.tier != null) s = slotStrength(view.tier, balance, roll);
   s += card.plusS || 0;
   if (card.origin && balance.hands.origins?.[card.origin]?.sPerGrow) {
     s += (card.grow || 0) * balance.hands.origins[card.origin].sPerGrow;
@@ -46,26 +54,18 @@ export function bestCategory(cats, banzuke, balance) {
   let best = null, bestRank = -Infinity;
   for (const c of balance.tiers.categories) {
     if (!cats.includes(c)) continue;
-    const slot = banzuke[c] ?? balance.tiers.banzukeStart;
-    const def = slotDef(slot, balance);
+    const def = slotDef(banzuke[c] ?? balance.tiers.banzukeStart, balance);
     const rank = def ? def.rank : -Infinity;
     if (rank > bestRank) { best = c; bestRank = rank; }
   }
   return best;
 }
 
-/** 番付の段から M の足し分を出す（乱数の段は rollFor で決めた値） */
-export function banzukeAdd(def, roll) {
-  if (typeof def.banzuke === 'number') return def.banzuke;
-  if (def.banzuke && Array.isArray(def.banzuke.random)) return typeof roll === 'function' ? roll() : roll;
-  return 0;
-}
-
-/** 乱数で決まる番付倍率（T8）。出しごとに1回 */
+/** Tier8 の強さの乱数（出しごとに1回） */
 export function rollBanzuke(balance, rng) {
   for (const def of Object.values(balance.tiers.tiers)) {
-    if (def.banzuke && Array.isArray(def.banzuke.random)) {
-      const [a, b] = def.banzuke.random;
+    if (def.strength && Array.isArray(def.strength.random)) {
+      const [a, b] = def.strength.random;
       return rng.int(a, b);
     }
   }
@@ -79,7 +79,7 @@ export function rollBanzuke(balance, rng) {
 export function makeScoreCtx(o) {
   const sc = {
     battle: o.battle, env: o.env, balance: o.env.balance, rng: o.rng,
-    hand: o.hand, level: o.level, played: o.played, scored: o.scored, kickers: o.kickers, held: o.held,
+    hand: o.hand, level: o.level, overlap: o.overlap || {}, played: o.played, scored: o.scored, kickers: o.kickers, held: o.held,
     target: o.target ?? null, banzukeRoll: null,
     S: ZERO, M: ZERO, V: ZERO, steps: [], zeni: 0, broken: [], card: null, regular: null, relic: null,
     phase: 'base', predict: !!o.predict, choices: o.choices || {},
@@ -109,23 +109,16 @@ function scoreCardCore(sc) {
   const { balance } = sc;
   const card = sc.card;
   const src = srcOf('card', card);
-  const view = cardView(card, balance);
+  const view = cardView(card, balance, sc.battle.banzuke);
 
-  // a 札の強さ
-  sc.addS(cardStrength(card, balance), src);
+  // a 札の強さ（カテゴリのTier）
+  const roll = view.tier && slotDef(view.tier, balance)?.strength?.random ? sc.getRoll() : undefined;
+  sc.addS(cardStrength(card, balance, sc.battle.banzuke, roll) * sc.banzukeMul, src);
 
-  // b 番付倍率（石はカテゴリを持たないので無し）
-  if (!view.stone && view.cats.length) {
-    const cat = bestCategory(view.cats, sc.battle.banzuke, balance);
-    if (cat) {
-      const slot = sc.battle.banzuke[cat] ?? balance.tiers.banzukeStart;
-      const def = slotDef(slot, balance);
-      if (def) {
-        const bsrc = { kind: 'banzuke', id: cat, slot };
-        sc.addM(banzukeAdd(def, sc.getRoll) * sc.banzukeMul, bsrc);
-        if (def.perCardMul) sc.mulM(def.perCardMul, bsrc);
-      }
-    }
+  // b 欠番の段にいる札の掛け
+  if (!view.stone && view.tier) {
+    const def = slotDef(view.tier, balance);
+    if (def?.perCardMul) sc.mulM(def.perCardMul, { kind: 'banzuke', id: bestCategory(view.cats, sc.battle.banzuke, balance), slot: view.tier });
   }
 
   // c 仕込み
@@ -188,7 +181,11 @@ export function computeScore(o) {
   sc.phase = 'card';
   for (const card of sc.scored.slice()) {
     const seal = card.seal && balance.hands.seals[card.seal];
-    const times = 1 + (seal && seal.retrigger ? seal.retrigger : 0);
+    // 朱判・刻印「もう1回」・効果の無い札のレアリティ（レジェンダリー2回〜ミシック5回）
+    const def = env.content.cards?.[card.id];
+    const vanilla = def && !(def.listen?.length) && !(def.rules?.length) && !(def.hooks) && card.rar ? rarDef(balance, card.rar).vanilla : 1;
+    const extra = (card.ins || []).reduce((n, x) => n + (env.content.affixes?.[String(x).split(':')[0]]?.times || 0), 0);
+    const times = vanilla + extra + (seal && seal.retrigger ? seal.retrigger : 0);
     for (let r = 0; r < times; r++) {
       sc.card = card;
       sc.retrigger = r;
@@ -197,6 +194,12 @@ export function computeScore(o) {
     }
   }
   sc.card = null;
+
+  // 2' 重なり：採点札のカテゴリごとの枚数で掛ける（差し込み口 score.overlap）
+  sc.phase = 'overlap';
+  hooks.run('score.overlap', sc, () => {
+    for (const o of overlapMuls(sc.overlap, balance)) sc.mulM(o.x, { kind: 'overlap', id: o.cat, n: o.n });
+  });
 
   // 3 手札に残った札
   sc.phase = 'held';

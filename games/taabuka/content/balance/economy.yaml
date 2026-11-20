@@ -55,7 +55,7 @@ relicCash: { 並: 10, 上: 20, 特上: 40, 極: 80, 神: 150 }
 # 宝の中身（仕様書 第4章「部屋の中身」）
 treasure: { cards: 1, souvenir: 0.5, item: 0.3 }
 # 商いの品揃え
-shop: { cards: 5, regulars: 2, items: 3, removes: 1 }
+shop: { cards: 5, regulars: 2, items: 3, removes: 0 }   # 札の除去は廃止（作り直し仕様 A）
 # 湯：体力を上限のこの割合だけ回復
 bath: { heal: 0.3 }
 # 持ち物の枠（宿の改装で増える。段階5）

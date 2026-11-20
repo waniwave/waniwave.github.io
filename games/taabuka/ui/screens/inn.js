@@ -3,14 +3,14 @@
 
 import { h, tip, toast, pick, sheet, holdButton, esc } from '../dom.js';
 import { thingEl } from '../things.js';
-import { slotLabel } from '../labels.js';
+import { slotLabel, rarOfCard } from '../labels.js';
 import { num as format } from '../num.js';
 import { SE } from '../audio/audio.js';
 import { confetti, shards } from '../fx/particles.js';
 import { nameOf, sellValue } from '../../engine/dive.js';
 import {
   facility, facilityDef, upgradeInfo, upgrade, stashRoom, toggleDeck, sell, choubaGoods, buyChouba, canTakeStarter, takeStarter, pawnGoods, pawnInfo, borrowPawn, returnPawn, setShibari, shibariList, dailyInfo, readShare,
-  shikomiMenu, applyShikomi, copyInfo, copyCard, kuyoPrice, kuyo, prepInfo, insurable, charmable, premium, returnRate, carryOf,
+  shikomiMenu, applyShikomi, copyInfo, copyCard, fuseInfo, fuseCards, kuyoPrice, kuyo, prepInfo, insurable, charmable, premium, returnRate, carryOf,
 } from '../../engine/meta.js';
 
 const FAC_TEXT = {
@@ -199,10 +199,35 @@ export function facilityScreen(ctx, id) {
             const u = await pick(app, `${m.name}（${m.zeni}）を付ける札`, cards.map((x) => ({ label: `${nameOf(base, x)}${x[m.kind] ? `［${x[m.kind]}］` : ''}`, value: x.uid })));
             if (u) act(() => { applyShikomi(base, H, u, m.kind, m.name); toast(`${m.name}を付けた`); });
           } }, [`${m.name} ${m.zeni}`]))),
+          ...fuseBlock(),
         ];
       }
       default: return [];
     }
+  }
+
+  /** 合わせ：同じ札・同じレアリティ3枚 → 1段上（レジェンダリーまで） */
+  function fuseBlock() {
+    const R = base.balance.rarity;
+    const groups = new Map();
+    for (const x of H.stash) {
+      if (x.type !== 'card' || (x.origin && !['orig', 'copy'].includes(x.origin))) continue;
+      const r = rarOfCard(base.balance, x, base.content.cards[x.id]);
+      const k = `${x.id}|${r}`;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(x);
+    }
+    const ready = [...groups.values()].filter((g) => g.length >= R.fuse.count).map((g) => ({ g, info: fuseInfo(base, H, g.slice(0, R.fuse.count).map((x) => x.uid)) })).filter((o) => o.info.ok);
+    return [
+      h('h3', { text: '合わせ' }),
+      h('p.q', { text: `同じ札・同じレアリティを${R.fuse.count}枚で、1段上の1枚に。作れるのは${R.fuse.max}まで（ユニーク・ミシックは拾うしかない）` }),
+      ready.length
+        ? h('div.mlist', {}, ready.map(({ g, info }) => h('div.itemrow', {}, [
+          h('span', { text: `${nameOf(base, g[0])}（${rarOfCard(base.balance, g[0], base.content.cards[g[0].id])}）×${g.length}` }),
+          h('button.chip', { type: 'button', disabled: H.zeni < info.zeni, onclick: () => act(() => { const c = fuseCards(base, H, g.slice(0, R.fuse.count).map((x) => x.uid)); toast(`${info.to}の${nameOf(base, c)}ができた`); }) }, [`${info.to}へ ${info.zeni}`]),
+        ])))
+        : h('p.q', { text: '合わせられる札は、まだ無い' }),
+    ];
   }
 
   function render() {
@@ -239,8 +264,7 @@ export function stashScreen(ctx) {
     const d = x.type === 'card' ? C.cards[x.id] : null;
     if (flt.type && x.type !== flt.type) return false;
     if (flt.cat && !(x.mod?.cat ?? d?.cat ?? []).includes(flt.cat)) return false;
-    if (flt.tier && String(x.mod?.tier ?? d?.tier) !== flt.tier) return false;
-    if (flt.grade && d?.grade !== flt.grade && C[x.type === 'regular' ? 'regulars' : 'items']?.[x.id]?.grade !== flt.grade) return false;
+    if (flt.rar && (x.type !== 'card' || rarOfCard(base.balance, x, d) !== flt.rar)) return false;
     if (flt.origin && (x.origin ?? 'orig') !== flt.origin) return false;
     if (flt.set && (d?.set ?? '') !== flt.set) return false;
     return true;
@@ -267,8 +291,7 @@ export function stashScreen(ctx) {
       h('div.filters', {}, [
         sel('type', '種類', [['card', '札'], ['regular', '常連客'], ['item', 'お品書き'], ['souvenir', 'お土産']]),
         sel('cat', 'カテゴリ', base.balance.tiers.categories.map((c) => [c, c])),
-        sel('tier', 'Tier', base.balance.tiers.ring.map((t) => [t, slotLabel(t)])),
-        sel('grade', '格', base.balance.economy.grades.map((g) => [g, g])),
+        sel('rar', 'レアリティ', base.balance.rarity.order.map((r) => [r, r])),
         sel('origin', '由来', [['orig', '原本'], ['copy', '写し'], ['expiry', '期限'], ['cursed', '曰く付き'], ['bet', '賭け']]),
         sel('set', 'セット', Object.values(C.sets).map((s) => [s.id, s.name])),
       ]),

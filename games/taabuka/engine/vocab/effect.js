@@ -6,7 +6,9 @@
 //       choices（プレイヤーが選んだもの） }
 
 import { evalExpr } from './expr.js';
+import { scaleBy, rarDef, SCALE_VERBS } from '../rarity.js';
 import { cardView } from '../hand.js';
+import { cardStrength } from '../score.js';
 
 /** 効果の場を作る */
 export function makeE(ctx, self, selfKind, me = {}) {
@@ -17,8 +19,10 @@ export function makeE(ctx, self, selfKind, me = {}) {
   if (!subject && selfKind === 'card') subject = self;
   const target = ctx.target ?? sc?.target ?? null;
   const name = self?.name ?? me.name ?? self?.id ?? null;
+  // レアリティ：札の効果だけ量を増やす（刻印・常連客などは増えない）
+  const rar = selfKind === 'card' && !me.affix ? self?.rar ?? null : null;
   return {
-    B, env, ctx, sc, self, selfKind, subject, target, me,
+    B, env, ctx, sc, self, selfKind, subject, target, me, rar,
     choices: ctx.choices ?? sc?.choices ?? {},
     src: { kind: selfKind, id: self?.id ?? me.id ?? null, uid: self?.uid ?? null, name },
   };
@@ -37,6 +41,18 @@ export function lookup(E, name) {
 
 /** 数か式を数に */
 export function num(E, x) { return evalExpr(x, (n) => lookup(E, n)); }
+
+/** 量の数（レアリティで増える）。mode：add・mul・draw */
+export function sn(E, x, mode = 'add') {
+  const n = num(E, x);
+  return E.rar ? scaleBy(E.env.balance, E.rar, n, mode) : n;
+}
+
+/** do の並びに量の語彙があるか（無ければレアリティで繰り返す） */
+export function hasScale(list) {
+  // ルールを掛ける効果は繰り返さない（同じルールが重なって掛け算で増えてしまう）
+  return (Array.isArray(list) ? list : [list]).some((item) => (typeof item === 'object' && item && Object.keys(item).some((k) => SCALE_VERBS[k] || k === 'ルール')) || item === 'ルール');
+}
 
 /** 条件（1つのオブジェクト、または並び）が全て成り立つか */
 export function testCond(E, cond) {
@@ -69,7 +85,8 @@ export function runDo(E, list) {
 /** fx の1項目 {when, if, do} を、合図の中で動かす */
 export function runFx(E, fx) {
   if (fx.if && !testCond(E, fx.if)) return false;
-  runDo(E, fx.do);
+  const times = E.rar && !hasScale(fx.do) ? rarDef(E.env.balance, E.rar).repeat : 1;
+  for (let i = 0; i < times; i++) runDo(E, fx.do);
   return true;
 }
 
@@ -116,7 +133,7 @@ export function resolveCategory(E, word) {
 export function resolveCards(E, word, n = 1) {
   const B = E.B;
   const { balance } = E.env;
-  const strength = (c) => (c.tier == null ? 0 : (balance.tiers.tiers[c.tier]?.strength ?? 0)) + (c.plusS || 0);
+  const strength = (c) => cardStrength(c, balance, B.banzuke);
   switch (word ?? 'この札') {
     case 'この札': return E.subject ? [E.subject] : [];
     case '手札全部': return B.hand.slice();

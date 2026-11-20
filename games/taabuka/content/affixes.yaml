@@ -1,0 +1,86 @@
+# 刻印（作り直し仕様 D）。レア以上の札を拾ったときに、レアリティの数だけランダムに付く小さいおまけ。
+# 刻印の数字はレアリティで増えない（札本体の効果だけが増える）。
+#  kind: 通常 / ミシック（ミシックの札にだけ1つ付く強い刻印）
+#  addCat: true … 付いたときに乱数のカテゴリを1つ札に足す（札のカテゴリは3つまで）
+#  times: N … この札を N 回多く採点する
+- id: af_sharp
+  name: 鋭い
+  kind: 通常
+  text: 採点されると強さ＋8
+  fx: [{ when: 採点時, do: [{ 強さ: 8 }] }]
+- id: af_keen
+  name: 冴え
+  kind: 通常
+  text: 採点されると倍率＋0.5
+  fx: [{ when: 採点時, do: [{ 倍率: 0.5 }] }]
+- id: af_first
+  name: 先駆け
+  kind: 通常
+  text: 最初に採点されると強さ＋20
+  fx: [{ when: 採点時, if: { 採点の順番: 最初 }, do: [{ 強さ: 20 }] }]
+- id: af_last
+  name: 殿
+  kind: 通常
+  text: 最後に採点されると倍率＋1
+  fx: [{ when: 採点時, if: { 採点の順番: 最後 }, do: [{ 倍率: 1 }] }]
+- id: af_draw
+  name: 呼び込み
+  kind: 通常
+  text: 採点されると3割で1枚引く
+  fx: [{ when: 採点時, if: { 確率: 0.3 }, do: [{ 引く: 1 }] }]
+- id: af_heal
+  name: 湯上がり
+  kind: 通常
+  text: 採点されると体力＋2
+  fx: [{ when: 採点時, do: [{ 体力: 2 }] }]
+- id: af_guard
+  name: 堅い
+  kind: 通常
+  text: 受けに回ると受け＋10
+  fx: [{ when: 受けに回る, do: [{ 受け: 10 }] }]
+- id: af_zeni
+  name: 稼ぎ
+  kind: 通常
+  text: 採点されると宿銭＋1
+  fx: [{ when: 採点時, do: [{ 宿銭: 1 }] }]
+- id: af_mate
+  name: 仲間思い
+  kind: 通常
+  text: 同じカテゴリの札と一緒に採点されると倍率＋0.8
+  fx: [{ when: 採点時, if: { 同じカテゴリの札が他に: true }, do: [{ 倍率: 0.8 }] }]
+- id: af_lobby
+  name: 根回し上手
+  kind: 通常
+  text: 採点されると2割でこの札のカテゴリを1段上げる
+  fx: [{ when: 採点時, if: { 確率: 0.2 }, do: [{ 番付を上げる: { カテゴリ: この札 } }] }]
+- id: af_cat
+  name: 二足の草鞋
+  kind: 通常
+  addCat: true
+  text: カテゴリが1つ増えている
+- id: af_held
+  name: 待ちの構え
+  kind: 通常
+  text: 手札に残ると倍率＋0.3
+  fx: [{ when: 手札に残る, do: [{ 倍率: 0.3 }] }]
+- id: af_m_bless
+  name: 神の加護
+  kind: ミシック
+  text: 採点されると倍率×1.5
+  fx: [{ when: 採点時, do: [{ 掛け: 1.5 }] }]
+- id: af_m_twice
+  name: 二度打ち
+  kind: ミシック
+  times: 1
+  text: この札はもう1回採点される
+- id: af_m_rise
+  name: 番付破り
+  kind: ミシック
+  text: 採点されるとこの札のカテゴリを1段上げる
+  fx: [{ when: 採点時, do: [{ 番付を上げる: { カテゴリ: この札 } }] }]
+- id: af_m_all
+  name: 八面六臂
+  kind: ミシック
+  addCat: true
+  text: カテゴリが1つ増え、採点されると倍率＋2
+  fx: [{ when: 採点時, do: [{ 倍率: 2 }] }]

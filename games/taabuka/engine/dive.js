@@ -9,6 +9,7 @@
 
 import { Big, ZERO } from './big.js';
 import { Rng } from './rng.js';
+import { rollRarity, rollAffixes, rarIndex, floorRarity, rarOf } from './rarity.js';
 import { createBattle, openBattle, depthMods, makeEnemy, useItem as battleUseItem, saveBattle, loadBattle } from './battle.js';
 import { makeE, testCond, runDo } from './vocab/effect.js';
 
@@ -254,34 +255,29 @@ function cardOk(base, D, def, floor) {
   return true;
 }
 
-/** 格を決めて札を1枚引く（個体のIDはまだ付けない） */
+/** レアリティを決めて札を1枚引く（個体のIDはまだ付けない）。刻印もここで付く */
 function rollCard(base, D, rng, floor, o = {}) {
-  const { content } = base;
-  const E = econ(base);
-  const grades = E.grades;
-  const w = gradeWeights(base, D, floor);
-  const min = o.minGrade ? grades.indexOf(o.minGrade) : 0;
-  let g = o.grade ?? rng.weighted(grades.map((x, i) => [x, i < min ? 0 : w[x]])) ?? grades[min];
-  if (o.gradeUp) g = grades[Math.min(grades.length - 1, grades.indexOf(g) + o.gradeUp)];
-  const id = pickOfGrade(base, D, rng, g, floor);
+  const { content, balance } = base;
+  const L = layerAt(content, floor);
+  const no = L ? layerNo(content, L) : 99;
+  const minR = o.minGrade ? balance.rarity.gradeFloor[o.minGrade] : o.minRar;
+  let r = o.rar ?? rollRarity(balance, rng, no, D.depth || 0, { min: minR, up: o.gradeUp || 0 });
+  if (o.maxRar && rarIndex(balance, r) > rarIndex(balance, o.maxRar)) r = o.maxRar;
+  const id = pickOfRarity(base, D, rng, r, floor);
   if (!id) return null;
   const ed = rollEdition(base, D, rng);
   const def = content.cards[id];
-  return { id, origin: def.origin ?? 'orig', ...(ed ? { ed } : {}) };
+  const ins = rollAffixes(base, rng, r, def);
+  return { id, origin: def.origin ?? 'orig', rar: r, ...(ins.length ? { ins } : {}), ...(ed ? { ed } : {}) };
 }
 
-function pickOfGrade(base, D, rng, grade, floor) {
-  const { content } = base;
-  const grades = econ(base).grades;
-  const pool = D.pool.cards.map((id) => content.cards[id]).filter((d) => cardOk(base, D, d, floor));
-  const at = grades.indexOf(grade);
-  // その格が無ければ下へ、それも無ければ上へ
-  const order = [...grades.slice(0, at + 1).reverse(), ...grades.slice(at + 1)];
-  for (const g of order) {
-    const list = pool.filter((d) => d.grade === g);
-    if (list.length) return rng.pick(list).id;
-  }
-  return null;
+/** レアリティ r で出せる札（最低レアリティが r 以下）から1枚。最低レアリティが高い札ほど出やすい */
+function pickOfRarity(base, D, rng, r, floor) {
+  const { content, balance } = base;
+  const ri = rarIndex(balance, r);
+  const pool = D.pool.cards.map((id) => content.cards[id]).filter((d) => cardOk(base, D, d, floor) && rarIndex(balance, floorRarity(balance, d)) <= ri);
+  if (!pool.length) return null;
+  return rng.weighted(pool.map((d) => [d.id, 1 + rarIndex(balance, floorRarity(balance, d))])) ?? pool[0].id;
 }
 
 function rollEdition(base, D, rng) {
@@ -344,6 +340,13 @@ function baseLoot(base, D, floor, door) {
 
 // ───────────────────────── 値段・売値・懐 ─────────────────────────
 
+/** 札の個体のレアリティによる値打ちの倍率（その札の最低レアリティを1とする） */
+export function rarValueMul(base, x, def) {
+  const V = base.balance.rarity.value;
+  const r = rarOf(base.balance, x, def);
+  return (V[r] ?? 1) / (V[floorRarity(base.balance, def)] ?? 1);
+}
+
 /** 1つの売値（札・常連客・置物・お品書き・お土産） */
 export function sellValue(base, x) {
   const { content } = base;
@@ -352,6 +355,7 @@ export function sellValue(base, x) {
   if (x.type === 'item') return E.sell.item ?? 0;
   const def = content.cards?.[x.id] ?? content.regulars?.[x.id] ?? content.relics?.[x.id];
   let v = E.sell.card[def?.grade] ?? 0;
+  if (x.type === 'card' || x.type == null) v *= rarValueMul(base, x, def);
   if (x.ed) v *= E.sell.edition[x.ed] ?? 1;
   if (x.type === 'regular') v *= E.sell.regularMul;
   return Math.round(v);
@@ -381,7 +385,7 @@ function price(base, D, x) {
   const E = econ(base);
   const k = (1 + E.price.perFloor * D.floor) * (1 + (dmods(base, D).shopPrice || 0));
   let p;
-  if (x.type === 'card') p = E.price.card[base.content.cards[x.id]?.grade] ?? 0;
+  if (x.type === 'card') p = (E.price.card[base.content.cards[x.id]?.grade] ?? 0) * rarValueMul(base, x, base.content.cards[x.id]);
   else if (x.type === 'regular') p = (E.price.card[base.content.regulars[x.id]?.grade] ?? 0) * E.price.regularMul;
   else if (x.type === 'item') p = E.price[x.kind] ?? 0;
   else if (x.type === 'remove') p = E.price.remove;
@@ -646,11 +650,11 @@ export function finishBattle(base, D, B) {
   const ok = B.overkill?.rewards;
   if (ok && loot.cards.length) {
     const rng = Rng.child(D.seed, 'reward', D.floor, bt.room, 'overkill');
-    if (ok.gradeUp) loot.cards = loot.cards.map((c) => rollCard(base, D, rng, D.floor, { grade: base.content.cards[c.id].grade, gradeUp: ok.gradeUp }) || c);
+    if (ok.gradeUp) loot.cards = loot.cards.map((c) => rollCard(base, D, rng, D.floor, { rar: base.balance.rarity.order[Math.min(base.balance.rarity.order.length - 1, rarIndex(base.balance, c.rar) + ok.gradeUp)] }) || c);
     for (let i = 0; i < (ok.extraCards || 0); i++) { const c = rollCard(base, D, rng, D.floor, { minGrade: R.minGrade }); if (c) loot.cards.push(c); }
     if (ok.godChance && !D.flags.godRolled) {
       D.flags.godRolled = true;
-      if (rng.chance(ok.godChance)) { const c = rollCard(base, D, rng, D.floor, { grade: '神' }); if (c && base.content.cards[c.id].grade === '神') loot.cards.push(c); }
+      if (rng.chance(ok.godChance)) { const c = rollCard(base, D, rng, D.floor, { rar: 'ユニーク' }); if (c) loot.cards.push(c); }
     }
   }
   makeReward(base, D, { kind: bt.kind, room: bt.room, zeni, loot, overkill: B.overkill?.level ?? null, chase: !!bt.chase });
@@ -790,7 +794,8 @@ function genShop(base, D, room) {
   const rng = Rng.child(D.seed, 'shop', D.floor, room);
   const goods = [];
   const add = (x) => goods.push({ ...x, uid: nextUid(D, x.type[0]), price: price(base, D, x), sold: false });
-  for (let i = 0; i < S.cards; i++) { const c = rollCard(base, D, rng, D.floor); if (c) add({ type: 'card', ...c }); }
+  // 行商人はレアまで（ユニーク以上は拾うしかない）
+  for (let i = 0; i < S.cards; i++) { const c = rollCard(base, D, rng, D.floor, { maxRar: 'レア', rar: undefined }); if (c) add({ type: 'card', ...c }); }
   for (const id of rollFrom(rng, D.pool.regulars, S.regulars, D.seats.map((r) => r.id))) add({ type: 'regular', id, origin: 'orig' });
   for (let i = 0; i < S.items; i++) { const it = rollItem(base, D, rng); if (it) add({ type: 'item', ...it }); }
   for (let i = 0; i < S.removes; i++) add({ type: 'remove' });

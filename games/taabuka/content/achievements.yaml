@@ -262,83 +262,47 @@
   zeni: 1000
   hidden: true
 - id: ac_hand_51
-  name: 単騎の使い手
-  text: 「単騎」を累計100回出す
+  name: 重ね上手
+  text: 同じカテゴリを2枚以上重ねて累計100回出す
   if:
-    hand: {単騎: 100}
+    overlap: {2: 100}
   zeni: 10
 - id: ac_hand_52
-  name: 対の使い手
-  text: 「対」を累計100回出す
+  name: 三枚重ね
+  text: 同じカテゴリを3枚以上重ねて累計100回出す
   if:
-    hand: {対: 100}
+    overlap: {3: 100}
   zeni: 10
 - id: ac_hand_53
-  name: 二対の使い手
-  text: 「二対」を累計50回出す
+  name: 四枚重ね
+  text: 同じカテゴリを4枚以上重ねて累計50回出す
   if:
-    hand: {二対: 50}
+    overlap: {4: 50}
   zeni: 10
 - id: ac_hand_54
-  name: 三揃の使い手
-  text: 「三揃」を累計50回出す
+  name: 五枚重ね
+  text: 同じカテゴリを5枚以上重ねて累計30回出す
   if:
-    hand: {三揃: 50}
+    overlap: {5: 30}
   zeni: 10
 - id: ac_hand_55
-  name: 階段の使い手
-  text: 「階段」を累計50回出す
+  name: 六枚重ね
+  text: 同じカテゴリを6枚以上重ねて累計10回出す
   if:
-    hand: {階段: 50}
-  zeni: 10
+    overlap: {6: 10}
+  zeni: 30
 - id: ac_hand_56
-  name: 同類の使い手
-  text: 「同類」を累計50回出す
+  name: 七枚重ね
+  text: 同じカテゴリを7枚以上重ねて累計3回出す
   if:
-    hand: {同類: 50}
-  zeni: 10
+    overlap: {7: 3}
+  zeni: 30
 - id: ac_hand_57
-  name: 満員の使い手
-  text: 「満員」を累計30回出す
+  name: 重ねすぎ
+  text: 同じカテゴリを8枚以上重ねて累計1回出す
   if:
-    hand: {満員: 30}
-  zeni: 10
-- id: ac_hand_58
-  name: 四揃の使い手
-  text: 「四揃」を累計20回出す
-  if:
-    hand: {四揃: 20}
-  zeni: 10
-- id: ac_hand_59
-  name: 同類階段の使い手
-  text: 「同類階段」を累計10回出す
-  if:
-    hand: {同類階段: 10}
-  zeni: 10
-- id: ac_hand_60
-  name: 五揃の使い手
-  text: 「五揃」を累計10回出す
-  if:
-    hand: {五揃: 10}
-  zeni: 10
-- id: ac_hand_61
-  name: 満員同類の使い手
-  text: 「満員同類」を累計5回出す
-  if:
-    hand: {満員同類: 5}
-  zeni: 10
-- id: ac_hand_62
-  name: 五揃同類の使い手
-  text: 「五揃同類」を累計3回出す
-  if:
-    hand: {五揃同類: 3}
-  zeni: 10
-- id: ac_hand_63
-  name: 神組の使い手
-  text: 「神組」を累計1回出す
-  if:
-    hand: {神組: 1}
-  zeni: 10
+    overlap: {8: 1}
+  zeni: 30
 - id: ac_over_64
   name: 大論破×50
   text: 過剰論破「大論破」を累計50回

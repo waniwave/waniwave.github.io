@@ -1,27 +1,15 @@
-# 組と採点（仕様書 第2章「組の判定」、第3章「組」、第5章「仕込み・版・判」）
-
-# 優先順（上から最初に当てはまるもの）
-order: [神組, 五揃同類, 満員同類, 五揃, 同類階段, 四揃, 満員, 同類, 階段, 三揃, 二対, 対, 単騎]
-
-# S＝強さ、M＝倍率、perLevelS / perLevelM＝段位＋1ごと。段位は1から始まる
+# 出しの採点（作り直し仕様 B：札の強さ＝カテゴリのTier、倍率＝重なり）と仕込み・版・判
+# 出しの土台。ポーカーの組は廃止（作り直し仕様 B）。order・hands は「重なり」1つだけ（古い参照のための形）
+order: [重なり]
 hands:
-  単騎:     { S: 5,   M: 1,  perLevelS: 10, perLevelM: 1 }
-  対:       { S: 10,  M: 2,  perLevelS: 15, perLevelM: 1 }
-  二対:     { S: 20,  M: 2,  perLevelS: 20, perLevelM: 1 }
-  三揃:     { S: 30,  M: 3,  perLevelS: 20, perLevelM: 2 }
-  階段:     { S: 30,  M: 4,  perLevelS: 30, perLevelM: 3 }
-  同類:     { S: 35,  M: 4,  perLevelS: 15, perLevelM: 2 }
-  満員:     { S: 40,  M: 4,  perLevelS: 25, perLevelM: 2 }
-  四揃:     { S: 60,  M: 7,  perLevelS: 30, perLevelM: 3 }
-  同類階段: { S: 100, M: 8,  perLevelS: 40, perLevelM: 4 }
-  五揃:     { S: 120, M: 12, perLevelS: 35, perLevelM: 3 }
-  満員同類: { S: 140, M: 14, perLevelS: 40, perLevelM: 4 }
-  五揃同類: { S: 160, M: 16, perLevelS: 50, perLevelM: 3 }
-  神組:     { S: 200, M: 20, perLevelS: 60, perLevelM: 5 }
-
+  重なり: { S: 0, M: 1, perLevelS: 0, perLevelM: 0 }
 levelStart: 1
+base: { S: 0, M: 1 }
 
-# 戦闘の行動の初期値（第3章「体力と行動の初期値」）
+# 重なり：採点札の中で同じカテゴリが n 枚なら、そのカテゴリの掛けは 1 + step×(n−1)（2枚×1.5、5枚×3）。
+# カテゴリごとの掛けを全部掛け合わせる。重ね数で n は5を超えられる（cap まで）
+overlap: { step: 0.5, cap: 9 }
+
 play:
   handSize: 8
   playsPerTurn: 2

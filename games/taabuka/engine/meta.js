@@ -4,6 +4,7 @@
 // 持ち物の個体：{ uid, type: card|regular|relic|item|souvenir, id, enh?, ed?, seal?, origin, grow?, insured?, mod? }
 
 import { Rng } from './rng.js';
+import { rarOf, rarIndex, rollAffixes } from './rarity.js';
 import { Big, ZERO } from './big.js';
 import { depthMods } from './battle.js';
 import { createDive, sellValue, nameOf, defaultPool } from './dive.js';
@@ -169,9 +170,10 @@ export function carryOf(base, H, depth = 0) {
   return { pouch: m.pouch, charm: Math.max(0, m.charm + (dm.charmSlots || 0)), seats: facility(base, H, 'kyakuma').seats };
 }
 
-/** 蔵の大きさと使っている数（デッキも蔵の中） */
+/** 蔵の大きさと使っている数（デッキに入れている札は数えない） */
 export function stashRoom(base, H) {
-  return { used: H.stash.length, cap: facility(base, H, 'kura').capacity };
+  const inDeck = new Set(H.deck || []);
+  return { used: H.stash.filter((x) => !inDeck.has(x.uid)).length, cap: facility(base, H, 'kura').capacity };
 }
 
 // ───────────────────────── 蔵・編成 ─────────────────────────
@@ -335,10 +337,12 @@ export function copyInfo(base, H, u) {
   if (!up) return { ok: false, reason: '蔵の改装（Lv2）で複製できる' };
   if (!x || x.type !== 'card') return { ok: false, reason: '札を選ぶ' };
   if (x.origin && x.origin !== 'orig') return { ok: false, reason: '原本だけ複製できる' };
-  const grades = econ(base).grades;
-  const g = base.content.cards[x.id]?.grade;
-  if (grades.indexOf(g) > grades.indexOf(up)) return { ok: false, reason: `${up}までしか複製できない` };
-  const zeni = sellValue(base, x) * inn(base).copy.sellMul;
+  const R = base.balance.rarity;
+  const def = base.content.cards[x.id];
+  const r = rarOf(base.balance, x, def);
+  const cap = rarIndex(base.balance, up) < rarIndex(base.balance, R.copy.maxCopy) ? up : R.copy.maxCopy;
+  if (rarIndex(base.balance, r) > rarIndex(base.balance, cap)) return { ok: false, reason: `${cap}までしか複製できない（ユニーク・ミシックは複製できない）` };
+  const zeni = Math.round(sellValue(base, x) * inn(base).copy.sellMul * (R.copy.costMul[r] ?? 1));
   return { ok: true, zeni, souvenir: inn(base).copy.souvenir };
 }
 
@@ -352,8 +356,47 @@ export function copyCard(base, H, u) {
   H.zeni -= info.zeni;
   paySouvenir(H, info.souvenir, 1);
   const x = find(H, u);
-  const c = { uid: uid(H, 'c'), type: 'card', id: x.id, origin: 'copy', ...(x.enh ? { enh: x.enh } : {}), ...(x.mod ? { mod: { ...x.mod } } : {}) };
+  const c = { uid: uid(H, 'c'), type: 'card', id: x.id, origin: 'copy', ...(x.rar ? { rar: x.rar } : {}), ...(x.ins ? { ins: x.ins.slice() } : {}), ...(x.enh ? { enh: x.enh } : {}), ...(x.mod ? { mod: { ...x.mod } } : {}) };
   H.stash.push(c);
+  return c;
+}
+
+/** 合わせられるか：同じ札・同じレアリティを count 枚。できあがりは max まで */
+export function fuseInfo(base, H, uids) {
+  const R = base.balance.rarity;
+  const xs = (uids || []).map((u) => find(H, u));
+  if (xs.length !== R.fuse.count || xs.some((x) => !x || x.type !== 'card')) return { ok: false, reason: `札を${R.fuse.count}枚選ぶ` };
+  if (new Set(uids).size !== uids.length) return { ok: false, reason: '同じ札を2回選んでいる' };
+  if (xs.some((x) => x.origin && !['orig', 'copy'].includes(x.origin))) return { ok: false, reason: '原本と写しだけ合わせられる' };
+  const def = base.content.cards[xs[0].id];
+  const r = rarOf(base.balance, xs[0], def);
+  if (xs.some((x) => x.id !== xs[0].id || rarOf(base.balance, x, def) !== r)) return { ok: false, reason: '同じ札・同じレアリティを選ぶ' };
+  const ri = rarIndex(base.balance, r);
+  if (ri + 1 > rarIndex(base.balance, R.fuse.max)) return { ok: false, reason: `${R.fuse.max}より上は拾うしかない` };
+  const to = R.order[ri + 1];
+  const zeni = R.fuse.zeni[r] ?? 0;
+  return { ok: true, to, zeni };
+}
+
+/** 合わせ：3枚を1段上の1枚に（刻印は1枚目を引き継ぎ、足りない分を新しく付ける） */
+export function fuseCards(base, H, uids) {
+  const info = fuseInfo(base, H, uids);
+  check(info.ok, info.reason);
+  check(H.zeni >= info.zeni, '宿銭が足りない');
+  const xs = uids.map((u) => find(H, u));
+  const def = base.content.cards[xs[0].id];
+  const rng = Rng.child(H.seed, 'fuse', H.uidSeq);
+  const fresh = rollAffixes(base, rng, info.to, def);
+  const keep = (xs[0].ins || []).slice();
+  const need = base.balance.rarity.defs[info.to].affixes;
+  const ins = [...keep, ...fresh.filter((a) => !keep.some((k) => k.split(':')[0] === a.split(':')[0]))].slice(0, need);
+  H.zeni -= info.zeni;
+  H.stash = H.stash.filter((x) => !uids.includes(x.uid));
+  const wasDeck = (H.deck || []).some((u) => uids.includes(u));
+  H.deck = (H.deck || []).filter((u) => !uids.includes(u));
+  const c = { uid: uid(H, 'c'), type: 'card', id: xs[0].id, origin: 'orig', rar: info.to, ...(ins.length ? { ins } : {}) };
+  H.stash.push(c);
+  if (wasDeck) H.deck.push(c.uid);
   return c;
 }
 

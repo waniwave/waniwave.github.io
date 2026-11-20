@@ -10,12 +10,13 @@ import { Big } from '../engine/big.js';
 import { Rng } from '../engine/rng.js';
 import { format, formatMul, unitOf } from '../engine/format.js';
 import { Hooks, CHAIN_LIMIT, HOOK_NAMES } from '../engine/hooks.js';
-import { evaluateHand, cardView } from '../engine/hand.js';
+import { evaluateHand, cardView, overlapMuls } from '../engine/hand.js';
 import {
   createBattle, openBattle, startBattle, play, discard, endTurn, saveBattle, loadBattle,
   addRule, overkillOf, makeBattleCard, standardAt, attachCard, gainItem,
 } from '../engine/battle.js';
 import { loadNodeBalance, fixtureContent, fixtureDeck, owned } from './fixtures/index.mjs';
+import { compileOne } from '../engine/content.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const balance = await loadNodeBalance();
@@ -135,81 +136,44 @@ group('hooks.js');
 }
 
 // ───────────────────────── 組の判定 ─────────────────────────
-group('hand.js：13の組');
+group('hand.js：重なり（作り直し仕様 B）');
 {
-  const V = (tier, cats, enh) => cardView({ tier, cat: cats, enh }, balance);
-  const S = (views) => views.map((v) => (v.stone ? 0 : balance.tiers.tiers[v.tier].strength));
-  const judge = (views) => evaluateHand(views, balance, S(views));
-  const cats5 = ['食べ物', '死', '宿', '動物', 'スレ'];
-  const diff = (tiers) => tiers.map((t, i) => V(t, [cats5[i % 5]]));
-  const same = (tiers, cat = '麺') => tiers.map((t) => V(t, [cat]));
-  const H = (views) => judge(views).hand;
-
-  // 単騎
-  const r1 = judge(diff(['God', '0', '1', '3', '5']));
-  eq(r1.hand, '単騎', '単騎：God・0・1・3・5（輪で連続しない）');
-  eq(r1.scored.join(), '0', '単騎は強さが一番高い1枚（God）を採点');
-  eq(H(diff(['3', '4'])), '単騎', '紛らわしい不成立：Tierの違う2枚は対にならない');
-  eq(judge(diff(['4', '2'])).scored.join(), '1', '単騎：強さが一番高い札（T2）を採点');
-  eq(evaluateHand(diff(['3', '4']), balance, [5, 5]).scored.join(), '0', '単騎：強さが同じなら左');
-  // 対
-  eq(H(diff(['3', '3', '5', '8'])), '対', '対：3・3・5・8');
-  eq(judge(diff(['3', '3', '5', '8'])).scored.join(), '0,1', '対：採点札は2枚');
-  // 二対
-  eq(H(diff(['3', '3', '5', '5', 'God'])), '二対', '二対：3・3・5・5・God');
-  eq(judge(diff(['3', '3', '5', '5', 'God'])).scored.join(), '0,1,2,3', '二対：採点札は4枚');
-  eq(H(diff(['3', '3', '3', '5'])), '三揃', '紛らわしい不成立：3・3・3・5 は二対でなく三揃');
-  // 三揃
-  eq(H(diff(['2', '2', '2', '4', '5'])), '三揃', '三揃：2・2・2・4・5');
-  eq(H(diff(['2', '2', '2', '4', '4'])), '満員', '紛らわしい不成立：2・2・2・4・4 は三揃でなく満員');
-  // 階段
-  eq(H(diff(['5', '8', 'God', '0', '1'])), '階段', '階段：輪をまたぐ 5・8・God・0・1');
-  eq(H(diff(['8', 'God', '0', '1', '2'])), '階段', '階段：輪をまたぐ 8・God・0・1・2');
-  eq(H(diff(['1', '2', '3', '4', '5'])), '階段', '階段：1・2・3・4・5');
-  eq(H(diff(['3', '4', '5', '8', 'God'])), '階段', '階段：3・4・5・8・God（6・7は欠番で飛ばす）');
-  eq(H(diff(['4', '5', '8', 'God', '1'])), '単騎', '紛らわしい不成立：4・5・8・God・1（0が抜けている）');
-  eq(H(diff(['5', '8', 'God', '0'])), '単騎', '紛らわしい不成立：4枚の連続は階段にならない');
-  // 同類（複数カテゴリ）
-  const bridge = [V('God', ['食べ物', '麺']), V('1', ['麺', '湯']), V('3', ['麺']), V('5', ['麺', '老']), V('8', ['ロボ', '麺'])];
-  const rb = judge(bridge);
-  eq(rb.hand, '同類', '同類：複数カテゴリの札が〈麺〉でつながる');
-  eq(rb.flushCats.join(), '麺', '同類：共通のカテゴリは〈麺〉');
-  const ring = [V('God', ['食べ物', '死']), V('1', ['死', '宿']), V('3', ['宿', '食べ物']), V('5', ['食べ物', '死']), V('8', ['死', '宿'])];
-  eq(H(ring), '単騎', '紛らわしい不成立：どの2枚も何か共有するが、5枚共通のカテゴリはない');
-  eq(H(same(['God', '1', '3', '5'])), '単騎', '紛らわしい不成立：同じカテゴリでも4枚は同類にならない');
-  // 満員
-  eq(H(diff(['3', '3', '3', '5', '5'])), '満員', '満員：3・3・3・5・5');
-  eq(judge(diff(['3', '3', '3', '5', '5'])).scored.length, 5, '満員：採点札は5枚');
-  // 四揃
-  eq(H(diff(['4', '4', '4', '4', 'God'])), '四揃', '四揃：4・4・4・4・God');
-  eq(judge(diff(['4', '4', '4', '4', 'God'])).scored.join(), '0,1,2,3', '四揃：採点札は4枚');
-  eq(H(same(['4', '4', '4', '4', 'God'])), '四揃', '紛らわしい不成立：四揃が同じカテゴリでも同類にはならない（四揃が上）');
-  // 同類階段
-  eq(H(same(['5', '8', 'God', '0', '1'], '湯')), '同類階段', '同類階段：〈湯〉で 5・8・God・0・1');
-  eq(H([...same(['5', '8', 'God', '0'], '湯'), V('2', ['湯'])]), '同類', '紛らわしい不成立：同じカテゴリで階段が切れていれば同類');
-  // 五揃
-  eq(H(diff(['2', '2', '2', '2', '2'])), '五揃', '五揃：2が5枚（カテゴリばらばら）');
-  // 満員同類
-  eq(H(same(['3', '3', '3', '5', '5'], '食べ物')), '満員同類', '満員同類：〈食べ物〉で 3・3・3・5・5');
-  eq(H([...same(['3', '3', '3', '5'], '食べ物'), V('5', ['死'])]), '満員', '紛らわしい不成立：1枚だけ違うカテゴリなら満員');
-  // 五揃同類
-  eq(H(same(['2', '2', '2', '2', '2'], '死')), '五揃同類', '五揃同類：〈死〉の2が5枚');
-  // 神組
-  eq(H(diff(['God', 'God', 'God', 'God', 'God'])), '神組', '神組：Godが5枚（カテゴリ不問）');
-  eq(H(same(['God', 'God', 'God', 'God', 'God'], 'ター')), '神組', '神組：同じカテゴリでも五揃同類より上');
-  eq(H([...diff(['God', 'God', 'God', 'God']), V('3', ['ター'], '石')]), '四揃', '紛らわしい不成立：Godが4枚＋石は四揃');
-  // 多才・石
-  eq(H([...same(['God', '1', '3', '5'], '食べ物'), V('8', ['死'], '多才')]), '同類', '多才：全カテゴリを持つので同類をつなぐ');
-  const rs = judge([V('3', ['麺'], '石'), V('3', ['死']), V('3', ['宿'])]);
-  eq(rs.hand, '対', '石：組の判定に加わらない（石＋3・3は対）');
-  eq(rs.scored.join(), '0,1,2', '石：組に関わらず必ず採点される');
-  eq(H([V('2', ['麺'], '石'), ...same(['God', '1', '3', '5'], '麺')]), '単騎', '石を含む組：石＋同カテゴリ4枚は同類にならない');
-  const rs2 = judge([...diff(['4', '4', '4', '4']), V('God', ['ター'], '石')]);
-  eq(rs2.hand + rs2.scored.length, '四揃5', '石を含む組：四揃＋石は5枚とも採点');
-  // 13の組が全て出た
-  const seenHands = new Set([
-    '単騎', '対', '二対', '三揃', '階段', '同類', '満員', '四揃', '同類階段', '五揃', '満員同類', '五揃同類', '神組']);
-  eq(seenHands.size, balance.hands.order.length, '13の組すべてにテストがある');
+  const V = (cats, enh) => cardView({ cat: cats, enh }, balance);
+  const judge = (views, st = []) => evaluateHand(views, balance, st);
+  // 1枚だけ：採点
+  eq(judge([V(['麺'])]).scored.join(), '0', '1枚だけ出せば採点される');
+  // 2枚で同じカテゴリ：両方採点、重なり2
+  const r2 = judge([V(['麺']), V(['麺', '湯'])]);
+  eq(r2.scored.join(), '0,1', '同じカテゴリの2枚は両方採点');
+  eq(r2.overlap.麺, 2, '重なり：麺が2枚');
+  eq(r2.overlap.湯, 1, '重なり：湯は1枚');
+  // 孤立：他とカテゴリを共有しない札は受け
+  const r3 = judge([V(['麺']), V(['麺']), V(['死'])]);
+  eq(r3.scored.join(), '0,1', '孤立した札は採点されない');
+  eq(r3.kickers.join(), '2', '孤立した札は受け');
+  // 全部孤立：一番強い1枚だけ
+  const r4 = judge([V(['麺']), V(['死']), V(['宿'])], [10, 35, 10]);
+  eq(r4.scored.join(), '1', '全部孤立なら強さが一番高い1枚を採点');
+  // つなぎ：麺・湯の札が麺と湯をつなぐ
+  const r5 = judge([V(['麺']), V(['麺', '湯']), V(['湯'])]);
+  eq(r5.scored.length, 3, '2カテゴリの札が橋になって3枚とも採点');
+  // 多才：全カテゴリ
+  const r6 = judge([V(['麺']), V(['死'], '多才')]);
+  eq(r6.scored.length, 2, '多才は全カテゴリを持つので何とでも重なる');
+  // 石：カテゴリを持たず必ず採点
+  const r7 = judge([V(['麺'], '石'), V(['死']), V(['死'])]);
+  eq(r7.scored.join(), '0,1,2', '石は必ず採点');
+  eq(r7.overlap.死, 2, '石は重なりに数えない');
+  // 倍率の表
+  const mul = (o) => overlapMuls(o, balance).reduce((m, x) => m * x.x, 1);
+  eq(mul({ 麺: 1 }), 1, '1枚は×1');
+  eq(mul({ 麺: 2 }), 1.5, '2枚は×1.5');
+  eq(mul({ 麺: 5 }), 3, '5枚は×3');
+  eq(mul({ 麺: 5, 食べ物: 4 }), 3 * 2.5, '2つのカテゴリは掛け合わせ（5枚×3 と 4枚×2.5）');
+  // Tier は番付から
+  eq(cardView({ cat: ['麺', '死'] }, balance, { 死: 'God' }).tier, 'God', '札のTier＝カテゴリのうち一番高い段');
+  eq(cardView({ cat: ['麺'] }, balance, {}).tier, '3', '番付に無ければ始めの段（Tier3）');
+  eq(cardView({ cat: ['麺'], tier: '1' }, balance, { 麺: 'God' }).tier, '1', '札にTierの固定があればそれ');
 }
 
 // ───────────────────────── 計算の順番 ─────────────────────────
@@ -222,20 +186,22 @@ async function oneShot({ hand, enemies = [{ claim: 1e9 }], seats = [], regulars 
   const env = openBattle(base, B);
   startBattle(B, env);
   B.hand = hand.map(([id, attrs], i) => makeBattleCard(owned(id, `h${i}`, attrs || {}), content.cards[id]));
+  for (const c of B.hand) attachCard(env, c);
   const res = play(B, env, pl ?? hand.map((_, i) => i), target);
   return { B, env, res };
 }
 
 group('score.js：計算の順番');
 {
-  // 対（T3・T3）：ホロ（M＋10）と多色（M×1.5）の順番
-  const holoFirst = await oneShot({ hand: [['fx_neko', { ed: 'ホロ' }], ['fx_sure', { ed: '多色' }]] });
-  eq(holoFirst.res.hand, '対', '試しの組は対');
-  eq(holoFirst.res.V.toNumber(), 396, '足してから掛ける：(10+6+6)×((2+10)×1.5)＝396');
-  const polyFirst = await oneShot({ hand: [['fx_neko', { ed: '多色' }], ['fx_sure', { ed: 'ホロ' }]] });
-  eq(polyFirst.res.V.toNumber(), 286, '掛けてから足す：(10+6+6)×(2×1.5+10)＝286');
+  // 同じ〈動物〉の2枚（Tier3＝強さ10）：ホロ（M＋10）と多色（M×1.5）の順番。最後に重なり×1.5
+  const holoFirst = await oneShot({ hand: [['fx_neko', { ed: 'ホロ' }], ['fx_inu', { ed: '多色' }]] });
+  eq(holoFirst.res.hand, '重なり', '組は無く、重なりだけ');
+  eq(holoFirst.res.V.toNumber(), 495, '足してから掛ける：(10+10)×((1+10)×1.5×1.5)＝495');
+  const polyFirst = await oneShot({ hand: [['fx_neko', { ed: '多色' }], ['fx_inu', { ed: 'ホロ' }]] });
+  eq(polyFirst.res.V.toNumber(), 345, '掛けてから足す：(10+10)×((1×1.5+10)×1.5)＝345');
   const types = holoFirst.res.steps.map((s) => s.type).join(',');
-  eq(types, 'hand,S,M,S,xM,final', '手順列：組→札1の強さ→ホロ→札2の強さ→多色→最後');
+  eq(types, 'hand,S,M,S,xM,xM,final', '手順列：土台→札1の強さ→ホロ→札2の強さ→多色→重なり→最後');
+  ok(holoFirst.res.steps.some((s) => s.src?.kind === 'overlap' && s.src.id === '動物' && s.src.n === 2), '重なりの手順は出どころ overlap（動物2枚）');
 
   // 常連客：席の左から
   const regs = [
@@ -243,62 +209,74 @@ group('score.js：計算の順番');
     { id: 'rg_x2', name: '×2の客', on: { 出し: (sc) => sc.mulM(2, { kind: 'regular', name: '×2の客' }) } },
   ];
   const addThenMul = await oneShot({ hand: [['fx_neko']], regulars: regs, seats: [owned('rg_plus4', 1), owned('rg_x2', 2)] });
-  eq(addThenMul.res.V.toNumber(), 110, '席の左から：＋4 → ×2 で (5+6)×((1+4)×2)＝110');
+  eq(addThenMul.res.V.toNumber(), 100, '席の左から：＋4 → ×2 で 10×((1+4)×2)＝100');
   const mulThenAdd = await oneShot({ hand: [['fx_neko']], regulars: regs, seats: [owned('rg_x2', 2), owned('rg_plus4', 1)] });
-  eq(mulThenAdd.res.V.toNumber(), 66, '席を入れ替える：×2 → ＋4 で (5+6)×(1×2+4)＝66');
+  eq(mulThenAdd.res.V.toNumber(), 60, '席を入れ替える：×2 → ＋4 で 10×(1×2+4)＝60');
 
-  // 番付倍率：カテゴリのうち一番高いもの
+  // 札の強さ＝カテゴリのTier（一番高いもの）
   const bz = await oneShot({ hand: [['fx_maap']], banzuke: { 宿: '2', 老: 'God' } });
-  eq(bz.res.V.toNumber(), (5 + 10) * (1 + 6), '番付：〈宿〉T2と〈老〉Godなら God の＋6');
+  eq(bz.res.V.toNumber(), 60, '〈宿〉T2と〈老〉Godなら強さはGodの60');
   const low = await oneShot({ hand: [['fx_hone']], banzuke: { 死: '5' } });
-  eq(low.res.V.toNumber(), (5 + 3) * 1, '倍率は1を下回らない（1＋(−1)＝0 → 1）');
+  eq(low.res.V.toNumber(), 3, 'Tier5の強さは3');
 
   // 仕込み・判
   const glass = await oneShot({ hand: [['fx_neko', { enh: '硝子' }]] });
-  eq(glass.res.V.toNumber(), 11 * 2, '硝子：M×2');
-  const stone = await oneShot({ hand: [['fx_neko', { enh: '石' }], ['fx_sure'], ['fx_soba']] });
-  eq(stone.res.hand, '対', '石＋T3・T3は対');
-  eq(stone.res.V.toNumber(), (10 + 6 + 6 + 50) * 2, '石：組に関わらず採点され S＋50');
+  eq(glass.res.V.toNumber(), 20, '硝子：M×2');
+  const stone = await oneShot({ hand: [['fx_neko', { enh: '石' }], ['fx_soba'], ['fx_udon']] });
+  eq(stone.res.V.toNumber(), (50 + 10 + 10) * 1.5, '石：カテゴリを持たず必ず採点され S＋50。麺2枚は重なる');
   const red = await oneShot({ hand: [['fx_neko', { seal: '朱判' }]] });
-  eq(red.res.V.toNumber(), (5 + 6 + 6) * 1, '朱判：採点をもう一度');
+  eq(red.res.V.toNumber(), 20, '朱判：採点をもう一度');
   const gold = await oneShot({ hand: [['fx_neko', { seal: '金判' }]] });
   eq(gold.B.zeni, 3, '金判：採点されると宿銭＋3');
   const steel = await oneShot({ hand: [['fx_neko'], ['fx_sure', { enh: '鋼' }]], play: [0] });
-  eq(steel.res.V.toNumber(), Math.floor(11 * 1.5), '鋼：手札に残ったまま出すと M×1.5（論破値は切り捨て）');
+  eq(steel.res.V.toNumber(), 15, '鋼：手札に残ったまま出すと M×1.5');
 
   // ルール（特注の形）：処理を2回通す
   const nibai = { name: '試しの二倍', hooks: { 'score.card': (c, n) => { n(); n(); } } };
-  const ruleCard = { id: 'fx_nibai', name: '仮・二倍', tier: 3, cat: ['ター'], hooks: {
+  const ruleCard = { id: 'fx_nibai', name: '仮・二倍', cat: ['動物'], hooks: {
     'play.before': (ctx, n) => { addRule(ctx.battle, ctx.env, { name: '試しの二倍', scope: 'play' }); n(); },
   } };
   const dbl = await oneShot({ hand: [['fx_nibai'], ['fx_neko']], rules: [nibai], cards: [ruleCard] });
-  eq(dbl.res.V.toNumber(), (10 + 12 + 12) * 2, '差し込み口を通る：二倍のルールで採点が2回ずつ');
+  eq(dbl.res.V.toNumber(), (10 + 10) * 2 * 1.5, '差し込み口を通る：二倍のルールで採点が2回ずつ');
   ok(dbl.B.rules.length === 0, '「この出し」のルールは出しの後に外れる');
+
+  // レアリティ：量の効果は mul 倍、効果の無い札はレジェンダリーから複数回
+  const vanL = await oneShot({ hand: [['fx_neko', { rar: 'レジェンダリー' }]] });
+  eq(vanL.res.V.toNumber(), 20, '効果の無い札：レジェンダリーは2回採点');
+  const vanM = await oneShot({ hand: [['fx_neko', { rar: 'ミシック' }]] });
+  eq(vanM.res.V.toNumber(), 50, '効果の無い札：ミシックは5回採点');
+  const fxCard = { id: 'fx_plus', name: '仮・強さ＋10', cat: ['麺'], fx: [{ when: '採点時', do: [{ 強さ: 10 }] }] };
+  const rC = await oneShot({ hand: [['fx_plus']], cards: [fxCard] });
+  eq(rC.res.V.toNumber(), 20, '量の効果：コモンは＋10（10＋10）');
+  const rU = await oneShot({ hand: [['fx_plus', { rar: 'ユニーク' }]], cards: [fxCard] });
+  eq(rU.res.V.toNumber(), 60, '量の効果：ユニークは×5で＋50（10＋50）');
+  const rAff = await oneShot({ hand: [['fx_neko', { rar: 'レア', ins: ['af_sharp'] }]] });
+  ok(rAff.res.V.toNumber() >= 10, '刻印の付いた札も出せる');
 }
 
 // ───────────────────────── 貫通と過剰論破 ─────────────────────────
 group('battle.js：貫通と過剰論破');
 {
-  // 単騎（T3）は V＝(5+6)×1＝11
+  // 1枚（T3）は V＝10
   const p1 = await oneShot({ hand: [['fx_neko']], enemies: [{ claim: 4 }, { claim: 5 }, { claim: 100 }], target: 1 });
-  eq(p1.B.enemies.map((e) => e.claim.toNumber()).join(), '4,0,94', '貫通：狙った敵を倒した残りは右隣へ');
+  eq(p1.B.enemies.map((e) => e.claim.toNumber()).join(), '4,0,95', '貫通：狙った敵を倒した残りは右隣へ');
   const p2 = await oneShot({ hand: [['fx_neko']], enemies: [{ claim: 3 }, { claim: 5 }, { claim: 2 }], target: 1 });
   eq(p2.B.enemies.map((e) => e.claim.toNumber()).join(), '0,0,0', '貫通：右端まで行ったら左端へ');
   eq(p2.B.result, 'win', '全滅で勝ち');
   ok(p2.B.log.filter((l) => l.t === 'damage' && l.pierce).length === 2, '手順列に貫通が残る');
 
-  // 神組（〈ター〉God×5、番付 God）：V＝(200+75)×(20+30)＝13750
-  const god5 = Array.from({ length: 5 }, () => ['fx_god']);
-  const cases = [[10000, null], [6000, '論破'], [1000, '大論破'], [100, '完全論破'], [10, 'ター深']];
+  // 〈ター〉God×5（ホロ付き）：S＝5×60＝300、M＝(1＋5×10)×3＝153 → V＝45900
+  const god5 = Array.from({ length: 5 }, () => ['fx_god', { ed: 'ホロ' }]);
+  const cases = [[100000, null], [20000, '論破'], [4000, '大論破'], [400, '完全論破'], [40, 'ター深']];
   for (const [claim, level] of cases) {
     const r = await oneShot({ hand: god5, enemies: [{ claim }], banzuke: { ター: 'God' } });
-    eq(r.B.overkill.level, level, `過剰論破：主張${claim}、r＝${13750 / claim} → ${level ?? 'なし'}`);
+    eq(r.B.overkill?.level ?? null, level, `過剰論破：主張${claim}、r＝${45900 / claim} → ${level ?? 'なし'}`);
   }
-  const tb = await oneShot({ hand: god5, enemies: [{ claim: 10 }], banzuke: { ター: 'God' } });
+  const tb = await oneShot({ hand: god5, enemies: [{ claim: 40 }], banzuke: { ター: 'God' } });
   eq(JSON.stringify(tb.B.overkill.rewards), JSON.stringify({ zeni: 42, extraCards: 1, gradeUp: 1, godChance: 0.5 }), 'ター深は下の段の上乗せも全て得る（宿銭 2+5+10+25）');
   eq(tb.B.zeni, 42, '過剰論破の宿銭が入る');
-  const two = await oneShot({ hand: god5, enemies: [{ claim: 4000 }, { claim: 2000 }], banzuke: { ター: 'God' } });
-  eq(two.B.overkill.level, '論破', '過剰論破は戦闘開始時の主張合計で割る（13750÷6000）');
+  const two = await oneShot({ hand: god5, enemies: [{ claim: 15000 }, { claim: 5000 }], banzuke: { ター: 'God' } });
+  eq(two.B.overkill.level, '論破', '過剰論破は戦闘開始時の主張合計で割る（45900÷20000）');
   eq(overkillOf(balance, Big.from(1.99)).level, null, 'r＜2 は過剰論破なし');
 }
 
@@ -432,9 +410,9 @@ group('語彙：仕様書第9章の名前が全てある');
   const v = createVocab();
   const spec = {
     when: '採点時 手札に残る 受けに回る 出し 出しの前 出しの後 流した時 引いた時 ターン開始 ターン終了 戦闘開始 戦闘終了 敵を倒した時 過剰論破の時 敵の行動の前 階に入った時 部屋に入った時 踊り場 脱出時',
-    if: '組 組の段位以上 カテゴリ 採点札のカテゴリ Tier Tier以上 番付 採点枚数 手札枚数以下 山札枚数以下 このターンの出し 戦闘のターン以上 体力の割合以下 階以上 気配以上 深度以上 敵の種類 敵の数 手札の位置 採点の順番 由来 確率 どれか すべて でない',
-    do: '強さ 倍率 掛け 受け 体力 引く 捨てる 出し回数 流し回数 手札上限 番付を上げる 番付を下げる 番付を入れ替える 番付を移す 番付を反転 番付を均す 段位を上げる 札を変える 札を生む 札を消す 主張を削る 行動停止 行動を消す 宿銭 お品書きを得る お土産を得る 気配 脱出 育つ ルール',
-    rule: '処理回数 組を宣言 組を1段上として扱う 全札を同カテゴリ扱い 全札を同Tier扱い 採点順を逆に 採点順を並べ替える 番付を反転 番付を固定 番付倍率をN倍 受けを無効 受けを攻撃に加える 採点札を限定 出せる枚数を固定 戦闘を即終了 敵の行動を乱数に 手札を公開 山札の上を見る・並べ替える 倍率の下限を変える 効果文を偽る 伏せ字 演出を早送り不可に 宿泊客の仕組みを入れ替える',
+    if: '重なり以上 カテゴリの種類以上 効果なし 効果なしの札 レアリティ以上 カテゴリ 採点札のカテゴリ Tier Tier以上 番付 採点枚数 手札枚数以下 山札枚数以下 このターンの出し 戦闘のターン以上 体力の割合以下 階以上 気配以上 深度以上 敵の種類 敵の数 手札の位置 採点の順番 由来 確率 どれか すべて でない',
+    do: '強さ 倍率 掛け 受け 体力 引く 捨てる 出し回数 流し回数 手札上限 番付を上げる 番付を下げる 番付を入れ替える 番付を移す 番付を反転 番付を均す 札を変える 札を生む 札を消す 主張を削る 行動停止 行動を消す 宿銭 お品書きを得る お土産を得る 気配 脱出 育つ ルール',
+    rule: '処理回数 全札を採点 重なりを1枚多く 全札を同カテゴリ扱い 全札を同Tier扱い 採点順を逆に 採点順を並べ替える 番付を反転 番付を固定 番付倍率をN倍 受けを無効 受けを攻撃に加える 採点札を限定 出せる枚数を固定 戦闘を即終了 敵の行動を乱数に 手札を公開 山札の上を見る・並べ替える 倍率の下限を変える 効果文を偽る 伏せ字 演出を早送り不可に 宿泊客の仕組みを入れ替える',
     show: '揺れ 白飛び 暗転 二重像 文字二回 筆文字 カットイン 吹き出し スタンプ 文字化け 伏せ字 取り消し線 背景色 水没 紙吹雪 画面反転 横切る 増殖 行進 うなずき 角以外を暗く 斬る 読み込み中 早口字幕 ガチャ 音 BGMを止める 心音 振動',
     act: '攻め 全体攻め 居座り 伏せ 封じ 格下げ 席を奪う 溜め 呼ぶ',
   };
@@ -486,9 +464,9 @@ group('content.js と check.mjs');
 `);
   const bad = await runCheck({ root: tmp });
   const has = (s) => bad.lines.some((l) => l === s);
-  ok(has('[語彙] rk_ahe: 知らない効果「主張を削り取る」。候補：主張を削る ／ 札を変える ／ 段位を上げる'), '知らない効果を1行で指摘し、候補を出す', bad.lines.join(' / '));
+  ok(bad.lines.some((l) => l.startsWith('[語彙] rk_ahe: 知らない効果「主張を削り取る」。候補：主張を削る')), '知らない効果を1行で指摘し、候補を出す', bad.lines.join(' / '));
   ok(bad.lines.some((l) => l.startsWith('[形] rk_ahe: 知らないカテゴリ「麺類」。候補：麺')), '知らないカテゴリに候補');
-  ok(bad.lines.some((l) => l.startsWith('[形] rk_ahe: tier「7」')), '範囲外のTier');
+  ok(bad.lines.some((l) => l.startsWith('[形] rk_ahe: tier は書かない')), '札に tier を書くと指摘（札の強さはカテゴリのTier）');
   ok(bad.lines.some((l) => l.includes('知らない名前「熟生」。候補：熟成')), '式の知らない名前に候補');
   ok(bad.errors >= 4, 'エラーとして数える');
   // 索引にないファイル
@@ -525,7 +503,7 @@ group('content.js と check.mjs');
   await cp(path.join(ROOT, 'docs/templates/event.yaml'), path.join(tmp2, 'events/layer1.yaml'));
   await cp(path.join(ROOT, 'docs/templates/souvenir.yaml'), path.join(tmp2, 'souvenirs.yaml'));
   const tpl = await runCheck({ root: tmp2, fixIndex: true });
-  eq(tpl.errors + tpl.failed, 0, '雛形（札・常連客・置物・お品書き・キーワード・敵・謎・お土産・特注）が検査を通る', );
+  eq(tpl.errors + tpl.failed, 0, '雛形（札・常連客・置物・お品書き・キーワード・敵・謎・お土産・特注）が検査を通る'); if (tpl.errors + tpl.failed) console.log(tpl.lines.join('\n'));
   if (tpl.errors + tpl.failed) console.log(tpl.lines.join('\n'));
   await rm(tmp2, { recursive: true, force: true });
 }
@@ -563,7 +541,7 @@ group('特注が例外を投げても止まらない');
   startBattle(B, env);
   addRule(B, env, { name: '壊れたルール', scope: 'battle', owner: { kind: 'card', name: '試し' } });
   let guard = 0;
-  while (!B.result && guard++ < 60) { if (B.playsLeft > 0) play(B, env, B.hand.slice(0, Math.min(5, B.hand.length)).map((_, i) => i), 0); else endTurn(B, env); }
+  while (!B.result && guard++ < 600) { if (B.playsLeft > 0) play(B, env, B.hand.slice(0, Math.min(5, B.hand.length)).map((_, i) => i), 0); else endTurn(B, env); }
   ok(B.result === 'win' || B.result === 'lose', `戦闘が最後まで進む（${B.result}）`);
   const errs = B.log.filter((l) => l.t === 'error');
   for (const m of ['ルールが壊れた', '仕組みが壊れた', '採点でも壊れた', '敵が壊れた']) ok(errs.some((e) => e.message === m), `記録に残る：${m}`);
@@ -580,10 +558,11 @@ group('content/ の札と宿泊客で戦う');
   const env = openBattle(base, B);
   startBattle(B, env);
   B.enemies[0].claim = Big.from('1e9');
-  B.hand = [makeBattleCard(owned('rk_jujo_satosatoru', 1), C.cards.rk_jujo_satosatoru), makeBattleCard(owned('fx_god', 2), C.cards.fx_god)];
+  C.cards.t_nibai = compileOne(C, { id: 't_nibai', name: '試し二倍', cat: ['ター'], grade: '並', kw: ['二倍'], fx: [{ when: '採点時', do: [{ 行動停止: { 対象: '狙い', ターン: 2 } }] }], show: [{ カットイン: '二倍' }] }, 'cards');
+  B.hand = [makeBattleCard(owned('t_nibai', 1), C.cards.t_nibai), makeBattleCard(owned('fx_god', 2), C.cards.fx_god)];
   B.hand.forEach((c) => attachCard(env, c));
   const r = play(B, env, [0, 1], 0);
-  eq(r.V.toNumber(), 140, '二倍：(10＋(15＋15)×2)×2＝140');
+  eq(r.V.toNumber(), 60, '二倍：ター2枚 (10＋10)×2、重なり×1.5＝60');
   eq(B.enemies[0].skip, 4, '二倍で行動停止も2回（4ターン）');
   ok(r.fx.some((f) => f.show === '文字二回') && r.fx.some((f) => f.show === 'カットイン'), '演出の手順に札の show と特注の fx.queue が入る');
   eq(guestStatus(B, env), '採配 1／3', '宿泊客の仕組みの1行');
@@ -596,16 +575,17 @@ group('content/ の札と宿泊客で戦う');
   const env2 = openBattle(base, B2); startBattle(B2, env2);
   B2.enemies[0].claim = Big.from('1e9');
   B2.hand = [makeBattleCard(owned('rk_ganbou', 1), C.cards.rk_ganbou)]; attachCard(env2, B2.hand[0]);
-  eq(play(B2, env2, [0], 0, { choices: { 宣言: '満員' } }).hand, '満員', '宣言：出すときに選んだ組で採点');
+  play(B2, env2, [0], 0, { choices: { 宣言: '麺' } });
+  eq(B2.lastOverlap.麺, 1, '宣言：出すときに選んだカテゴリを持っていることになる');
   // 保存して読み直しても特注が付き直る
   const B3 = loadBattle(saveBattle(B));
   const env3 = openBattle(base, B3);
   endTurn(B3, env3);
   eq(B3.guestState.採配点, 1, '読み直しても宿泊客の仕組みが動く');
   // お品書き（議題）
-  B3.items.push({ uid: 'i_x', id: null, kind: '議題', hand: '対' });
+  B3.items.push({ uid: 'i_x', id: 'tj_gi_tanki', kind: '議題' });
   useItem(B3, env3, 0);
-  eq(B3.handLevels['対'], 2, 'お品書き（議題）で段位が上がる');
+  eq(B3.banzuke['食べ物'], '2', 'お品書き（議題「食べ物」）で食べ物が1段上がる');
 }
 
 group('組み込みの語彙を YAML から動かす');
@@ -614,47 +594,47 @@ group('組み込みの語彙を YAML から動かす');
   await cp(path.join(ROOT, 'content'), tmp, { recursive: true });
   await mkdir(path.join(tmp, 'sets/vt'), { recursive: true });
   await wf(path.join(tmp, 'sets/vt/set.yaml'), 'id: vt\nname: 語彙の試し\nunlock: { start: true }\n');
-  // 基本：単騎 T3 は (5＋6)×1＝11
+  // 基本：〈ター〉1枚（Tier3）は 10
   await wf(path.join(tmp, 'sets/vt/cards.yaml'), `
-- { id: vt_mul, name: 掛け, cat: [ター], tier: 3, grade: 並, fx: [{ when: 採点時, do: [{ 掛け: "1+1" }] }], test: [{ hand: [vt_mul], expect: { V: 22 } }] }
-- { id: vt_steps, name: 処理回数, cat: [ター], tier: 3, grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 処理回数, 範囲: この出し, 回数: 3 } }] }], test: [{ hand: [vt_steps], expect: { V: 23 } }] }
-- { id: vt_up, name: 一段上, cat: [ター], tier: 3, grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 組を1段上として扱う } }] }], test: [{ hand: [vt_up, { tier: 3 }], expect: { 組: 二対, V: 64 } }] }
-- { id: vt_rev, name: 逆, cat: [ター], tier: 3, grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 採点順を逆に } }] }], test: [{ hand: [{ tier: 3, ed: ホロ }, { tier: 3, ed: 多色 }, vt_rev], expect: { V: 696 } }] }
-- { id: vt_ga, name: 受けで攻め, cat: [ター], tier: 3, grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 受けを攻撃に加える } }] }], test: [{ hand: [vt_ga, { tier: 5, cat: [死] }], expect: { V: 14 } }] }
-- { id: vt_floor, name: 下限, cat: [ター], tier: 3, grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 倍率の下限を変える, 下限: 3 } }] }], test: [{ hand: [vt_floor], expect: { V: 33 } }] }
-- { id: vt_end, name: 即終了, cat: [ター], tier: 3, grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 戦闘を即終了 } }] }], test: [{ hand: [vt_end], enemies: [{ claim: 1000 }], expect: { 結果: win, 記録: forceEnd } }] }
-- { id: vt_banfix, name: 固定, cat: [ター], tier: 3, grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 番付を固定, 範囲: 戦闘 } }] }, { when: 採点時, do: [{ 番付を上げる: { カテゴリ: この札 } }] }], test: [{ hand: [vt_banfix], expect: { 番付: { ター: '3' } } }] }
-- { id: vt_ketsu, name: 欠番, cat: [ター], tier: 3, grade: 並, fx: [{ when: 出しの前, do: [{ 番付を移す: { カテゴリ: ター, 先: 欠6 } }] }], test: [{ hand: [vt_ketsu], expect: { V: 13, 番付: { ター: 欠6 } } }] }
-- { id: vt_spawn, name: 生む, cat: [ター], tier: 3, grade: 並, fx: [{ when: 採点時, do: [{ 札を生む: { id: この札, 場所: 手札, 写し: true } }] }], test: [{ hand: [vt_spawn], expect: { 記録: spawn } }] }
-- { id: vt_hp, name: 体力, cat: [ター], tier: 3, grade: 並, fx: [{ when: 出しの後, do: [{ 体力: -5 }, { 宿銭: "2*3" }] }], test: [{ hand: [vt_hp], expect: { 体力: 65, 宿銭: 6 } }] }
-- { id: vt_level, name: 段位, cat: [ター], tier: 3, grade: 並, fx: [{ when: 出しの後, do: [{ 段位を上げる: { 組: この出しの組 } }] }], test: [{ hand: [vt_level], expect: { 段位: { 単騎: 2 } } }] }
-- { id: vt_cond, name: 条件, cat: [ター], tier: 3, grade: 並, fx: [{ when: 採点時, if: { どれか: [{ 確率: 0 }, { でない: { カテゴリ: 麺 } }] }, do: [{ 倍率: 4 }] }], test: [{ hand: [vt_cond], expect: { V: 55 } }] }
-- { id: vt_pos, name: 位置, cat: [ター], tier: 3, grade: 並, fx: [{ when: 採点時, if: { 手札の位置: 左端 }, do: [{ 倍率: 1 }] }], test: [{ hand: [vt_pos, { tier: 3 }], expect: { V: 66 } }, { hand: [{ tier: 3 }, vt_pos, { tier: 5 }], play: [0, 1], expect: { V: 44 } }] }
-- { id: vt_same, name: 同Tier, cat: [ター], tier: 3, grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 全札を同Tier扱い } }] }], test: [{ hand: [vt_same, { tier: 5, cat: [死] }], expect: { 組: 対, V: 38 } }] }
-- { id: vt_lim, name: 限定, cat: [ター], tier: 3, grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 採点札を限定, 条件: { カテゴリ: ター } } }] }], test: [{ hand: [vt_lim, { tier: 3, cat: [麺] }], expect: { 組: 対, V: 32 } }] }
-- { id: vt_swap, name: いれかえ, cat: [ター], tier: 3, grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 宿泊客の仕組みを入れ替える, 宿泊客: tsuchi } }] }], test: [{ guest: maap, hand: [vt_swap], expect: { V: 15 } }] }
-- { id: vt_stun, name: 止める, cat: [ター], tier: 3, grade: 並, fx: [{ when: 採点時, do: [{ 行動停止: { 対象: 狙い, ターン: 1 } }, { 行動を消す: 狙い }] }], test: [{ hand: [vt_stun], expect: { 行動停止: { 0: 2 } } }] }
-- { id: vt_cut, name: 削る, cat: [ター], tier: 3, grade: 並, fx: [{ when: 採点時, do: [{ 主張を削る: { 対象: 敵全員, 量: "強さ*10" } }] }], test: [{ hand: [vt_cut], enemies: [{ claim: 100 }, { claim: 500 }], expect: { enemy0: 29, enemy1: 440 } }] }
-- { id: vt_k_yoin, name: 余韻, cat: [ター], tier: 3, grade: 並, kw: [余韻3], test: [{ hand: [vt_k_yoin, { tier: 3 }], steps: [{ play: [0] }, { play: [0] }], expect: { V: 14 } }] }
-- { id: vt_k_mamori, name: 守り, cat: [ター], tier: 3, grade: 並, kw: [守り4], test: [{ hand: [{ tier: God }, vt_k_mamori], expect: { 受け: 10 } }] }
-- { id: vt_k_tsure, name: 連れ, cat: [ター], tier: 3, grade: 並, kw: [連れ2], test: [{ hand: [vt_k_tsure, { tier: 3, cat: [ター] }], expect: { V: 88 } }, { hand: [vt_k_tsure, { tier: 3, cat: [麺] }], expect: { V: 44 } }] }
-- { id: vt_k_yari, name: 一番槍, cat: [ター], tier: 3, grade: 並, kw: [一番槍], test: [{ hand: [vt_k_yari], expect: { V: 22 } }, { hand: [{ tier: 5 }, vt_k_yari], steps: [{ play: [0] }, { play: [0] }], expect: { V: 11 } }] }
-- { id: vt_k_todome, name: とどめ, cat: [ター], tier: 3, grade: 並, kw: [とどめ], test: [{ hand: [vt_k_todome], enemies: [{ claim: 10 }], expect: { 宿銭: 2, 結果: win } }] }
-- { id: vt_k_kasane, name: 重ね, cat: [ター], tier: 3, grade: 並, kw: [重ね数3], test: [{ hand: [vt_k_kasane, { tier: 3 }], expect: { 組: 四揃, V: 504 } }] }
-- { id: vt_k_nemawashi, name: 根回し, cat: [ター], tier: 3, grade: 並, kw: [根回し], test: [{ hand: [vt_k_nemawashi], expect: { V: 11, 番付: { ター: '2' } } }] }
-- { id: vt_k_tatari, name: 祟り, cat: [ター], tier: 3, grade: 並, kw: [祟り3], test: [{ hand: [vt_k_tatari, { tier: 3 }], steps: [{ play: [1] }, { end: true }], expect: { 体力: 67 } }] }
-- { id: vt_k_kieru, name: 消える, cat: [ター], tier: 3, grade: 並, kw: [消える], test: [{ hand: [vt_k_kieru], expect: { 記録: remove } }] }
-- { id: vt_mod, name: 回数, cat: [ター], tier: 3, grade: 並, fx: [{ when: 出しの後, do: [{ 出し回数: { 増減: 2, 期間: ターン } }] }], test: [{ hand: [vt_mod], expect: { 出し残り: 3 } }] }
+- { id: vt_mul, name: 掛け, cat: [ター], grade: 並, fx: [{ when: 採点時, do: [{ 掛け: "1+1" }] }], test: [{ hand: [vt_mul], expect: { V: 20 } }] }
+- { id: vt_steps, name: 処理回数, cat: [ター], grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 処理回数, 範囲: この出し, 回数: 3 } }] }], test: [{ hand: [vt_steps], expect: { V: 30 } }] }
+- { id: vt_up, name: 全部採点, cat: [ター], grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 全札を採点 } }] }], test: [{ hand: [vt_up, { tier: 3, cat: [麺] }], expect: { V: 20 } }] }
+- { id: vt_rev, name: 逆, cat: [ター], grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 採点順を逆に } }] }], test: [{ hand: [{ tier: 3, ed: ホロ }, { tier: 3, ed: 多色 }, vt_rev], expect: { V: 690 } }] }
+- { id: vt_ga, name: 受けで攻め, cat: [ター], grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 受けを攻撃に加える } }] }], test: [{ hand: [vt_ga, { tier: 5, cat: [死] }], expect: { V: 13 } }] }
+- { id: vt_floor, name: 下限, cat: [ター], grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 倍率の下限を変える, 下限: 3 } }] }], test: [{ hand: [vt_floor], expect: { V: 30 } }] }
+- { id: vt_end, name: 即終了, cat: [ター], grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 戦闘を即終了 } }] }], test: [{ hand: [vt_end], enemies: [{ claim: 1000 }], expect: { 結果: win, 記録: forceEnd } }] }
+- { id: vt_banfix, name: 固定, cat: [ター], grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 番付を固定, 範囲: 戦闘 } }] }, { when: 採点時, do: [{ 番付を上げる: { カテゴリ: この札 } }] }], test: [{ hand: [vt_banfix], expect: { 番付: { ター: '3' } } }] }
+- { id: vt_ketsu, name: 欠番, cat: [ター], grade: 並, fx: [{ when: 出しの前, do: [{ 番付を移す: { カテゴリ: ター, 先: 欠6 } }] }], test: [{ hand: [vt_ketsu], expect: { V: 12, 番付: { ター: 欠6 } } }] }
+- { id: vt_spawn, name: 生む, cat: [ター], grade: 並, fx: [{ when: 採点時, do: [{ 札を生む: { id: この札, 場所: 手札, 写し: true } }] }], test: [{ hand: [vt_spawn], expect: { 記録: spawn } }] }
+- { id: vt_hp, name: 体力, cat: [ター], grade: 並, fx: [{ when: 出しの後, do: [{ 体力: -5 }, { 宿銭: "2*3" }] }], test: [{ hand: [vt_hp], expect: { 体力: 65, 宿銭: 6 } }] }
+- { id: vt_ov, name: 重なり, cat: [ター], grade: 並, fx: [{ when: 採点時, if: { 重なり以上: 2, カテゴリ: ター }, do: [{ 倍率: "重なり" }] }], test: [{ hand: [vt_ov, { tier: 3 }], expect: { V: 90 } }, { hand: [vt_ov], expect: { V: 10 } }] }
+- { id: vt_cond, name: 条件, cat: [ター], grade: 並, fx: [{ when: 採点時, if: { どれか: [{ 確率: 0 }, { でない: { カテゴリ: 麺 } }] }, do: [{ 倍率: 4 }] }], test: [{ hand: [vt_cond], expect: { V: 50 } }] }
+- { id: vt_pos, name: 位置, cat: [ター], grade: 並, fx: [{ when: 採点時, if: { 手札の位置: 左端 }, do: [{ 倍率: 1 }] }], test: [{ hand: [vt_pos, { tier: 3 }], expect: { V: 60 } }, { hand: [{ tier: 3 }, vt_pos, { tier: 5 }], play: [0, 1], expect: { V: 30 } }] }
+- { id: vt_same, name: 同Tier, cat: [ター], grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 全札を同Tier扱い, Tier: God } }] }], test: [{ hand: [vt_same, { tier: 5, cat: [死] }], expect: { V: 60 } }] }
+- { id: vt_lim, name: 限定, cat: [ター], grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 採点札を限定, 条件: { カテゴリ: ター } } }] }], test: [{ hand: [vt_lim, { tier: 3, cat: [ター] }, { tier: 3, cat: [麺] }, { tier: 3, cat: [麺] }], expect: { V: 30 } }] }
+- { id: vt_swap, name: いれかえ, cat: [ター], grade: 並, fx: [{ when: 出しの前, do: [{ ルール: { 名前: 宿泊客の仕組みを入れ替える, 宿泊客: tsuchi } }] }], test: [{ guest: maap, hand: [vt_swap], expect: { V: 14 } }] }
+- { id: vt_stun, name: 止める, cat: [ター], grade: 並, fx: [{ when: 採点時, do: [{ 行動停止: { 対象: 狙い, ターン: 1 } }, { 行動を消す: 狙い }] }], test: [{ hand: [vt_stun], expect: { 行動停止: { 0: 2 } } }] }
+- { id: vt_cut, name: 削る, cat: [ター], grade: 並, fx: [{ when: 採点時, do: [{ 主張を削る: { 対象: 敵全員, 量: "強さ*10" } }] }], test: [{ hand: [vt_cut], enemies: [{ claim: 100 }, { claim: 500 }], expect: { enemy0: 0, enemy1: 390 } }] }
+- { id: vt_k_yoin, name: 余韻, cat: [ター], grade: 並, kw: [余韻3], test: [{ hand: [vt_k_yoin, { tier: 3 }], steps: [{ play: [0] }, { play: [0] }], expect: { V: 13 } }] }
+- { id: vt_k_mamori, name: 守り, cat: [ター], grade: 並, kw: [守り4], test: [{ hand: [{ tier: God, cat: [麺] }, vt_k_mamori], expect: { 受け: 14 } }] }
+- { id: vt_k_tsure, name: 連れ, cat: [ター], grade: 並, kw: [連れ2], test: [{ hand: [vt_k_tsure, { tier: 3, cat: [ター] }], expect: { V: 90 } }, { hand: [vt_k_tsure, { tier: 3, cat: [麺] }], expect: { V: 10 } }] }
+- { id: vt_k_yari, name: 一番槍, cat: [ター], grade: 並, kw: [一番槍], test: [{ hand: [vt_k_yari], expect: { V: 20 } }, { hand: [{ tier: 5 }, vt_k_yari], steps: [{ play: [0] }, { play: [0] }], expect: { V: 10 } }] }
+- { id: vt_k_todome, name: とどめ, cat: [ター], grade: 並, kw: [とどめ], test: [{ hand: [vt_k_todome], enemies: [{ claim: 10 }], expect: { 宿銭: 2, 結果: win } }] }
+- { id: vt_k_kasane, name: 重ね, cat: [ター], grade: 並, kw: [重ね数3], test: [{ hand: [vt_k_kasane, { tier: 3 }], expect: { V: 50 } }] }
+- { id: vt_k_nemawashi, name: 根回し, cat: [ター], grade: 並, kw: [根回し], test: [{ hand: [vt_k_nemawashi], expect: { V: 10, 番付: { ター: '2' } } }] }
+- { id: vt_k_tatari, name: 祟り, cat: [ター], grade: 並, kw: [祟り3], test: [{ hand: [vt_k_tatari, { tier: 3 }], steps: [{ play: [1] }, { end: true }], expect: { 体力: 67 } }] }
+- { id: vt_k_kieru, name: 消える, cat: [ター], grade: 並, kw: [消える], test: [{ hand: [vt_k_kieru], expect: { 記録: remove } }] }
+- { id: vt_mod, name: 回数, cat: [ター], grade: 並, fx: [{ when: 出しの後, do: [{ 出し回数: { 増減: 2, 期間: ターン } }] }], test: [{ hand: [vt_mod], expect: { 出し残り: 3 } }] }
 `);
   await wf(path.join(tmp, 'sets/vt/regulars.yaml'), `
-- { id: vt_r_each, name: 毎枚, grade: 並, fx: [{ when: 採点時, do: [{ 倍率: 1 }] }], test: [{ hand: [{ tier: 3 }, { tier: 3 }], seats: [vt_r_each], expect: { V: 88 } }] }
-- { id: vt_r_grow, name: 育つ客, grade: 並, grow: { 増える: 出し, 量: 1 }, fx: [{ when: 出し, do: [{ 掛け: "1+育ち" }, { 育つ: 1 }] }], test: [{ hand: [{ tier: 3 }, { tier: 5 }], steps: [{ play: [0] }, { play: [0] }], seats: [vt_r_grow], expect: { V: 16 } }] }
+- { id: vt_r_each, name: 毎枚, grade: 並, fx: [{ when: 採点時, do: [{ 倍率: 1 }] }], test: [{ hand: [{ tier: 3 }, { tier: 3 }], seats: [vt_r_each], expect: { V: 90 } }] }
+- { id: vt_r_grow, name: 育つ客, grade: 並, grow: { 増える: 出し, 量: 1 }, fx: [{ when: 出し, do: [{ 掛け: "1+育ち" }, { 育つ: 1 }] }], test: [{ hand: [{ tier: 3 }, { tier: 5 }], steps: [{ play: [0] }, { play: [0] }], seats: [vt_r_grow], expect: { V: 6 } }] }
 `);
   await wf(path.join(tmp, 'sets/vt/items.yaml'), `
 - { id: vt_i_up, name: 格上げ, kind: 番付札, use: 戦闘中, do: [{ 番付を上げる: { カテゴリ: 選ぶ, 段: 2 } }] }
 `);
   await appendFile(path.join(tmp, 'sets/vt/cards.yaml'), `
-- { id: vt_item, name: 品, cat: [麺], tier: 3, grade: 並, test: [{ hand: [vt_item], items: [vt_i_up], steps: [{ item: 0, choices: { カテゴリ: 麺 } }, { play: [0] }], expect: { 番付: { 麺: '1' }, V: 33 } }] }
+- { id: vt_item, name: 品, cat: [麺], grade: 並, test: [{ hand: [vt_item], items: [vt_i_up], steps: [{ item: 0, choices: { カテゴリ: 麺 } }, { play: [0] }], expect: { 番付: { 麺: '1' }, V: 22 } }] }
 `);
   const res = await runCheck({ root: tmp, fixIndex: true, sets: ['vt'] });
   const vt = res.results.filter((r) => r.where.startsWith('vt_'));
@@ -695,9 +675,9 @@ group('段階3：画面が使う予測と選択');
     ok(!pr(B, env, [1, 2], 0).usedRandom, 'T8の乱数は使うときだけ引く'); }
   // 宣言は出す前に選ぶもの
   { const { B, env } = mk(['rk_ganbou', 'fx_neko']);
-    eq(JSON.stringify(choicesFor(env, [B.hand[0]])), JSON.stringify({ 宣言: '組' }), '願望を選ぶと「宣言」を選ばせる');
+    eq(JSON.stringify(choicesFor(env, [B.hand[0]])), JSON.stringify({ 宣言: 'category' }), '願望を選ぶと「宣言」（カテゴリ）を選ばせる');
     eq(JSON.stringify(choicesFor(env, [B.hand[1]])), '{}', 'ほかの札では選ばせない');
-    eq(pr(B, env, [0], 0, { 宣言: '五揃' }).hand, '五揃', '選んだ宣言で予測する'); }
+    eq(pr(B, env, [0, 1], 0, { 宣言: '動物' }).kickers.length, 0, '選んだ宣言で予測する（動物を宣言すると願望と猫が重なり、受けが無い）'); }
   // 固有行動の一覧
   { const { B, env } = mk(null, { guest: 'maap' });
     const a = guestActions(B, env);
@@ -774,13 +754,12 @@ group('段階4.5：キーワード能力の仕組み');
   test:
     - name: 強さ＋30
       hand: [{ tier: 3, kw: [試し斬り3] }]
-      expect: { V: 41 }
+      expect: { V: 40 }
 `);
   await appendFile(path.join(tmp, 'sets/ryukogo/cards.yaml'), `
 - id: rk_tameshi
   name: 試しの札
   cat: [麺]
-  tier: 3
   grade: 並
   kw: [試し斬り2, 呼び水1]
   text: 試し
@@ -1044,7 +1023,7 @@ group('段階4：第一・二層の敵の特注');
   ok(JSON.stringify(B.banzuke) !== bz, 'ネタ枠：倒されると番付が1つ動く');
   ({ B, env } = fight(['en_anka']));
   play(B, env, [0], 0);
-  ok(B.enemies[0].intent.name === '攻め' && B.enemies[0].intent.arg === 1.5, '安価：単騎を出すと次の行動が「攻め1.5」');
+  ok(B.enemies[0].intent.name === '攻め' && B.enemies[0].intent.arg === 1.5, '安価：1枚だけ出すと次の行動が「攻め1.5」');
 }
 
 group('段階5：宿と永続（meta.js）');
@@ -1172,7 +1151,7 @@ group('段階5：宿と永続（meta.js）');
   ok(!M.upgradeInfo(base, F, 'chouba').ok, 'Lv3は定義だけ（改装できない）');
   eq(M.choubaGoods(base, F).length, 7, '帳場Lv2：札7枚');
   ok(M.choubaGoods(base, F).every((g) => ['並', '上', '特上'].includes(C.cards[g.id].grade)), '帳場Lv2：特上まで');
-  eq(M.stashRoom(base, F).cap, 80, '蔵Lv2：80枠');
+  eq(M.stashRoom(base, F).cap, 120, '蔵Lv2：120枠（初期60の2倍）');
   const cp = M.copyCard(base, F, F.deck[0]);
   ok(cp.origin === 'copy' && F.stash.every((x) => x.id !== 'sv_waretagarasu'), '蔵Lv2：複製（割れた硝子を使う）');
   eq(M.shikomiMenu(base, F).length, 8, '仕込み場Lv2：仕込み8種');
@@ -1267,7 +1246,6 @@ group('段階7：コードに触れずに札・敵・謎を足せる');
 - id: rk_tameshi_add
   name: 足した札
   cat: [麺]
-  tier: 2
   grade: 上
   text: 採点されると倍率＋3
   fx:
@@ -1275,7 +1253,7 @@ group('段階7：コードに触れずに札・敵・謎を足せる');
       do: [ { 倍率: 3 } ]
   test:
     - hand: [rk_tameshi_add]
-      expect: { V: 52 }   # (5＋8)×(1＋3)
+      expect: { V: 55 }   # 上＝アンコモン（量×1.5）：10×(1＋4.5)
 `);
   await appendFile(path.join(tmp, 'enemies/layer1.yaml'), `
 - id: en_tameshi_add
@@ -1366,14 +1344,14 @@ group('段階8a：深い層（第三〜五層・B16・さらに深く）');
     B.enemies[0].claim = Big.from(1); play(B, env, [0], 0);
     eq(B.banzuke.麺, '3', '第3形態：番付は戻る');
     endTurn(B, env);
-    ok(B.sealed.hands.includes('単騎'), '第3形態：一番多く出した組を封じる');
+    ok(B.sealed.cats.length === 1, '第3形態：一番多く出したカテゴリを封じる');
   }
   // 層主
   {
     const { B, env } = fight('en_ketsuban', { floor: 12 });
     startBattle(B, env);
     play(B, env, [0], 0); endTurn(B, env);
-    ok(B.sealed.hands.includes('単騎'), '欠番：一番多く出した組を封じる');
+    ok(B.sealed.cats.length === 1, '欠番：一番多く出したカテゴリを封じる');
   }
   {
     const { B, env } = fight('en_yakkan8', { floor: 12 });
@@ -1459,7 +1437,7 @@ group('段階8b：宿泊客（6人追加・専用セット各25枚）');
   const C = base.content;
   eq(Object.keys(C.guests).sort().join(','), 'ikea,koutei,maap,soutourou,taaaam,taakaku,tatagi,tsuchi', '宿泊客8人');
   eq(['tatagi', 'soutourou', 'taaaam', 'koutei', 'ikea', 'taakaku'].map((g) => C.guests[g].hp).join('/'), '70/75/60/70/70/55', '体力（仕様書 第7章）');
-  eq(JSON.stringify(['tatagi', 'soutourou', 'koutei', 'taaaam', 'ikea', 'taakaku'].map((g) => C.guests[g].unlock)), JSON.stringify([{ reach: 6 }, { death: 3 }, { reach: 9 }, { hand: { 同類: 50 } }, { overkill: { 大論破: 50 } }, { extractFrom: 16 }]), '解放条件（B6・未帰還3・B9・同類50・大論破50・B16から脱出）');
+  eq(JSON.stringify(['tatagi', 'soutourou', 'koutei', 'taaaam', 'ikea', 'taakaku'].map((g) => C.guests[g].unlock)), JSON.stringify([{ reach: 6 }, { death: 3 }, { reach: 9 }, { overlap: { 4: 50 } }, { overkill: { 大論破: 50 } }, { extractFrom: 16 }]), '解放条件（B6・未帰還3・B9・4枚重なり50・大論破50・B16から脱出）');
   ok(Object.keys(C.guests).every((g) => M.starterIds(base, g).length === 20), '初期デッキは全員20枚');
   ok(Object.keys(C.guests).every((g) => C.relics[C.guests[g].relic]), '全員に最初の置物');
   const fight = (guest, o = {}) => {
@@ -1570,9 +1548,9 @@ group('段階8c：永続進行（施設・質屋・深度・解放・実績・�
   ok(H2.unlocked.guests.includes('tatagi'), 'B6到達でタタ木が解放');
   // 解放条件（仕様書の表）
   const H3 = M.newInn(base, 'unlock1');
-  H3.records.deaths = 3; H3.records.deepest = 9; H3.records.counts.hands.同類 = 50; H3.records.counts.overkill.大論破 = 50; H3.records.bosses.push('layer4');
+  H3.records.deaths = 3; H3.records.deepest = 9; H3.records.counts.hands['4'] = 30; H3.records.counts.hands['5'] = 20; H3.records.counts.overkill.大論破 = 50; H3.records.bosses.push('layer4');
   M.refreshUnlocks(base, H3);
-  ok(['soutourou', 'koutei', 'taaaam', 'ikea'].every((g) => H3.unlocked.guests.includes(g)) && H3.unlocked.sets.includes('ryukogo'), '未帰還3・B9・同類50・大論破50・第四層主で解放');
+  ok(['soutourou', 'koutei', 'taaaam', 'ikea'].every((g) => H3.unlocked.guests.includes(g)) && H3.unlocked.sets.includes('ryukogo'), '未帰還3・B9・4枚以上の重なり50・大論破50・第四層主で解放');
   // 実績
   const A = C.achievements;
   ok(A.length >= 95 && A.length <= 115, `実績が約100（${A.length}）`);

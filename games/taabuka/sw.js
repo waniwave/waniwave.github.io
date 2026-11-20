@@ -1,12 +1,14 @@
 // サービスワーカー：オフライン起動。BUILD ごとに先読みし直す（一覧は tools/release.mjs が書く）。
 // 新しい版が入っても勝手に切り替えない。宿の画面の「更新」で切り替える（SKIP_WAITING を受けたら入れ替わる）。
-const BUILD = '0.9.1-1';
+const BUILD = '1.0.0';
 const FILES = [
   './content/achievements.yaml',
+  './content/affixes.yaml',
   './content/balance/curve.yaml',
   './content/balance/depth.yaml',
   './content/balance/economy.yaml',
   './content/balance/hands.yaml',
+  './content/balance/rarity.yaml',
   './content/balance/tiers.yaml',
   './content/enemies/core.yaml',
   './content/enemies/custom/anka.js',
@@ -211,6 +213,7 @@ const FILES = [
   './engine/hand.js',
   './engine/hooks.js',
   './engine/meta.js',
+  './engine/rarity.js',
   './engine/rng.js',
   './engine/score.js',
   './engine/share.js',

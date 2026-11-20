@@ -7,10 +7,11 @@ import { MS } from '../fx/queue.js';
 import { cardArt, enemyArt, smallArt } from '../art.js';
 import {
   catGlyph, catColor, GRADE_COLOR, ORIGIN_MARK, SEAL_COLOR, tierLabel, slotLabel, cardTip, enemyTip, intentText, fmtNum, fmtMul, kwLines,
+  RAR_VAR, RAR_SHORT, rarOfCard,
 } from '../labels.js';
+import { tierOf } from '../../engine/hand.js';
 import { play, discard, endTurn, predict, guestAction, guestActions, guestStatus, choicesFor, useItem, layerNoAt } from '../../engine/battle.js';
 import { askItem } from '../items.js';
-import { handBase } from '../../engine/hand.js';
 import { Big } from '../../engine/big.js';
 import { num as format, unitColor } from '../num.js';
 import { unitOf } from '../../engine/format.js';
@@ -46,7 +47,7 @@ export function battleScreen(o) {
   }
 
   function renderTop() {
-    const hp = h('span.hp', {}, ['体力 ', h('b', { text: B.hp }), `/${B.maxHp}`]);
+    const hp = hpGauge();
     const gd = h('span.gd', {}, B.guard ? ['受け ', h('b', { text: B.guard })] : []);
     const zn = h('span.zn', {}, ['宿銭 ', h('b', { text: B.zeni })]);
     refs.hp = hp; refs.guard = gd; refs.zeni = zn;
@@ -60,7 +61,40 @@ export function battleScreen(o) {
     tip(menu, () => '<b>中断</b><br>速さと、戦闘をやめる');
     const pres = h('span.pres', {}, [`気配 ${B.presence}`]);
     tip(pres, () => `<b>気配 ${B.presence}</b><br>4で敵の主張＋20%、8で追跡者、12で主張＋50%`);
-    return h('header.top', {}, [h('div.st', {}, [h('span.fl', { text: `B${B.floor}` }), pres, hp, gd, zn]), speed, menu]);
+    return h('header.top.hasgauge', {}, [h('div.st', {}, [h('span.fl', { text: `B${B.floor}` }), pres, gd, zn]), speed, menu, hp]);
+  }
+
+  /** 体力のゲージ（作り直し仕様 A）：減った分が白く残って遅れて縮む。予告どおり食らった後を点線で */
+  function hpGauge() {
+    const fill = h('i.fill'), trail = h('i.trail'), fore = h('i.fore'), txt = h('span.txt');
+    const el = h('div.hpg', {}, [trail, fill, fore, txt]);
+    tip(el, () => `<b>体力 ${B.hp}/${B.maxHp}</b><br>0で倒れる（持ち込んだ物を失う）。点線は、敵が予告どおり動いたときの残り（受けを引いた後）`);
+    refs.hpParts = { el, fill, trail, fore, txt };
+    setHp(B.hp, true);
+    return el;
+  }
+  /** 敵の予告の合計（受けを引く前） */
+  function incoming() {
+    let n = 0;
+    for (const e of B.enemies) {
+      if (e.dead || e.skip > 0) continue;
+      const t = intentText(env, e);
+      if (t.dmg) n += t.dmg;
+    }
+    return n;
+  }
+  function setHp(v, now = false) {
+    const p = refs.hpParts; if (!p) return;
+    const pct = Math.max(0, Math.min(100, (v / B.maxHp) * 100));
+    p.fill.style.width = `${pct}%`;
+    if (now) p.trail.style.width = `${pct}%`;
+    else setTimeout(() => { p.trail.style.width = `${pct}%`; }, 450);
+    const after = Math.max(0, v - Math.max(0, incoming() - (B.guard || 0)));
+    p.fore.style.width = `${Math.max(0, pct - (after / B.maxHp) * 100)}%`;
+    p.fore.style.left = `${(after / B.maxHp) * 100}%`;
+    p.txt.replaceChildren('体力 ', h('b', { text: v }), `/${B.maxHp}`);
+    p.el.classList.toggle('low', v <= B.maxHp * 0.3);
+    root.classList.toggle('lowhp', v > 0 && v <= B.maxHp * 0.3);
   }
 
   function slotsShown() {
@@ -76,12 +110,12 @@ export function battleScreen(o) {
     for (const s of slots) {
       const cats = balance.tiers.categories.filter((c) => B.banzuke[c] === s);
       const def = balance.tiers.tiers[s] || balance.tiers.missing[s];
-      const add = typeof def.banzuke === 'number' ? (def.banzuke > 0 ? `+${def.banzuke}` : def.banzuke === 0 ? '±0' : `${def.banzuke}`) : `${def.banzuke.random[0]}〜+${def.banzuke.random[1]}`;
+      const add = typeof def.strength === 'number' ? `${def.strength}` : def.strength?.random ? `${def.strength.random[0]}〜${def.strength.random[1]}（出すたび乱数）` : '―';
       const slot = h(`div.slot${cats.length ? '' : '.empty'}`, { dataset: { slot: s } }, [
         h('div.t', {}, [s === 'God' ? 'God' : String(s).startsWith('欠') ? s : s]),
         h('div.gl', {}, cats.map((c) => h('span.glyph', { style: { background: catColor(c) }, title: c, dataset: { cat: c } }, [catGlyph(c)]))),
       ]);
-      tip(slot, () => `<b>${esc(slotLabel(s))}</b>　<span class="q">採点札1枚あたり 倍率 ${esc(add)}${def.perCardMul ? `、×${def.perCardMul}` : ''}</span><br>${cats.length ? cats.map((c) => `〈${esc(c)}〉`).join('') : '<span class="q">いない</span>'}`);
+      tip(slot, () => `<b>${esc(slotLabel(s))}</b>　<span class="q">ここにいるカテゴリの札は強さ ${esc(add)}${def.perCardMul ? `、採点されると倍率×${def.perCardMul}` : ''}</span><br>${cats.length ? cats.map((c) => `〈${esc(c)}〉`).join('') : '<span class="q">いない</span>'}`);
       refs.slots.set(String(s), slot);
       el.append(slot);
     }
@@ -103,7 +137,7 @@ export function battleScreen(o) {
         h('div.art', { html: enemyArt(e) }),
         h('div.nm', { text: e.name }),
         ...((env.content.enemies[e.id]?.kwList || []).length ? [h('div.kw', { text: env.content.enemies[e.id].kwList.map((k) => k.label).join('・') })] : []),
-        h(`div.int${it.calm ? '.calm' : ''}`, { text: it.text }),
+        h(`div.int${it.calm ? '.calm' : ''}${it.dmg ? '.atk' : ''}`, { text: it.text }),
         h('div.barw', {}, [bar]),
         cl,
       ]);
@@ -160,7 +194,7 @@ export function battleScreen(o) {
       const card = cardEl(c);
       card.classList.toggle('sel', st.sel.includes(i));
       card.addEventListener('click', () => toggle(i));
-      tip(card, () => cardTip(env, c));
+      tip(card, () => cardTip(env, c, B));
       refs.cards.set(c.uid, card);
       el.append(card);
     });
@@ -169,10 +203,12 @@ export function battleScreen(o) {
 
   function cardEl(c) {
     if (c.faceDown) return h('button.card.back', { type: 'button', dataset: { uid: c.uid } }, [h('span.q', { text: '？' })]);
-    const el = h(`button.card${c.ed ? '.ed' : ''}`, { type: 'button', dataset: { uid: c.uid }, style: { '--g': GRADE_COLOR[c.grade] ?? GRADE_COLOR.並 } });
+    const r = rarOfCard(balance, c, content.cards[c.id]);
+    const el = h(`button.card${c.ed ? '.ed' : ''}.r-${r}`, { type: 'button', dataset: { uid: c.uid }, style: { '--g': RAR_VAR[r] } });
     el.innerHTML = cardArt(c);
     el.append(
-      h('span.tier', { text: tierLabel(c.tier) }),
+      h('span.tier', { text: tierLabel(tierOf(c, balance, B.banzuke)) }),
+      h('span.rr', { text: RAR_SHORT[r] }),
       h('span.cats', {}, c.cat.map((x) => h('span.glyph', { style: { background: catColor(x) } }, [catGlyph(x)]))),
       h('span.nm', { text: c.name }),
     );
@@ -213,12 +249,10 @@ export function battleScreen(o) {
       h('h3', { text: `山札 ${B.draw.length}` }), h('ul', {}, names(drawSorted)),
       h('h3', { text: `捨て札 ${B.discard.length}` }), h('ul', {}, names(B.discard.slice().reverse())),
     );
-    const rows = balance.hands.order.map((name) => {
-      const lv = B.handLevels[name] ?? balance.hands.levelStart ?? 1;
-      const b = handBase(name, lv, balance);
-      return h('li', { dataset: { hand: name } }, [h('span', { text: `${name}${lv > 1 ? ` Lv${lv}` : ''}` }), h('span.q', { text: `${b.S} × ${b.M}` })]);
-    });
-    R.replaceChildren(h('h3', { text: '組の表' }), h('ul', { id: 'handtable' }, rows),
+    const o = balance.hands.overlap;
+    const rows = [2, 3, 4, 5].map((n) => h('li', {}, [h('span', { text: `同じカテゴリ ${n}枚` }), h('span.q', { text: `×${1 + o.step * (n - 1)}` })]));
+    const bz = balance.tiers.ring.map((t) => h('li', {}, [h('span', { text: `Tier ${tierLabel(t)}` }), h('span.q', { text: (() => { const v = balance.tiers.tiers[t].strength; return typeof v === 'number' ? `強さ ${v}` : `強さ ${v.random[0]}〜${v.random[1]}`; })() })]));
+    R.replaceChildren(h('h3', { text: '重なりの倍率' }), h('ul', { id: 'handtable' }, rows), h('h3', { text: 'Tierの強さ' }), h('ul', {}, bz),
       h('p.q', { text: '1〜8 札を選ぶ ／ Enter 出す ／ D 流す ／ E 終了 ／ T 狙いを変える ／ I お品書き ／ Esc 選び直す' }));
   }
 
@@ -241,7 +275,7 @@ export function battleScreen(o) {
       try {
         const p = predict(B, env, st.sel, st.target, { ...defaults(need), ...st.choices });
         lastPred = p;
-        calcHd.replaceChildren(h('b', { text: p.hand }), `Lv${p.level}`);
+        calcHd.replaceChildren(...overlapHead(p));
         const kids = [];
         if (p.uncertain) kids.push(h('span', { text: format(p.S) }), h('span.op', { text: '×' }), h('span', { text: '？' }), h('span.op', { text: '＝' }), h('span.v', { text: '？' }));
         else kids.push(h('span', { text: format(p.S) }), h('span.op', { text: '×' }), h('span', { text: fmtMul(p.M) }), h('span.op', { text: '＝' }), h('span.v', { text: format(p.V) }));
@@ -275,18 +309,29 @@ export function battleScreen(o) {
 
   function defaults(need) {
     const out = {};
-    for (const [k, type] of Object.entries(need)) if (type === '組') out[k] = balance.hands.order[0];
+    for (const [k, type] of Object.entries(need)) if (type === 'category') out[k] = balance.tiers.categories[0];
     return out;
   }
 
+  /** 計算窓の見出し：重なり（麺×3・食×2）と孤立の数 */
+  function overlapHead(p) {
+    const ov = (p.steps || []).filter((x) => x.type === 'xM' && x.src?.kind === 'overlap');
+    const kids = [];
+    if (!ov.length) kids.push(h('b', { text: '重なりなし' }));
+    for (const x of ov) kids.push(h('span.ov', { style: { background: catColor(x.src.id) } }, [`${catGlyph(x.src.id)}${x.src.n}`]));
+    const iso = p.kickers?.length ?? 0;
+    if (iso) kids.push(h('span.q', { text: ` 受け${iso}` }));
+    return kids;
+  }
+
   function calcTip() {
-    if (!lastPred) return '<b>計算窓</b><br>札を選ぶと、組と論破値の予測が出る。敵の主張を超えると燃える';
+    if (!lastPred) return '<b>計算窓</b><br>札を選ぶと論破値の予測が出る。強さ（札のTier）×倍率（同じカテゴリの重なり）。敵の主張を超えると燃える';
     const p = lastPred;
-    return `<b>${esc(p.hand)} Lv${p.level}</b><br>強さ ${format(p.S)} × 倍率 ${fmtMul(p.M)}${p.uncertain ? '<br>乱数で変わる（？）' : p.usedRandom ? '<br><span class="q">乱数を使うが、論破値は変わらない</span>' : ''}`;
+    const ov = (p.steps || []).filter((x) => x.type === 'xM' && x.src?.kind === 'overlap').map((x) => `${esc(x.src.id)}${x.src.n}枚 ×${fmtMul(x.mul)}`).join('、');
+    return `<b>重なり</b>　${ov || 'なし'}<br>強さ ${format(p.S)} × 倍率 ${fmtMul(p.M)}${(p.kickers?.length ?? 0) ? `<br><span class="q">ほかとカテゴリが重ならない札は受けになる（${p.kickers.length}枚）</span>` : ''}${p.uncertain ? '<br>乱数で変わる（？）' : p.usedRandom ? '<br><span class="q">乱数を使うが、論破値は変わらない</span>' : ''}`;
   }
 
   async function askOne(key, type) {
-    if (type === '組') return pick(app, key, balance.hands.order.map((x) => ({ label: x, value: x })));
     if (type === 'category') return pick(app, key, balance.tiers.categories.map((c) => ({ label: `${c}（${slotLabel(B.banzuke[c])}）`, value: c })));
     if (type?.type === 'choice') return pick(app, key, type.options);
     return pick(app, key, (type?.options ?? []).map((v) => ({ label: String(v), value: v })));
@@ -414,7 +459,7 @@ export function battleScreen(o) {
           for (const s of e.steps) {
             switch (s.type) {
               case 'hand': T.push({ ms: 240, run: () => {
-                refs.calcHd.replaceChildren(h('b', { text: s.src.id }), `Lv${s.src.level}`);
+                refs.calcHd.replaceChildren(h('b', { text: '採点' }));
                 calcSet(s.S, s.M); queue.slam(refs.calc);
               } }); break;
               case 'S': T.push({ ms: s.src?.kind === 'card' ? MS.card : MS.note, run: () => {
@@ -434,7 +479,12 @@ export function battleScreen(o) {
                 calcSet(s.S, s.M); burn(s.S, s.M);
               } }); break;
               case 'xM': case 'xS': case 'xV': T.push({ ms: MS.slam, run: () => {
-                const from = srcEl(s.src);
+                const from = s.src?.kind === 'overlap' ? refs.calc : srcEl(s.src);
+                if (s.src?.kind === 'overlap') {
+                  // 重なり：そのカテゴリの紋を見出しに積み、枚数を大きく
+                  refs.calcHd.append(h('span.ov', { style: { background: catColor(s.src.id) } }, [`${catGlyph(s.src.id)}${s.src.n}`]));
+                  queue.pop(`${s.src.id}×${s.src.n}枚`, refs.calc, null, 'x');
+                }
                 if (s.src?.kind === 'regular') queue.shake(from, 4, MS.regular);
                 queue.pop(`×${fmtMul(s.mul)}`, from, refs.calc, 'x');
                 queue.slam(refs.calc);
@@ -481,9 +531,13 @@ export function battleScreen(o) {
           const f = foe(e.enemy);
           if (f) queue.bounce(f.el, MS.enemy);
           queue.shake(app, e.loss > 0 ? 5 : 2, MS.enemy);
-          refs.hp.replaceChildren('体力 ', h('b', { text: e.hp }), `/${B.maxHp}`);
-          if (e.guarded) { queue.pop(`受け −${e.guarded}`, refs.guard, null, 's'); setGuard(guardNow - e.guarded); }
-          if (e.loss) queue.pop(`−${e.loss}`, refs.hp, null, 'dmg');
+          setHp(e.hp);
+          if (e.guarded) { queue.pop(`受け −${e.guarded}`, refs.hp, null, 'guardpop'); setGuard(guardNow - e.guarded); }
+          if (e.loss) {
+            queue.pop(`−${e.loss}`, refs.hp, null, 'dmg big');
+            root.classList.remove('hurt'); void root.offsetWidth; root.classList.add('hurt');
+            try { SE.hit(); if (e.hp <= B.maxHp * 0.3) setTimeout(() => SE.heart(), 300); } catch { /* 音なし */ }
+          }
         } }); break;
         case 'heal': T.push({ ms: MS.note, run: () => { const f = foe(e.enemy); if (f) queue.pop(`+${format(e.amount)}`, f.el, null, 'm'); } }); break;
         case 'act': T.push({ ms: MS.note * 1.5, run: () => { const f = foe(e.enemy); if (f) { queue.bounce(f.el); queue.pop(e.act + (e.what ? `（${e.what}）` : ''), f.el, null, 'note'); } } }); break;
@@ -497,7 +551,7 @@ export function battleScreen(o) {
         case 'level': T.push({ ms: MS.note, run: () => queue.pop(`${e.hand} Lv${e.level}`, refs.calc, null, 'note') }); break;
         case 'spawn': T.push({ ms: MS.note, run: () => queue.pop(`${e.card}が手札に`, refs.calc, null, 'note') }); break;
         case 'faceDown': T.push({ ms: MS.note, run: () => queue.pop(`${e.n}枚が裏向きに`, refs.calc, null, 'note') }); break;
-        case 'hp': T.push({ ms: MS.note, run: () => { refs.hp.replaceChildren('体力 ', h('b', { text: e.hp }), `/${B.maxHp}`); queue.pop(`${e.add > 0 ? '+' : ''}${e.add}`, refs.hp, null, e.add < 0 ? 'dmg' : 's'); } }); break;
+        case 'hp': T.push({ ms: MS.note, run: () => { setHp(e.hp); queue.pop(`${e.add > 0 ? '+' : ''}${e.add}`, refs.hp, null, e.add < 0 ? 'dmg big' : 'heal'); if (e.add < 0) { root.classList.remove('hurt'); void root.offsetWidth; root.classList.add('hurt'); } } }); break;
         case 'useItem': T.push({ ms: MS.note * 1.5, run: () => queue.banner(e.name, 'small', 700) }); break;
         case 'note': T.push({ ms: MS.note, run: () => queue.pop(e.what, refs.calc, null, 'note') }); break;
         case 'hindrance': T.push({ ms: MS.note * 2, run: () => queue.pop(`妨害：${e.what}`, refs.calc, null, 'note') }); break;

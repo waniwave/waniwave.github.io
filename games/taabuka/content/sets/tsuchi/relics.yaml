@@ -11,8 +11,8 @@
   test:
     - hand: [{ tier: 3, cat: [麺] }]
       relics: [ts_r_nafuda]
-      expect: { V: 31 }          # (5＋6＋20)×1
+      expect: { V: 30 }          # 10＋20
     - hand: [{ tier: 3, cat: [麺] }, { tier: 5, cat: [死] }]
       relics: [ts_r_nafuda]
       steps: [{ play: [0] }, { play: [0] }]
-      expect: { V: 8 }           # 2回目の出しには付かない：(5＋3)×1
+      expect: { V: 3 }           # 2回目の出し（T5の死）には付かない：3

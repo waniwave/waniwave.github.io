@@ -1,16 +1,14 @@
 // IKEAの固有の仕組み「組み立て」：
 // 出しの代わりに「組み立てる」（出し回数を使う）。手札の2〜5枚を1枚の「家具」にする。
-// 家具は強さ＝合計、カテゴリ＝全部、Tier＝一番高いもの。手札に残り、戦闘の終わりに分解されて戻る。
+// 家具は強さ＝組み立てた時の合計、カテゴリ＝全部。手札に残り、戦闘の終わりに分解されて戻る。
 // 家具は札の vars.部品 に部品の数を持つ（式「部品」で読める）。
 function furniture(B, env, cards) {
-  const T = env.balance.tiers;
-  const rank = (c) => T.tiers[env.api.cardView(c, env.balance).tier]?.rank ?? -Infinity;
-  const top = cards.reduce((a, c) => (rank(c) > rank(a) ? c : a), cards[0]);
-  const cats = [...new Set(cards.flatMap((c) => env.api.cardView(c, env.balance).cats))];
-  const sum = cards.reduce((s, c) => s + env.api.cardStrength(c, env.balance), 0);
-  const base = top.tier != null ? T.tiers[String(top.tier)]?.strength ?? 0 : 0;
+  const bz = B.banzuke;
+  const cats = [...new Set(cards.flatMap((c) => env.api.cardView(c, env.balance, bz).cats))].slice(0, 13);
+  const sum = cards.reduce((s, c) => s + env.api.cardStrength(c, env.balance, bz), 0);
+  const base = env.api.cardStrength({ cat: cats }, env.balance, bz);
   return {
-    ...top, uid: env.api.newUid(B, 'k'), name: `家具（${cards.length}点）`, cat: cats, tier: top.tier,
+    ...cards[0], uid: env.api.newUid(B, 'k'), name: `家具（${cards.length}点）`, cat: cats, tier: null, ins: [],
     plusS: sum - base, grow: 0, enh: null, ed: null, seal: null, faceDown: false, temp: true,
     vars: { 部品: cards.length }, parts: cards, furniture: true, origin: 'copy',
   };
@@ -25,7 +23,7 @@ function disassemble(list) {
 export default {
   name: '組み立て',
   kind: 'mechanic',
-  text: '出しの代わりに手札2〜5枚を1枚の家具に（強さは合計、カテゴリは全部、Tierは一番高いもの）。戦闘の終わりに分解',
+  text: '出しの代わりに手札2〜5枚を1枚の家具に（強さは合計、カテゴリは全部）。戦闘の終わりに分解',
   params: { 最小: 2, 最大: 5 },
   state: { 組立数: 0 },
   vars: ['組立数', '部品'],
@@ -60,8 +58,8 @@ export default {
   ui: { 組み立てる: { label: '組立', ask: [{ key: '札', type: 'selected', min: 2, max: 5 }] } },
   status: (B) => `組み立て：手札の家具 ${B.hand.filter((c) => c.furniture).length}点（この潜行で${B.guestState.組立数 ?? 0}回）`,
   tests: [
-    // T3〈麺〉＋T5〈死〉→ 家具（強さ9、カテゴリ 麺・死、T3）。単騎 (5＋9)×1＝14
+    // T3〈麺〉＋T5〈死〉→ 家具（強さ 10＋3＝13、カテゴリ 麺・死）。1枚で出して 13
     { name: '家具は強さが合計', guest: 'ikea', hand: [{ tier: 3, cat: ['麺'] }, { tier: 5, cat: ['死'] }],
-      steps: [{ guest: '組み立てる', args: { 札: [0, 1] } }, { play: [0] }], expect: { V: 14, 状態: { 組立数: 1 } } },
+      steps: [{ guest: '組み立てる', args: { 札: [0, 1] } }, { play: [0] }], expect: { V: 13, 状態: { 組立数: 1 } } },
   ],
 };

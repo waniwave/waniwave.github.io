@@ -28,7 +28,7 @@ export function zukanScreen(ctx) {
         const c = makeBattleCard({ uid: `z_${d.id}`, id: d.id }, d);
         const el = h('div.zrow', { style: { '--g': GRADE_COLOR[d.grade] } }, [
           h('b', { text: d.name }),
-          h('span.q', {}, [`${tierLabel(d.tier)} `, ...(d.cat || []).map((x) => h('span.glyph', { style: { background: catColor(x) } }, [catGlyph(x)]))]),
+          h('span.q', {}, [`${d.grade ? (env.balance.rarity.gradeFloor[d.grade] ?? '') : ''} `, ...(d.cat || []).map((x) => h('span.glyph', { style: { background: catColor(x) } }, [catGlyph(x)]))]),
           h('span.zset', { text: [C.sets[d.set]?.name ?? '', ownedL?.includes(d.id) ? '持った' : ''].filter(Boolean).join(' ') }),
         ]);
         tip(el, () => cardTip(env, c));

@@ -1,23 +1,50 @@
 // 語彙：条件（if）と解放条件（unlock）（仕様書 第9章、第6章「解放条件」）
 // 条件は { 名前: 引数 } を並べる。1つのオブジェクトに複数書けば全て成り立つとき。
 
-import { cardView } from '../hand.js';
+import { cardView, tierOf } from '../hand.js';
 import { testCond, num } from './effect.js';
+import { rarIndex } from '../rarity.js';
 
 const tierRank = (balance, t) => balance.tiers.tiers[String(t)]?.rank ?? -Infinity;
 const slotRank = (balance, s) => (balance.tiers.tiers[String(s)] || balance.tiers.missing?.[String(s)])?.rank ?? -Infinity;
 
-/** いまの組（採点中・出しの後・最後に出した組の順で探す） */
-function currentHand(E) { return E.sc?.hand ?? E.ctx.hand ?? E.B.lastHand ?? null; }
 const list = (x) => (Array.isArray(x) ? x : [x]);
+
+/** 採点札のカテゴリの重なり（カテゴリ→枚数）。採点の外なら直前の出し */
+export function overlapMap(E) {
+  if (E.sc?.overlap) return E.sc.overlap;
+  return E.B.lastOverlap || {};
+}
+/** カテゴリ（省略なら一番多い）の重なりの枚数 */
+export function overlapOf(E, cat) {
+  const o = overlapMap(E);
+  if (cat === 'この札') { const cs = E.subject ? cardView(E.subject, E.env.balance).cats : []; return Math.max(0, ...cs.map((c) => o[c] || 0)); }
+  if (cat) return o[cat] || 0;
+  return Math.max(0, ...Object.values(o));
+}
+/** 採点札のカテゴリの種類 */
+export function kindsOf(E, onlyOverlapped) {
+  return Object.values(overlapMap(E)).filter((n) => (onlyOverlapped ? n >= 2 : n >= 1)).length;
+}
+/** 効果の無い札（バニラ） */
+export function isVanilla(E, card) {
+  const d = E.env.content.cards?.[card.id];
+  return !!d && !(d.listen?.length) && !(d.rules?.length) && !d.hooks;
+}
 
 export const IF = [
   { name: '値', text: '式の値が 以上／以下（宿泊客の状態や札の熟成などを比べる）', args: { 式: 'expr', '以上?': 'number', '以下?': 'number' },
     test: (E, a) => { const v = num(E, a.式); return (a.以上 == null || v >= a.以上) && (a.以下 == null || v <= a.以下); } },
-  { name: '組', text: 'いまの組がこれ（並びならどれか）', args: 'hands',
-    test: (E, a) => list(a).includes(currentHand(E)) },
-  { name: '組の段位以上', text: 'いまの組の段位がN以上', args: 'int',
-    test: (E, a) => (E.sc?.level ?? E.B.handLevels[currentHand(E)] ?? 1) >= a },
+  { name: '重なり以上', text: '採点札で同じカテゴリが N 枚以上重なっている（カテゴリを書けばそのカテゴリ。「この札」も書ける）', args: 'int', extra: { 'カテゴリ?': 'category' },
+    test: (E, a, all) => overlapOf(E, all.カテゴリ) >= a },
+  { name: 'カテゴリの種類以上', text: '採点札のカテゴリが N 種類以上（2枚以上重なったものだけ数えるなら 重なったものだけ: true）', args: 'int', extra: { '重なったものだけ?': 'bool' },
+    test: (E, a, all) => kindsOf(E, all.重なったものだけ) >= a },
+  { name: '効果なし', text: 'この札が効果の無い札（バニラ）', args: 'bool',
+    test: (E, a) => !!E.subject && isVanilla(E, E.subject) === a },
+  { name: '効果なしの札', text: '採点札のうち効果の無い札が N 枚以上', args: 'int',
+    test: (E, a) => (E.sc?.scored || []).filter((c) => isVanilla(E, c)).length >= a },
+  { name: 'レアリティ以上', text: 'この札のレアリティがこれ以上', args: 'string',
+    test: (E, a) => !!E.subject && rarIndex(E.env.balance, E.subject.rar) >= rarIndex(E.env.balance, a) },
   { name: 'カテゴリ', text: 'この札がこのカテゴリを持つ', args: 'category',
     test: (E, a) => !!E.subject && cardView(E.subject, E.env.balance).cats.includes(a) },
   { name: '採点札のカテゴリ', text: '採点札のうちこのカテゴリの札が「枚数以上」枚（省略時1）', args: 'category', extra: { '枚数以上?': 'int' },
@@ -30,9 +57,9 @@ export const IF = [
       return others.some((c) => cardView(c, E.env.balance).cats.some((x) => mine.includes(x))) === a;
     } },
   { name: 'Tier', text: 'この札のTierがこれ', args: 'tier',
-    test: (E, a) => !!E.subject && String(E.subject.tier) === String(a) },
+    test: (E, a) => !!E.subject && tierOf(E.subject, E.env.balance, E.B.banzuke) === String(a) },
   { name: 'Tier以上', text: 'この札のTierがこれ以上（Godが一番上）', args: 'tier',
-    test: (E, a) => !!E.subject && tierRank(E.env.balance, E.subject.tier) >= tierRank(E.env.balance, a) },
+    test: (E, a) => !!E.subject && tierRank(E.env.balance, tierOf(E.subject, E.env.balance, E.B.banzuke)) >= tierRank(E.env.balance, a) },
   { name: '番付', text: 'カテゴリの番付の段が 以上／以下／ちょうど', args: { カテゴリ: 'category', '以上?': 'slot', '以下?': 'slot', '段?': 'slot' },
     test: (E, a) => {
       const b = E.env.balance;
@@ -90,7 +117,7 @@ export const UNLOCK = [
   { name: 'boss', text: 'その層の層主を倒す', args: 'layerId', test: (R, a) => (R.bosses || []).includes(a) },
   { name: 'souvenir', text: 'そのお土産を持ち帰る', args: 'souvenirId', test: (R, a) => (R.brought || []).includes(a) },
   { name: 'death', text: '未帰還の回数が N 以上', args: 'int', test: (R, a) => (R.deaths || 0) >= a },
-  { name: 'hand', text: 'その組を累計 N 回出す（{ 同類: 50 }）', args: 'any', test: (R, a) => Object.entries(a || {}).every(([k, n]) => (R.counts?.hands?.[k] || 0) >= n) },
+  { name: 'overlap', text: '同じカテゴリ N 枚以上の重なりで論破を累計 M 回（{ 5: 30 } なら5枚重なりで30回）', args: 'any', test: (R, a) => Object.entries(a || {}).every(([k, n]) => Object.entries(R.counts?.hands || {}).filter(([j]) => Number(j) >= Number(k)).reduce((s, [, v]) => s + v, 0) >= n) },
   { name: 'overkill', text: 'その過剰論破を累計 N 回（{ 大論破: 50 }）', args: 'any', test: (R, a) => Object.entries(a || {}).every(([k, n]) => (R.counts?.overkill?.[k] || 0) >= n) },
   { name: 'extractFrom', text: 'B(N) から脱出', args: 'int', test: (R, a) => (R.deepestExtract || 0) >= a },
   { name: 'depthExtract', text: '深度 N で B16 から脱出', args: 'int', test: (R, a) => (R.depthExtract16 ?? -1) >= a },

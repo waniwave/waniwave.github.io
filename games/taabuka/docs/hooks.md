@@ -10,7 +10,7 @@
 - 例外：差し込みが例外を投げたら、その差し込みだけを無かったことにして続け、記録に残る。
 - ctx に共通：battle（戦闘の状態）、env（balance・content・hooks・rng）。乱数は必ず env.rng から。
 
-## 差し込み口（30）
+## 差し込み口（31）
 
 | 名前 | いつ呼ばれるか | ctx の中身 |
 |---|---|---|
@@ -30,6 +30,7 @@
 | `hand.evaluate` | 組の判定。next() の後で ctx.result を書き換えれば判定を差し替えられる。next() の前に views を書き換えれば見え方を変えられる | battle, env, cards, views（{tier, cats, stone}）, strengths, result（{hand, scored, kickers, flushCats}）, choices |
 | `score.order` | 採点の順番を決めるとき（採点札の前） | 採点の場 sc（下）。sc.scored を並べ替えてよい |
 | `score.card` | 採点札1枚ごと（a 強さ〜f 宿泊客）。next() を2回呼べば2回採点 | 採点の場 sc、sc.card（いまの札） |
+| `score.overlap` | 採点札のあと、重なり（同じカテゴリの枚数）で倍率を掛けるところ | 採点の場 sc、sc.overlap（カテゴリ→枚数） |
 | `score.held` | 手札に残った札1枚ごと（鋼、合図「手札に残る」） | 採点の場 sc、sc.card |
 | `score.regulars` | 常連客の段（左の席から全員） | 採点の場 sc、sc.regular（いまの常連客） |
 | `score.relics` | 置物の段（手に入れた順に全部） | 採点の場 sc、sc.relic |

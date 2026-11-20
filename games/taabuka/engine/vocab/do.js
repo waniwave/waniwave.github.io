@@ -7,8 +7,11 @@ import {
   log, addMod, shiftBanzuke, setBanzuke, drawCards, gainItem, addRule, killEnemy, spawnCard, removeCard,
   hitPlayer, makeEnemy, attachEnemy, newUid, mostCategory, topCategory, SCOPE_OF,
 } from '../battle.js';
-import { num, resolveCategory, resolveCards, resolveEnemies, CARD_TARGETS, ENEMY_TARGETS } from './effect.js';
+import { num, sn, resolveCategory, resolveCards, resolveEnemies, CARD_TARGETS, ENEMY_TARGETS } from './effect.js';
 import { checkArg } from './index.js';
+import { overlapOf, kindsOf, isVanilla } from './if.js';
+import { tierOf } from '../hand.js';
+const tierStep = (E, c) => Math.max(0, E.env.balance.tiers.banzukeSteps.indexOf(tierOf(c, E.env.balance, E.B.banzuke)));
 
 const SCOPE_WORDS = ['ターン', '戦闘'];
 const BOSS_KINDS = ['層主', '底の主'];
@@ -23,20 +26,6 @@ function stepTier(balance, tier, change) {
   return String(change);
 }
 
-function resolveHand(E, word) {
-  const B = E.B;
-  switch (word) {
-    case '最後の組': return B.lastHand;
-    case 'この出しの組': return E.sc?.hand ?? E.ctx.hand ?? B.lastHand;
-    case '一番多く出した組': {
-      let best = null;
-      for (const [h, n] of Object.entries(B.stats.hands)) if (!best || n > B.stats.hands[best]) best = h;
-      return best;
-    }
-    case '選ぶ': return E.choices.組 ?? B.lastHand;
-    default: return word;
-  }
-}
 
 /** 潜行の状態（戦闘の外の効果だけが使う）。潜行の外では null */
 function diveOf(E) {
@@ -55,17 +44,17 @@ function countMod(key) {
 
 export const DO = [
   // 採点
-  { name: '強さ', text: '強さ（S）に足す', args: 'expr', score: true, run: (E, a) => E.sc.addS(num(E, a), E.src) },
-  { name: '倍率', text: '倍率（M）に足す', args: 'expr', score: true, run: (E, a) => E.sc.addM(num(E, a), E.src) },
-  { name: '掛け', text: '倍率（M）に掛ける', args: 'expr', score: true, run: (E, a) => E.sc.mulM(num(E, a), E.src) },
+  { name: '強さ', text: '強さ（S）に足す', args: 'expr', score: true, run: (E, a) => E.sc.addS(sn(E, a), E.src) },
+  { name: '倍率', text: '倍率（M）に足す', args: 'expr', score: true, run: (E, a) => E.sc.addM(sn(E, a), E.src) },
+  { name: '掛け', text: '倍率（M）に掛ける', args: 'expr', score: true, run: (E, a) => E.sc.mulM(sn(E, a, 'mul'), E.src) },
   { name: '論破値を掛ける', text: '最後の S×M にさらに掛ける', args: 'expr', score: true,
-    run: (E, a) => E.sc.finalMuls.push({ x: num(E, a), src: E.src }) },
+    run: (E, a) => E.sc.finalMuls.push({ x: sn(E, a, 'mul'), src: E.src }) },
   // 自分
   { name: '受け', text: '受けに足す', args: 'expr',
-    run: (E, a) => { const n = num(E, a); E.B.guard = Math.max(0, E.B.guard + n); log(E.B, { t: 'guard', card: E.src.name, add: n, guard: E.B.guard }); } },
+    run: (E, a) => { const n = sn(E, a); E.B.guard = Math.max(0, E.B.guard + n); log(E.B, { t: 'guard', card: E.src.name, add: n, guard: E.B.guard }); } },
   { name: '体力', text: '体力を増やす（負なら減らす）。最大を超えない', args: 'expr',
-    run: (E, a) => { const n = Math.round(num(E, a)); E.B.hp = Math.max(0, Math.min(E.B.maxHp, E.B.hp + n)); log(E.B, { t: 'hp', add: n, hp: E.B.hp, src: E.src.name }); } },
-  { name: '引く', text: '札をN枚引く', args: 'expr', run: (E, a) => drawCards(E.B, E.env, Math.round(num(E, a))) },
+    run: (E, a) => { const raw = num(E, a); const n = Math.round(raw > 0 ? sn(E, a) : raw); E.B.hp = Math.max(0, Math.min(E.B.maxHp, E.B.hp + n)); log(E.B, { t: 'hp', add: n, hp: E.B.hp, src: E.src.name }); } },
+  { name: '引く', text: '札をN枚引く', args: 'expr', run: (E, a) => drawCards(E.B, E.env, Math.round(sn(E, a, 'draw'))) },
   { name: '捨てる', text: '手札の札を捨て札へ', args: { '対象?': CARD_TARGETS, '枚数?': 'int' },
     run: (E, a) => {
       for (const c of resolveCards(E, a.対象 ?? '手札の乱数', a.枚数 ?? 1)) {
@@ -105,14 +94,6 @@ export const DO = [
       for (const c of E.env.balance.tiers.categories) if (snap[c] != null && snap[c] !== E.B.banzuke[c]) setBanzuke(E.B, E.env, c, snap[c], E.src);
     } },
   // 組
-  { name: '段位を上げる', text: '組の段位を上げる（潜行限り）', args: { 組: 'hand', '段?': 'int' },
-    run: (E, a) => {
-      const h = resolveHand(E, a.組); if (!h) return;
-      const start = E.env.balance.hands.levelStart ?? 1;
-      E.B.handLevels[h] = (E.B.handLevels[h] ?? start) + (a.段 ?? 1);
-      log(E.B, { t: 'level', hand: h, level: E.B.handLevels[h] });
-    } },
-  // 札
   { name: '札を変える', text: '札のTier・カテゴリ・強さを変える', args: { '対象?': CARD_TARGETS, 'Tier?': 'tier|string', 'カテゴリを足す?': 'category', 'カテゴリを変える?': 'category', '強さ?': 'expr', '期間?': ['戦闘', '潜行'] },
     validate: (a) => (a.Tier != null && !/^[+-]\d+$/.test(String(a.Tier)) && typeof a.Tier === 'string' && !['God'].includes(a.Tier) && Number.isNaN(Number(a.Tier)) ? `Tier「${a.Tier}」は Tier か "+1" "-1" の形` : null),
     run: (E, a) => {
@@ -148,13 +129,13 @@ export const DO = [
       }
     } },
   { name: '次の出しの強さ', text: '次の出しの最初に強さ（S）に足す', args: 'expr',
-    run: (E, a) => { E.B.carryS = (E.B.carryS || 0) + num(E, a); log(E.B, { t: 'note', what: `次の出し 強さ+${num(E, a)}` }); } },
+    run: (E, a) => { const n = sn(E, a); E.B.carryS = (E.B.carryS || 0) + n; log(E.B, { t: 'note', what: `次の出し 強さ+${n}` }); } },
   // 敵
   { name: '主張を削る', text: '敵の主張を割合か量で削る（層主・底の主は「層主なら」の割合）', args: { '対象?': ENEMY_TARGETS, '割合?': 'number', '量?': 'expr', '層主なら?': 'number' },
     run: (E, a) => {
       for (const e of resolveEnemies(E, a.対象)) {
         const ratio = BOSS_KINDS.includes(e.kind) && a.層主なら != null ? a.層主なら : a.割合;
-        let cut = ratio != null ? e.claim.mul(ratio) : Big.from(num(E, a.量 ?? 0));
+        let cut = ratio != null ? e.claim.mul(ratio) : Big.from(sn(E, a.量 ?? 0));
         cut = Big.min(cut.round(), e.claim);
         e.claim = e.claim.sub(cut);
         log(E.B, { t: 'damage', enemy: e.uid, name: e.name, amount: cut, after: e.claim, pierce: false, killed: e.claim.lte(0), src: E.src.name });
@@ -166,7 +147,7 @@ export const DO = [
   { name: '行動を消す', text: '敵の次の行動を無効', args: ENEMY_TARGETS,
     run: (E, a) => { for (const e of resolveEnemies(E, a)) { e.skip += 1; log(E.B, { t: 'stun', enemy: e.uid, name: e.name, turns: e.skip }); } } },
   // 経済・潜行
-  { name: '宿銭', text: '宿銭を得る', args: 'expr', run: (E, a) => { const n = Math.round(num(E, a)); E.B.zeni += n; log(E.B, { t: 'zeni', add: n, why: E.src.name }); } },
+  { name: '宿銭', text: '宿銭を得る', args: 'expr', run: (E, a) => { const n = Math.round(sn(E, a)); E.B.zeni += n; log(E.B, { t: 'zeni', add: n, why: E.src.name }); } },
   { name: 'お品書きを得る', text: 'お品書きを得る（空きがあれば）', args: 'itemKind',
     run: (E, a) => gainItem(E.B, E.env, a, {}) },
   { name: 'お土産を得る', text: 'お土産を得る', args: 'souvenirId',
@@ -174,7 +155,7 @@ export const DO = [
   { name: '気配', text: '気配を増減', args: 'int', run: (E, a) => { E.B.presence = Math.max(0, E.B.presence + a); log(E.B, { t: 'presence', add: a, presence: E.B.presence }); } },
   { name: '脱出', text: 'その場で脱出する', args: 'bool', run: (E) => { E.B.pendingEscape = true; } },
   { name: '育つ', text: 'この札・常連客の育ちを増やす', args: 'expr',
-    run: (E, a) => { if (E.self) { E.self.grow = (E.self.grow || 0) + num(E, a); log(E.B, { t: 'grow', name: E.src.name, grow: E.self.grow }); } } },
+    run: (E, a) => { if (E.self) { E.self.grow = (E.self.grow || 0) + sn(E, a); log(E.B, { t: 'grow', name: E.src.name, grow: E.self.grow }); } } },
   // 潜行（戦闘の外でも使う。潜行の中でだけ効く）
   { name: 'デッキから除く', text: 'デッキの札を1枚除く（選ぶ／乱数）', args: ['選ぶ', '乱数'],
     run: (E, a) => {
@@ -290,10 +271,9 @@ export const ACTS = [
     } },
   { name: '伏せ', text: '次のターン、手札のN枚が裏向き（出せるが中身が見えない）', args: 'int',
     run(B, env, e, arg) { B.pendingFaceDown += arg; log(B, { t: 'act', enemy: e.uid, name: e.name, act: '伏せ', n: arg }); } },
-  { name: '封じ', text: 'その戦闘中、指定のものを採点しない／使えない', args: ['最多カテゴリ', '最後の組', '流し'],
+  { name: '封じ', text: 'その戦闘中、指定のものを採点しない／使えない', args: ['最多カテゴリ', '流し'],
     run(B, env, e, arg) {
       if (arg === '流し') B.sealed.discard = true;
-      else if (arg === '最後の組') { if (B.lastHand && !B.sealed.hands.includes(B.lastHand)) B.sealed.hands.push(B.lastHand); }
       else { const c = mostCategory(B, env); if (c && !B.sealed.cats.includes(c)) B.sealed.cats.push(c); }
       log(B, { t: 'act', enemy: e.uid, name: e.name, act: '封じ', what: arg });
     } },
@@ -329,7 +309,7 @@ export const VARS = [
   { name: '熟成', text: 'この札の熟成', get: (E) => subj(E)?.vars?.熟成 ?? 0 },
   { name: '育ち', text: '効果の持ち主（札・常連客）の育ち', get: (E) => E.self?.grow ?? 0 },
   { name: '文字数', text: 'この札の名前の文字数', get: (E) => (subj(E) ? [...subj(E).name].length : 0) },
-  { name: '強さ', text: 'この札の強さ', get: (E) => (subj(E) ? cardStrength(subj(E), E.env.balance) : 0) },
+  { name: '強さ', text: 'この札の強さ', get: (E) => (subj(E) ? cardStrength(subj(E), E.env.balance, E.B.banzuke) : 0) },
   { name: 'カテゴリ数', text: 'この札のカテゴリの数', get: (E) => (subj(E) ? cardView(subj(E), E.env.balance).cats.length : 0) },
   { name: '手札枚数', text: '手札の枚数', get: (E) => E.B.hand.length },
   { name: '山札枚数', text: '山札の枚数', get: (E) => E.B.draw.length },
@@ -345,7 +325,12 @@ export const VARS = [
   { name: '出し回数', text: 'このターン何回目の出しか', get: (E) => E.B.turnPlays },
   { name: '戦闘の出し回数', text: 'この戦闘で何回目の出しか', get: (E) => E.B.stats.plays },
   { name: '採点枚数', text: '採点札の枚数', get: (E) => E.sc?.scored.length ?? 0 },
-  { name: '段位', text: 'いまの組の段位', get: (E) => E.sc?.level ?? 1 },
+  { name: '重なり', text: '採点札で一番重なっているカテゴリの枚数', get: (E) => overlapOf(E) },
+  { name: 'この札の重なり', text: 'この札のカテゴリの重なりの枚数（一番多いもの）', get: (E) => overlapOf(E, 'この札') },
+  { name: 'カテゴリの種類', text: '採点札のカテゴリの種類の数', get: (E) => kindsOf(E, false) },
+  { name: '重なったカテゴリの数', text: '2枚以上重なっているカテゴリの数', get: (E) => kindsOf(E, true) },
+  { name: '効果なしの札', text: '採点札のうち効果の無い札の数', get: (E) => (E.sc?.scored || []).filter((c) => isVanilla(E, c)).length },
+  { name: 'Tierの段', text: 'この札のTierの段の高さ（God 7・0 6…5 1・8 0）', get: (E) => (subj(E) ? tierStep(E, subj(E)) : 0) },
   { name: '受け', text: 'いまの受け', get: (E) => E.B.guard },
   { name: '敵の数', text: '残っている敵の数', get: (E) => E.B.enemies.filter((e) => !e.dead).length },
 ];

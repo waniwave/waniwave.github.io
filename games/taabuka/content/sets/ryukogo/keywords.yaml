@@ -7,7 +7,7 @@
 
 - id: kw_kougo
   name: 交互
-  text: 採点の順番をカテゴリが交互になるように並べ替え、交互が続いた数だけ倍率×1.5
+  text: 出した札を全て採点し、カテゴリが交互になるよう並べ替え、交互が続いた数だけ倍率×1.5
   custom: kougo            # custom/kougo.js
   params: { 掛け: 1.5 }
   show:
@@ -15,7 +15,7 @@
 
 - id: kw_sengen
   name: 宣言
-  text: 出すときに好きな組を1つ宣言し、成立していなくてもその組として採点する
+  text: 出すときにカテゴリを1つ宣言し、出した札が全てそのカテゴリを持っていることにする
   custom: sengen           # custom/sengen.js
 
 - id: kw_fuseji

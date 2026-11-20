@@ -13,7 +13,7 @@ export const HOOK_NAMES = Object.freeze([
   // 潜行
   'dive.start', 'floor.enter', 'room.enter', 'landing', 'dive.extract', 'dive.death', 'reward.roll', 'shop.roll',
   // 戦闘
-  'battle.start', 'turn.start', 'draw.after', 'play.before', 'play.after', 'hand.evaluate', 'score.order', 'score.card',
+  'battle.start', 'turn.start', 'draw.after', 'play.before', 'play.after', 'hand.evaluate', 'score.order', 'score.card', 'score.overlap',
   'score.held', 'score.regulars', 'score.relics', 'score.final', 'damage.apply', 'enemy.defeated', 'overkill',
   'turn.end', 'enemy.before', 'enemy.act', 'battle.end',
   // 番付・表示
@@ -186,6 +186,7 @@ export const HOOK_INFO = {
   'hand.evaluate': { when: '組の判定。next() の後で ctx.result を書き換えれば判定を差し替えられる。next() の前に views を書き換えれば見え方を変えられる', ctx: 'battle, env, cards, views（{tier, cats, stone}）, strengths, result（{hand, scored, kickers, flushCats}）, choices' },
   'score.order': { when: '採点の順番を決めるとき（採点札の前）', ctx: '採点の場 sc（下）。sc.scored を並べ替えてよい' },
   'score.card': { when: '採点札1枚ごと（a 強さ〜f 宿泊客）。next() を2回呼べば2回採点', ctx: '採点の場 sc、sc.card（いまの札）' },
+  'score.overlap': { when: '採点札のあと、重なり（同じカテゴリの枚数）で倍率を掛けるところ', ctx: '採点の場 sc、sc.overlap（カテゴリ→枚数）' },
   'score.held': { when: '手札に残った札1枚ごと（鋼、合図「手札に残る」）', ctx: '採点の場 sc、sc.card' },
   'score.regulars': { when: '常連客の段（左の席から全員）', ctx: '採点の場 sc、sc.regular（いまの常連客）' },
   'score.relics': { when: '置物の段（手に入れた順に全部）', ctx: '採点の場 sc、sc.relic' },

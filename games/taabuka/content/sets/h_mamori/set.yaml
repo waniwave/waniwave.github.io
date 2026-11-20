@@ -1,6 +1,6 @@
 id: h_mamori
 name: 守りの宿
-unlock: { hand:  { 同類:  50 } }          # ほとり第6波（同類を累計50回）
+unlock: { overlap: { 4: 50 } }          # ほとり第6波（4枚以上の重なりを累計50回）
 color: "#8a8a3a"
 keywords: []
 intro: 鏡は跳ね返し、浴衣は身代わりになり、過去ログは残る。除去への答え。

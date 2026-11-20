@@ -48,7 +48,7 @@
     - name: 次の出しの強さ＋3
       hand: [{ tier: 3, cat: [麺], kw: [余韻3] }, { tier: 3, cat: [湯] }]
       steps: [{ play: [0] }, { play: [0] }]
-      expect: { V: 14 }               # 2回目の単騎：(5＋6＋3)×1。余韻なしなら 11
+      expect: { V: 13 }               # 2回目（湯1枚）：10＋3。余韻なしなら 10
 
 - id: kw_mamori
   name: 守り
@@ -73,10 +73,10 @@
   test:
     - name: 同じカテゴリが他にあれば倍率＋2
       hand: [{ tier: 3, cat: [麺], kw: [連れ2] }, { tier: 3, cat: [麺] }]
-      expect: { V: 88, なしより大きい: true }   # 対：(10＋6＋6)×(2＋2)
+      expect: { V: 90, なしより大きい: true }   # 麺2枚：(10＋10)×((1＋2)×1.5)
     - name: 1枚だけなら何もしない
       hand: [{ tier: 3, cat: [麺], kw: [連れ2] }]
-      expect: { V: 11 }
+      expect: { V: 10 }
 
 - id: kw_ichibanyari
   name: 一番槍
@@ -111,9 +111,9 @@
       do:
         - ルール: { 名前: 重ね数, 範囲: この出し, 枚数: N }
   test:
-    - name: 重ね数2と同じTierの札1枚で三揃
-      hand: [{ tier: 3, cat: [麺], kw: [重ね数2] }, { tier: 3, cat: [湯] }]
-      expect: { 組: 三揃 }
+    - name: 重ね数2の札は1枚で2枚分重なる
+      hand: [{ tier: 3, cat: [麺], kw: [重ね数2] }]
+      expect: { V: 15 }               # 麺が2枚分：10×1.5
 
 - id: kw_nemawashi
   name: 根回し

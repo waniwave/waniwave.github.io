@@ -7,7 +7,7 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { loadBalance } from '../../engine/content.js';
+import { loadBalance, compileOne } from '../../engine/content.js';
 import { createVocab } from '../../engine/vocab/index.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -28,8 +28,8 @@ export function fixtureContent(extra = {}) {
   for (const r of extra.rules || []) vocab.register('rule', { text: '試し', ...r }, 'tools/fixtures');
   for (const m of extra.mechanics || []) vocab.register('mechanic', { text: '試し', ...m }, 'tools/fixtures');
   for (const e of extra.enemyCustoms || []) vocab.register('enemy', { text: '試し', ...e }, 'tools/fixtures');
-  return {
-    vocab, keywords: [],
+  const C = {
+    vocab, keywords: [], kwDefs: {}, kwByName: {}, affixes: {},
     cards: byId([...CARDS, ...(extra.cards || [])]),
     enemies: byId([...ENEMIES, ...(extra.enemies || [])]),
     regulars: byId(extra.regulars || []),
@@ -37,6 +37,9 @@ export function fixtureContent(extra = {}) {
     guests: byId(extra.guests || []),
     items: byId(extra.items || []),
   };
+  // fx を書いた仮の札は、戦闘で使う形（listen）にする
+  for (const d of Object.values(C.cards)) if (d.fx && !d.listen) compileOne(C, d, 'cards');
+  return C;
 }
 
 /** 個体（セーブの形）を作る */
@@ -49,7 +52,7 @@ export function fixtureDeck() { return CARDS.map((c, i) => owned(c.id, i)); }
 export async function loadRealContent() {
   const { loadContent, nodeIO } = await import('../../engine/content.js');
   const { content, issues } = await loadContent(await nodeIO(path.join(ROOT, 'content')));
-  for (const c of CARDS) if (!content.cards[c.id]) content.cards[c.id] = { ...c, tier: String(c.tier), set: '仮', listen: [], rules: [], show: [], text: '仮の札（ター宿セットの移植まで）' };
+  for (const c of CARDS) if (!content.cards[c.id]) content.cards[c.id] = { ...c, set: '仮', listen: [], rules: [], show: [], text: '仮の札（ター宿セットの移植まで）' };
   return { base: { balance: content.balance, content }, issues };
 }
 

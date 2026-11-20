@@ -12,11 +12,11 @@ export default {
   },
   status: (B, me) => `名乗り：名前の長い札ほど強い（上限${me.params.上限}文字）`,
   tests: [
-    // 11文字の札：単騎 (5＋6＋11)×1＝22
-    { name: '文字数だけ強さ＋', guest: 'tsuchi', hand: [{ tier: 3, cat: ['麺'], name: 'とても長い名前の札です' }], expect: { V: 22 } },
+    // 11文字の札：10＋11＝21
+    { name: '文字数だけ強さ＋', guest: 'tsuchi', hand: [{ tier: 3, cat: ['麺'], name: 'とても長い名前の札です' }], expect: { V: 21 } },
     // 15文字でも上限12
-    { name: '上限12文字', guest: 'tsuchi', hand: [{ tier: 3, cat: ['麺'], name: 'あいうえおかきくけこさしすせそ' }], expect: { V: 23 } },
-    // 対なら2枚とも：(10＋6＋6＋3＋3)×2＝56
-    { name: '採点札ごと', guest: 'tsuchi', hand: [{ tier: 3, cat: ['麺'], name: '土の札' }, { tier: 3, cat: ['宿'], name: '土の札' }], expect: { V: 56 } },
+    { name: '上限12文字', guest: 'tsuchi', hand: [{ tier: 3, cat: ['麺'], name: 'あいうえおかきくけこさしすせそ' }], expect: { V: 22 } },
+    // 麺2枚なら2枚とも：(10＋3＋10＋3)×1.5＝39
+    { name: '採点札ごと', guest: 'tsuchi', hand: [{ tier: 3, cat: ['麺'], name: '土の札' }, { tier: 3, cat: ['麺'], name: '土の札' }], expect: { V: 39 } },
   ],
 };

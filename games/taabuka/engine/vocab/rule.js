@@ -34,17 +34,11 @@ export const RULES = [
       'score.card': (c, next, me) => { for (let i = 0; i < me.params.回数; i++) next(); },
       'score.regulars': (c, next, me) => { for (let i = 0; i < me.params.回数; i++) next(); },
     } },
-  { name: '組を宣言', text: '宣言した組として採点する（成立していなくても）。出した札は全て採点', args: { '組?': 'hand' },
-    hooks: {
-      'hand.evaluate': (c, next, me) => {
-        next();
-        const order = c.env.balance.hands.order;
-        const h = me.params.組 ?? c.choices?.宣言 ?? order[0];
-        if (!c.env.balance.hands.hands[h]) throw new Error(`宣言した組「${h}」は無い`);
-        c.result = { ...c.result, hand: h, scored: c.views.map((_, i) => i), kickers: [] };
-      },
-    } },
-  { name: '重ね数', text: '揃いの判定で、掛けた札を N 枚分として数える（1つの揃いは5枚分まで）', args: { 枚数: 'int' },
+  { name: '全札を採点', text: '出した札を孤立していても全て採点する（受けにならない）', args: null,
+    hooks: { 'hand.evaluate': (c, next) => { next(); c.result = { ...c.result, scored: c.views.map((_, i) => i), kickers: [] }; } } },
+  { name: '重なりを1枚多く', text: '重なりを数えるとき、2枚以上重なったカテゴリをそれぞれ N 枚多く数える', args: { '枚数?': 'int' },
+    hooks: { 'score.overlap': (c, next, me) => { for (const k of Object.keys(c.overlap)) if (c.overlap[k] >= 2) c.overlap[k] += me.params.枚数 ?? 1; next(); } } },
+  { name: '重ね数', text: '重なりで、掛けた札を N 枚分として数える', args: { 枚数: 'int' },
     hooks: {
       'hand.evaluate': (c, next, me) => {
         const i = c.cards.findIndex((x) => x.uid === me.owner?.uid);
@@ -52,16 +46,7 @@ export const RULES = [
         next();
       },
     } },
-  { name: '組を1段上として扱う', text: '成立した組を、優先順で1つ上の組として扱う', args: null,
-    hooks: {
-      'hand.evaluate': (c, next) => {
-        next();
-        const order = c.env.balance.hands.order;
-        const i = order.indexOf(c.result.hand);
-        if (i > 0) c.result = { ...c.result, hand: order[i - 1] };
-      },
-    } },
-  { name: '全札を同カテゴリ扱い', text: '組の判定で、出した札を全て同じカテゴリとして扱う（省略時は一番多いカテゴリ）', args: { 'カテゴリ?': 'category' },
+  { name: '全札を同カテゴリ扱い', text: '重なりの判定で、出した札を全て同じカテゴリとして扱う（省略時は一番多いカテゴリ）', args: { 'カテゴリ?': 'category' },
     hooks: {
       'hand.evaluate': (c, next, me) => {
         const cat = me.params.カテゴリ ?? mostOf(c.views.flatMap((v) => v.cats));
@@ -69,12 +54,12 @@ export const RULES = [
         next();
       },
     } },
-  { name: '全札を同Tier扱い', text: '組の判定で、出した札を全て同じTierとして扱う（省略時は一番多いTier）', args: { 'Tier?': 'tier' },
+  { name: '全札を同Tier扱い', text: '採点のとき、札を全て同じTierとして扱う（強さがそのTierの強さになる）', args: { Tier: 'tier' },
     hooks: {
-      'hand.evaluate': (c, next, me) => {
-        const t = me.params.Tier != null ? String(me.params.Tier) : mostOf(c.views.filter((v) => !v.stone).map((v) => v.tier));
-        if (t != null) c.views = c.views.map((v) => (v.stone ? v : { ...v, tier: t }));
-        next();
+      'score.card': (c, next, me) => {
+        const card = c.card; const was = card.tier;
+        card.tier = String(me.params.Tier);
+        try { next(); } finally { card.tier = was; }
       },
     } },
   { name: '採点順を逆に', text: '採点札を右から採点する', args: null,
@@ -86,7 +71,7 @@ export const RULES = [
         const b = c.env.balance;
         const key = me.params.基準 === 'Tier順'
           ? (x) => -(b.tiers.tiers[x.tier]?.rank ?? -99)
-          : (x) => (me.params.基準 === '強い順' ? -1 : 1) * cardStrength(x, b);
+          : (x) => (me.params.基準 === '強い順' ? -1 : 1) * cardStrength(x, b, c.battle.banzuke);
         c.scored.sort((x, y) => key(x) - key(y));
       },
     } },
@@ -94,7 +79,7 @@ export const RULES = [
     apply: (B, env, r) => reverseBanzuke(B, env, r.owner), expire: (B, env, r) => reverseBanzuke(B, env, r.owner) },
   { name: '番付を固定', text: '番付が動かなくなる', args: null,
     hooks: { 'banzuke.change': (c) => { log(c.battle, { t: 'note', what: '番付は固定されている', cat: c.cat }); } } },
-  { name: '番付倍率をN倍', text: '番付倍率（足す分）を N 倍にする', args: { 倍: 'number' },
+  { name: '番付倍率をN倍', text: '札の強さ（Tierの強さ）を N 倍にする', args: { 倍: 'number' },
     hooks: { 'score.order': (c, next, me) => { c.banzukeMul *= me.params.倍; next(); } } },
   { name: '回数を変える', text: '戦闘のあいだ、出し・流し・手札の上限を増減する', args: { '出し?': 'int', '流し?': 'int', '手札上限?': 'int' },
     hooks: {
@@ -106,9 +91,6 @@ export const RULES = [
         next();
       },
     } },
-  { name: '段位を足す', text: '掛けている間、組の段位を N 足す（外れると戻る）', args: { 組: 'hand', 段: 'int' },
-    apply: (B, env, r) => { const k = r.params.組; B.handLevels[k] = (B.handLevels[k] ?? env.balance.hands.levelStart ?? 1) + r.params.段; },
-    expire: (B, env, r) => { const k = r.params.組; B.handLevels[k] = Math.max(env.balance.hands.levelStart ?? 1, (B.handLevels[k] ?? 1) - r.params.段); } },
   { name: '受けを無効', text: '出した札が受けにならない', args: null,
     on: { 受けに回る: (c) => { c.guard = 0; } } },
   { name: '受けを攻撃に加える', text: '受けになる札の分を、受けでなく強さ（S）に足す', args: null,
@@ -118,7 +100,7 @@ export const RULES = [
         let s = 0;
         for (const k of c.kickers) {
           const enh = k.enh && b.hands.enhancements[k.enh];
-          s += cardStrength(k, b) * (enh?.guardMul ?? 1);
+          s += cardStrength(k, b, c.battle.banzuke) * (enh?.guardMul ?? 1);
         }
         if (s) c.addS(s, { kind: 'rule', name: '受けを攻撃に加える' });
         next();

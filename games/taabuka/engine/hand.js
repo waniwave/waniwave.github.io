@@ -1,21 +1,48 @@
-// 組の判定（仕様書 第2章「組の判定」）
-// Tierの輪（God→0→1→2→3→4→5→8→God）、13の組、複数カテゴリ、多才・石、優先順、採点札の選び方。
-// 優先順と輪の並びは content/balance/ から読む。
+// 札の見え方と「重なり」の判定（作り直し仕様 B）
+// 札に固有の数字は無い。札のTier＝その札のカテゴリが番付（上の表）で今いる段（複数なら一番高い段）。
+// 出した札のうち、ほかの出した札とカテゴリを1つも共有しない札は「孤立」して受けに回る（1枚だけ出したときは採点）。
+// 採点札のカテゴリごとの枚数（重なり）が倍率になる（score.js）。
 
 /**
- * @typedef {{tier: string|null, cats: string[], stone: boolean, count?: number}} CardView  判定に使う札の見え方（count は揃いの判定で何枚分か。省略時1）
- * @typedef {{hand: string, scored: number[], kickers: number[], flushCats: string[], straight: boolean}} HandResult
+ * @typedef {{tier: string|null, cats: string[], stone: boolean, count?: number}} CardView  見え方（count は重なりで何枚分か。省略時1）
+ * @typedef {{hand: string, scored: number[], kickers: number[], overlap: Object<string,number>, flushCats: string[], straight: boolean}} HandResult
  */
 
+/** 番付の段の順位（高いほど強い） */
+function slotRank(balance, slot) {
+  return (balance.tiers.tiers[slot] || balance.tiers.missing?.[slot] || { rank: -Infinity }).rank;
+}
+
 /**
- * 札（個体）から判定用の見え方を作る。多才は全カテゴリ、石はTierもカテゴリも持たない
+ * 札のTier。札の固定（効果で「Tierを〜にする」）があればそれ、なければカテゴリの番付で一番高い段
+ * @param {object} card @param {object} balance @param {Object<string,string>} [banzuke]
+ */
+export function tierOf(card, balance, banzuke) {
+  if (card.tier != null) return String(card.tier);
+  const enh = (card.enh && balance.hands.enhancements[card.enh]) || {};
+  if (enh.noTier) return null;
+  const cats = enh.allCategories ? balance.tiers.categories : (card.cat || []);
+  if (!cats.length) return null;
+  const bz = banzuke || {};
+  let best = null;
+  for (const c of cats) {
+    const slot = bz[c] ?? balance.tiers.banzukeStart;
+    if (best == null || slotRank(balance, slot) > slotRank(balance, best)) best = slot;
+  }
+  return String(best);
+}
+
+/**
+ * 札（個体）から見え方を作る。多才は全カテゴリ、石はTierもカテゴリも持たない
  * @param {{tier?: string|number|null, cat?: string[], enh?: string}} card
+ * @param {object} balance
+ * @param {Object<string,string>} [banzuke] あればTierを番付から決める
  */
-export function cardView(card, balance) {
+export function cardView(card, balance, banzuke) {
   const enh = (card.enh && balance.hands.enhancements[card.enh]) || {};
   if (enh.noTier) return { tier: null, cats: [], stone: true };
   const cats = enh.allCategories ? balance.tiers.categories.slice() : (card.cat || []).slice();
-  return { tier: card.tier == null ? null : String(card.tier), cats, stone: false };
+  return { tier: tierOf(card, balance, banzuke), cats, stone: false };
 }
 
 /** 輪の上の位置（0〜7）。輪にないTierは -1 */
@@ -46,77 +73,48 @@ export function commonCats(views) {
   return [...common];
 }
 
-const FIVE = 5;
-
 /**
- * 組を判定する
+ * 重なりを判定する
  * @param {CardView[]} views 出した札（手札の左からの並び）
  * @param {object} balance
- * @param {number[]} [strengths] 単騎で「強さが一番高い1枚」を選ぶための強さ
+ * @param {number[]} [strengths] 全部が孤立したときに「強さが一番高い1枚」を採点するための強さ
  * @returns {HandResult}
  */
 export function evaluateHand(views, balance, strengths = []) {
-  const live = [];   // 組の判定に加わる札の番号（石以外）
+  const live = [];
   const stones = [];
-  views.forEach((v, i) => ((v.stone || v.tier == null) ? stones : live).push(i));
-
-  const byTier = new Map();
-  for (const i of live) {
-    const t = views[i].tier;
-    if (!byTier.has(t)) byTier.set(t, []);
-    byTier.get(t).push(i);
-  }
-  // 揃いの判定は枚数分（count）で数える。1つの揃いは5枚分まで
-  const weight = (g) => Math.min(FIVE, g.reduce((s, i) => s + (views[i].count ?? 1), 0));
-  const groups = [...byTier.values()].sort((a, b) => weight(b) - weight(a));
-  const shape = groups.map(weight);
-  const isFive = live.length === FIVE;
-  const flushCats = isFive ? commonCats(live.map((i) => views[i])) : [];
-  const flush = flushCats.length > 0;
-  const straight = isFive && shape.every((n) => n === 1) && isRingRun(live.map((i) => views[i].tier), balance);
-  const allGod = live.length > 0 && live.every((i) => views[i].tier === 'God') && shape[0] >= FIVE;
-  const full = shape[0] >= 3 && shape[1] >= 2;
-
-  const pick = (...gs) => gs.flat();
-  const rules = {
-    神組: () => (allGod ? live : null),
-    五揃同類: () => (shape[0] >= 5 && flush ? live : null),
-    満員同類: () => (full && flush ? live : null),
-    五揃: () => (shape[0] >= 5 ? groups[0] : null),
-    同類階段: () => (straight && flush ? live : null),
-    四揃: () => (shape[0] >= 4 ? groups[0] : null),
-    満員: () => (full ? pick(groups[0], groups[1]) : null),
-    同類: () => (flush ? live : null),
-    階段: () => (straight ? live : null),
-    三揃: () => (shape[0] >= 3 ? groups[0] : null),
-    二対: () => (shape[0] >= 2 && shape[1] >= 2 ? pick(groups[0], groups[1]) : null),
-    対: () => (shape[0] >= 2 ? groups[0] : null),
-    単騎: () => {
-      if (!live.length) return [];
+  views.forEach((v, i) => (v.stone ? stones : live).push(i));
+  let scoredLive;
+  if (live.length <= 1) scoredLive = live.slice();
+  else {
+    scoredLive = live.filter((i) => live.some((j) => j !== i && views[j].cats.some((c) => views[i].cats.includes(c))));
+    if (!scoredLive.length) {
       let best = live[0];
       for (const i of live) if ((strengths[i] ?? 0) > (strengths[best] ?? 0)) best = i;
-      return [best];
-    },
-  };
-
-  for (const name of balance.hands.order) {
-    const rule = rules[name];
-    if (!rule) throw new Error(`hands.yaml の order に知らない組「${name}」`);
-    const got = rule();
-    if (got) {
-      const scoredSet = new Set([...got, ...stones]);
-      const scored = views.map((_, i) => i).filter((i) => scoredSet.has(i));
-      const kickers = views.map((_, i) => i).filter((i) => !scoredSet.has(i));
-      return { hand: name, scored, kickers, flushCats, straight };
+      scoredLive = [best];
     }
   }
-  throw new Error('組が1つも決まらなかった（hands.yaml の order に 単騎 が要る）');
+  const overlap = {};
+  for (const i of scoredLive) for (const c of views[i].cats) overlap[c] = (overlap[c] || 0) + (views[i].count ?? 1);
+  const set = new Set([...scoredLive, ...stones]);
+  const scored = views.map((_, i) => i).filter((i) => set.has(i));
+  const kickers = views.map((_, i) => i).filter((i) => !set.has(i));
+  const flushCats = Object.keys(overlap).filter((c) => overlap[c] >= scored.length && scored.length >= 2);
+  return { hand: '重なり', scored, kickers, overlap, flushCats, straight: false };
 }
 
-/** 組の強さと倍率（段位込み） */
-export function handBase(name, level, balance) {
-  const h = balance.hands.hands[name];
-  if (!h) throw new Error(`知らない組「${name}」`);
-  const up = Math.max(0, level - (balance.hands.levelStart ?? 1));
-  return { S: h.S + h.perLevelS * up, M: h.M + h.perLevelM * up };
+/** 重なりの倍率（カテゴリごとの枚数 → 掛け算の並び）。1枚は×1 */
+export function overlapMuls(overlap, balance) {
+  const o = balance.hands.overlap;
+  const out = [];
+  for (const [cat, n] of Object.entries(overlap || {})) {
+    if (n < 2) continue;
+    out.push({ cat, n, x: 1 + o.step * (Math.min(n, o.cap ?? 99) - 1) });
+  }
+  return out;
+}
+
+/** 出しの土台（強さ0・倍率1）。組の段位は無くなった */
+export function handBase(_name, _level, balance) {
+  return { S: balance.hands.base?.S ?? 0, M: balance.hands.base?.M ?? 1 };
 }

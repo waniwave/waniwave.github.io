@@ -14,7 +14,7 @@ import {
   createBattle, openBattle, startBattle, play, discard, endTurn, guestAction, useItem, makeBattleCard, attachCard, findOwner,
 } from './battle.js';
 
-export const BALANCE_FILES = ['tiers', 'hands', 'curve', 'economy', 'depth'];
+export const BALANCE_FILES = ['tiers', 'hands', 'curve', 'economy', 'depth', 'rarity'];
 
 const REQUIRED = {
   tiers: ['categories', 'ring', 'tiers', 'banzukeStart', 'banzukeSteps'],
@@ -22,6 +22,7 @@ const REQUIRED = {
   curve: ['floors', 'beyond', 'kinds', 'presence'],
   economy: ['grades', 'battleRewards', 'overkill', 'gradeWeights'],
   depth: ['levels'],
+  rarity: ['order', 'defs', 'gradeFloor', 'weights', 'fuse', 'copy', 'value'],
 };
 
 /**
@@ -45,7 +46,7 @@ export function checkBalance(b) {
   if (!errs.length) {
     for (const t of b.tiers.ring) if (!b.tiers.tiers[t]) errs.push(`[数値表] tiers.yaml: 輪のTier「${t}」に値がない`);
     for (const h of b.hands.order) if (!b.hands.hands[h]) errs.push(`[数値表] hands.yaml: 組「${h}」に値がない`);
-    if (!b.hands.order.includes('単騎')) errs.push('[数値表] hands.yaml: order に 単騎 がない');
+    if (!b.hands.overlap) errs.push("[数値表] hands.yaml: overlap がない");
   }
   if (errs.length) throw new Error(errs.join('\n'));
   return b;
@@ -65,6 +66,8 @@ export function fetchIO(base, build, impl = {}) {
   // GitHub Pages は数百のファイルを一斉に頼むと 503 を返すことがある
   let active = 0;
   const waiting = [];
+  const P = { done: 0, total: 0, retry: 0 };
+  const tell = () => impl.onProgress?.({ ...P });
   const slot = async (fn) => {
     if (active >= FETCH_LIMIT) await new Promise((res) => waiting.push(res));
     active += 1;
@@ -74,12 +77,14 @@ export function fetchIO(base, build, impl = {}) {
   const retry = async (p, fn) => {
     let last;
     for (let i = 0; i < FETCH_TRIES; i++) {
-      try { return await fn(i); } catch (e) { last = e; if (e.permanent) throw e; }
+      try { const v = await fn(i); P.done += 1; tell(); return v; } catch (e) { last = e; if (e.permanent) throw e; }
+      P.retry += 1; tell();
       await sleep(400 * 2 ** i);
     }
     throw last;
   };
   return {
+    expect: (n) => { P.total = n + P.done; tell(); },
     readText: (p) => retry(p, () => slot(async () => {
       const r = await f(url(p));
       if (!r.ok) {
@@ -135,13 +140,18 @@ export async function loadContent(io) {
   const vocab = createVocab();
   const content = {
     balance, vocab, sets: {}, cards: {}, regulars: {}, relics: {}, items: {}, enemies: {}, layers: {}, events: {},
-    guests: {}, souvenirs: {}, facilities: [], achievements: [], shibari: [], kwDefs: {}, kwByName: {}, keywordRules: [], where: {}, customs: [],
+    guests: {}, souvenirs: {}, affixes: {}, facilities: [], achievements: [], shibari: [], kwDefs: {}, kwByName: {}, keywordRules: [], where: {}, customs: [],
   };
 
   let index;
   try { index = yaml.load(await io.readText('index.yaml')) || {}; }
   catch (e) { add('error', '形', 'content/index.yaml', `読めない：${e.message}`); index = {}; }
 
+  // 読み込みの進み具合（画面の帯）。数えられる分だけの見積もり
+  {
+    const count = (o) => (Array.isArray(o) ? o.length : o && typeof o === 'object' ? Object.values(o).reduce((s, v) => s + count(v), 0) : 0);
+    io.expect?.(count(index) + 1);
+  }
   const readYaml = async (p) => {
     try { return yaml.load(await io.readText(p)); }
     catch (e) { add('error', '形', `content/${p}`, `YAMLが読めない：${String(e.message).split('\n')[0]}`); return undefined; }
@@ -219,6 +229,7 @@ export async function loadContent(io) {
     if (f === 'facilities.yaml') content.facilities = list;
     if (f === 'achievements.yaml') content.achievements = list;
     if (f === 'shibari.yaml') content.shibari = list;
+    if (f === 'affixes.yaml') for (const d of list) putDef(content, 'affixes', d, `content/${f}`, add);
   }
 
   validateContent(content, add);
@@ -564,7 +575,7 @@ export function validateContent(content, add) {
       if (!ID_RE.test(d.id)) add('error', '形', d.id, 'id は英小文字・数字・_ で（例：rk_shineei）');
       if (!Array.isArray(d.cat) || d.cat.length < 1 || d.cat.length > 3) add('error', '形', d.id, 'cat は1〜3個の並び');
       else for (const c of d.cat) if (!b.tiers.categories.includes(c)) add('error', '形', d.id, `知らないカテゴリ「${c}」。${hint(c, b.tiers.categories)}`);
-      if (!b.tiers.ring.includes(String(d.tier))) add('error', '形', d.id, `tier「${d.tier}」は ${b.tiers.ring.join(' / ')} のどれか`);
+      if (d.tier != null) add('error', '形', d.id, 'tier は書かない（札の強さはカテゴリのTierで決まる）');
       checkGrade(content, d, add);
       if (d.origin != null && !ORIGINS.includes(d.origin)) add('error', '形', d.id, `origin「${d.origin}」は ${ORIGINS.join(' / ')} のどれか`);
       checkFx(content, d, ctx, add); checkShow(content, d, ctx, add); checkRules(content, d, ctx, add);
@@ -776,7 +787,7 @@ export function compileOne(content, d, bucket = 'cards') {
 export function compileContent(content) {
   content.keywordRules = Object.values(content.kwDefs).filter((k) => k.set).map((k) => kwCustomRule(content, k)
     ?? (k.fx || []).flatMap((f) => [].concat(f.do || [])).map((x) => x?.ルール?.名前).find(Boolean)).filter(Boolean);
-  for (const bucket of ['cards', 'regulars', 'relics', 'enemies']) {
+  for (const bucket of ['cards', 'regulars', 'relics', 'enemies', 'affixes']) {
     for (const d of Object.values(content[bucket])) compileOne(content, d, bucket);
   }
   for (const g of Object.values(content.guests)) {
@@ -839,7 +850,7 @@ function testContent(content, disable, t) {
   const cards = { ...content.cards };
   const temp = (h, key) => {
     const kw = disable?.cards ? [] : h.kw || [];
-    cards[key] = compileOne(content, { id: key, name: h.name ?? `試し札`, cat: h.cat ?? ['ター'], tier: String(h.tier ?? 3), grade: '並', kw }, 'cards');
+    cards[key] = compileOne(content, { id: key, name: h.name ?? `試し札`, cat: h.cat ?? ['ター'], ...(h.tier != null ? { tier: String(h.tier) } : {}), grade: '並', kw }, 'cards');
   };
   (t.hand || []).forEach((h, i) => { if (typeof h === 'object' && !h.id) temp(h, `__test_card${i}`); });
   for (const [pile, list] of [['draw', t.draw], ['deck', t.deck]]) (list || []).forEach((h, i) => { if (typeof h === 'object' && !h.id) temp(h, `__test_${pile}${i}`); });

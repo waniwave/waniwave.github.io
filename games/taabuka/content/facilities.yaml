@@ -6,19 +6,19 @@
   name: 帳場
   text: 札を買う。素泊まりセットを渡す
   levels:
-    - { effect: { shopCards: 5, shopGrades: [並, 上] } }
+    - { effect: { shopCards: 5, shopGrades: [並, 上] } }   # 帳場の札はその札の最低レアリティ（コモン・アンコモン）
     - { cost: { zeni: 300 }, effect: { shopCards: 7, shopGrades: [並, 上, 特上] } }
     - { cost: { zeni: 1500, souvenirs: { sv_tsunokakera: 1 } }, effect: { pawnshop: true } }
-    - { cost: { zeni: 6000 }, effect: { shopCards: 9, shopGrades: [並, 上, 特上, 極] } }
+    - { cost: { zeni: 6000 }, effect: { shopCards: 9, shopGrades: [並, 上, 特上] } }   # 帳場はレアまで。レジェンダリー以上は潜って拾う
 
 - id: kura
   name: 蔵
   text: 持ち物をしまう。複製
   levels:
-    - { effect: { capacity: 40, copyUpTo: null } }
-    - { cost: { zeni: 300, souvenirs: { sv_furuikagi: 1 } }, effect: { capacity: 80, copyUpTo: 上 } }
-    - { cost: { zeni: 1200, souvenirs: { sv_kaketahari: 2 } }, effect: { capacity: 150 } }
-    - { cost: { zeni: 5000, souvenirs: { sv_taajirushi: 3 } }, effect: { capacity: 300, copyUpTo: 特上 } }
+    - { effect: { capacity: 60, copyUpTo: null } }        # デッキに入れた札は数えない
+    - { cost: { zeni: 300, souvenirs: { sv_furuikagi: 1 } }, effect: { capacity: 120, copyUpTo: アンコモン } }
+    - { cost: { zeni: 1200, souvenirs: { sv_kaketahari: 2 } }, effect: { capacity: 225 } }
+    - { cost: { zeni: 5000, souvenirs: { sv_taajirushi: 3 } }, effect: { capacity: 450, copyUpTo: レジェンダリー } }
 
 - id: monooki
   name: 物置

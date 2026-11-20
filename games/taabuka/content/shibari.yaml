@@ -50,7 +50,7 @@
   reward: { card: gt_sakasa }
 - id: sb_tier8
   name: 全部Tier8
-  text: 組の判定で、全ての札がTier8扱い
+  text: 全ての札がTier8（博打）の強さになる
   rule: [{ 名前: 全札を同Tier扱い, Tier: "8" }]
   reward: { card: gt_hachi }
 - id: sb_kotei

@@ -47,10 +47,10 @@ export default {
     return `角：左〈${L}〉右〈${R}〉　入れ替え ${B.guestState.入れ替え ?? 0}`;
   },
   tests: [
-    // 3枚の手札の左端を単騎：(5＋6)×1×3＝33
+    // 3枚の手札の左端を1枚で：10×3＝30
     { name: '角の札は掛け×3', guest: 'taakaku', hand: [{ tier: 3, cat: ['麺'] }, { tier: 5, cat: ['死'] }, { tier: 5, cat: ['宿'] }],
-      steps: [{ play: [0] }], expect: { V: 33 } },
+      steps: [{ play: [0] }], expect: { V: 30 } },
     { name: '真ん中は角でない', guest: 'taakaku', hand: [{ tier: 3, cat: ['麺'] }, { tier: 3, cat: ['死'] }, { tier: 5, cat: ['宿'] }],
-      steps: [{ play: [1] }], expect: { V: 11 } },
+      steps: [{ play: [1] }], expect: { V: 10 } },
   ],
 };

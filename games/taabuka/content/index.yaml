@@ -109,3 +109,4 @@ root:
   - facilities.yaml
   - achievements.yaml
   - shibari.yaml
+  - affixes.yaml

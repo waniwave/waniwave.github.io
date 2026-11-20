@@ -37,7 +37,7 @@ export default {
         const n = trees.length;
         B.guestState.林 = n >= me.params.林 ? 1 : 0;
         const cards = trees.splice(0);
-        const sum = cards.reduce((s, c) => s + env.api.cardStrength(c, env.balance), 0);
+        const sum = cards.reduce((s, c) => s + env.api.cardStrength(c, env.balance, B.banzuke), 0);
         env.api.log(B, { t: 'note', what: n >= me.params.森 ? 'タタ森' : n >= me.params.林 ? 'タタ林' : `植木 ${n}本` });
         env.api.playCards(B, env, cards, ti, { free: true, returnTo: trees, src: '植木' });
         B.guestState.林 = 0;

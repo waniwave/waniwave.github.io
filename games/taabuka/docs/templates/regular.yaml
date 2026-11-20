@@ -12,4 +12,4 @@
   test:
     - hand: [{ tier: 3, cat: [麺] }]
       seats: [xx_r_namae]
-      expect: { V: 11 }
+      expect: { V: 10 }          # 育ち0なら×1：10

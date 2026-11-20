@@ -1,7 +1,7 @@
 // 試し用の仮の札と敵（データだけ。ブラウザの試し場からも読む）。content/ には入れない
 
 // 仮の札20枚（初期デッキと同じTierの内訳17枚＋3枚）
-const C = (id, name, tier, cat, grade = '並') => ({ id, name, tier, cat, grade });
+const C = (id, name, _tier, cat, grade = '並') => ({ id, name, cat, grade });   // Tier は番付で決まる（3つ目の値は昔の名残）
 export const CARDS = [
   C('fx_teishoku', '仮・定食', 0, ['食べ物']),
   C('fx_kaku', '仮・角', 1, ['ター']),

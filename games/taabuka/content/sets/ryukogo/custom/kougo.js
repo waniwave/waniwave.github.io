@@ -1,4 +1,5 @@
-// 目玉ルール「交互」：採点の順番をカテゴリが交互になるように並べ替え、交互が続いた数だけ倍率×（掛け）
+// 目玉ルール「交互」：出した札を孤立していても全て採点し、カテゴリが交互（隣の札とカテゴリを共有しない）に
+// なるよう採点の順番を並べ替え、交互が続いた数だけ倍率×（掛け）。重なりとは逆の、ばらばらの出し方が得をする
 
 /** 左から、直前の札とカテゴリを共有しない札を優先して並べる */
 function alternate(cards, catsOf) {
@@ -15,9 +16,13 @@ function alternate(cards, catsOf) {
 export default {
   name: '交互',
   kind: 'rule',
-  text: '採点の順番をカテゴリが交互になるよう並べ替え、交互が続いた数だけ倍率×（掛け、省略時1.5）',
+  text: '出した札を全て採点し、カテゴリが交互になるよう並べ替え、交互が続いた数だけ倍率×（掛け、省略時1.5）',
   args: { '掛け?': 'number' },
   hooks: {
+    'hand.evaluate': (ctx, next) => {
+      next();
+      ctx.result = { ...ctx.result, scored: ctx.views.map((_, i) => i), kickers: [] };
+    },
     'score.order': (ctx, next) => {
       next();
       if (ctx.scored.length < 2) { ctx.kougo = 0; return; }
@@ -37,9 +42,9 @@ export default {
     'fx.queue': (ctx, next) => { ctx.fx.push({ show: '横切る', arg: '串', src: { kind: 'rule', name: '交互' } }); next(); },
   },
   tests: [
-    // 三揃（食べ物・食べ物・麺）→ 食べ物・麺・食べ物 で交互2つ：(30＋18)×3×1.5²＝324
-    { name: '交互に並べ替える', hand: ['rk_yakitori', { tier: 3, cat: ['食べ物'] }, { tier: 3, cat: ['麺'] }], expect: { V: 324, なしより大きい: true } },
-    // 全て同じカテゴリなら交互は0
-    { name: '同じカテゴリなら掛けない', hand: ['rk_yakitori', { tier: 3, cat: ['食べ物'] }], expect: { V: (10 + 12) * 2 } },
+    // 食べ物・食べ物・麺 → 食べ物・麺・食べ物 で交互2つ。強さ30、重なり 食べ物2（×1.5）、交互 1.5²：30×1.5×2.25＝101
+    { name: '交互に並べ替える', hand: [{ tier: 3, cat: ['食べ物'], kw: ['交互'] }, { tier: 3, cat: ['食べ物'] }, { tier: 3, cat: ['麺'] }], expect: { V: 101, なしより大きい: true } },
+    // 全て同じカテゴリなら交互は0：20×1.5＝30
+    { name: '同じカテゴリなら掛けない', hand: [{ tier: 3, cat: ['食べ物'], kw: ['交互'] }, { tier: 3, cat: ['食べ物'] }], expect: { V: 30 } },
   ],
 };

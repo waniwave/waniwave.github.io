@@ -461,3 +461,54 @@ button { font: inherit; color: inherit; }
 .rules li { font-size: 14px; line-height: 1.6; margin-bottom: 2px; }
 #coach .cring { position: absolute; border-radius: 10px; border: 3px solid #f0c75e; box-shadow: 0 0 12px #f0c75e; pointer-events: none; animation: cpulse 1.2s ease-in-out infinite; }
 #coach.doing .cspot:has(~ .crings:not(:empty)) { border-color: transparent; animation: none; }
+
+/* レアリティ（作り直し仕様 D） */
+:root { --r0: #9a958b; --r1: #3f9a55; --r2: #3b73c4; --r3: #d4a017; --r4: #d4502c; --r5: #b04ad0; }
+.rar { font-weight: 700; font-size: 12px; }
+.ins { color: #7a5a1a; font-size: 12px; }
+.ins.m { color: #a03ab0; font-weight: 700; }
+.card.r-ミシック { border-image: linear-gradient(135deg, #e04a4a, #e0b84a, #4ac06a, #4a8ae0, #b04ad0) 1; border-width: 3px; }
+.card.r-ユニーク, .card.r-レジェンダリー { box-shadow: 0 0 6px var(--g); }
+.card .rr { position: absolute; right: 3px; bottom: 2px; font-size: 9px; font-weight: 700; color: var(--g); }
+.thing .rr { font-size: 10px; font-weight: 700; color: var(--g); margin-left: 4px; }
+.calc .hd .ov { display: inline-block; color: #fff; font-weight: 700; font-size: 12px; border-radius: 4px; padding: 0 4px; margin-right: 3px; }
+
+/* 体力のゲージと被弾（作り直し仕様 A） */
+.top.hasgauge { flex: 0 0 auto; flex-wrap: wrap; row-gap: 2px; }
+.top.hasgauge .st { order: 0; }
+.hpg { order: 5; flex: 0 0 100%; position: relative; height: 22px; border-radius: 6px; background: #3a2e26; overflow: hidden; box-shadow: inset 0 1px 3px #0006; }
+.hpg i { position: absolute; top: 0; bottom: 0; left: 0; display: block; }
+.hpg .trail { background: #f3ead6; transition: width .5s ease-in; }
+.hpg .fill { background: linear-gradient(#e0603a, #b8432c); transition: width .15s; }
+.hpg.low .fill { background: linear-gradient(#ff4030, #a01810); animation: lowpulse .9s ease-in-out infinite; }
+.hpg .fore { background: repeating-linear-gradient(90deg, #0000 0 4px, #fff8 4px 7px); border-left: 2px dashed #fff; }
+.hpg .txt { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; text-shadow: 0 1px 2px #000; }
+.hpg .txt b { font-family: var(--mincho); font-size: 16px; margin: 0 1px; }
+@keyframes lowpulse { 50% { filter: brightness(1.35); } }
+.scr.battle.hurt::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 60px 20px #e01810; animation: hurtflash .6s ease-out forwards; z-index: 20; }
+@keyframes hurtflash { from { opacity: 1; } to { opacity: 0; } }
+.scr.battle.lowhp::before { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 40px 6px #c0181066; z-index: 19; animation: lowpulse 1.6s ease-in-out infinite; }
+.pop.dmg.big { font-size: 34px; font-weight: 900; -webkit-text-stroke: 1px #fff; }
+.pop.guardpop { color: var(--acc2); font-size: 18px; font-weight: 700; }
+.pop.heal { color: #3a9a4a; font-size: 18px; font-weight: 700; }
+.foes .int.atk { font-size: 15px; font-weight: 900; color: var(--bad); }
+
+/* タイトル（作り直し仕様 A） */
+.scr.title { overflow: hidden; justify-content: center; background: radial-gradient(ellipse at 50% 55%, #050403 0%, #2a221b 60%, #4a3b2c 100%); }
+.ttun { position: absolute; inset: 0; perspective: 600px; pointer-events: none; }
+.ttun i { position: absolute; left: 50%; top: 55%; width: 280px; height: 200px; margin: -100px 0 0 -140px; border: 3px solid #efe6d2; border-radius: 4px;
+  background: repeating-linear-gradient(90deg, #0000 0 68px, #efe6d233 68px 70px), repeating-linear-gradient(#0000 0 48px, #efe6d222 48px 50px);
+  animation: ttun 6s linear infinite; opacity: 0; }
+@keyframes ttun { 0% { transform: translateZ(300px) rotate(0deg); opacity: 0; } 15% { opacity: .7; } 100% { transform: translateZ(-1400px) rotate(25deg); opacity: 0; } }
+.tcol { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
+.tlogo { margin: 0; font-family: var(--mincho); font-weight: 900; font-size: 84px; line-height: 1; color: #f6efe0; letter-spacing: .05em; cursor: default; user-select: none;
+  text-shadow: 0 0 2px #000, 3px 4px 0 #b8432c, 0 0 30px #b8432c88; transform: rotate(-3deg); }
+.tlogo .d { display: inline-block; font-size: 1.25em; color: #fff; text-shadow: 0 0 2px #000, 4px 5px 0 #6a1a10, 0 0 40px #ff503088; animation: tdeep 3s ease-in-out infinite; }
+@keyframes tdeep { 50% { transform: translateY(8px) scale(1.04); } }
+.tlogo.tap { animation: ttap .15s; }
+@keyframes ttap { 50% { transform: rotate(-3deg) scale(.96); } }
+.tsub { margin: 0; color: #efe6d2cc; font-family: var(--mincho); letter-spacing: .15em; }
+.trec { margin: 0; color: #efe6d299; font-size: 13px; line-height: 1.6; }
+.scr.title .btn { width: 100%; max-width: 300px; }
+.thing.r-ミシック { border-image: linear-gradient(135deg, #e04a4a, #e0b84a, #4ac06a, #4a8ae0, #b04ad0) 1; border-width: 2px; }
+.thing.r-ユニーク, .thing.r-レジェンダリー { box-shadow: 0 0 5px var(--g); }

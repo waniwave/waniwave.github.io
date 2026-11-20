@@ -9,6 +9,7 @@ import { Big, ZERO } from './big.js';
 import { Rng } from './rng.js';
 import { Hooks } from './hooks.js';
 import { cardView, evaluateHand, handBase } from './hand.js';
+import { rarOf, rarDef } from './rarity.js';
 import { computeScore, cardStrength, emitFor, slotDef } from './score.js';
 import { makeE, runDo, testCond } from './vocab/effect.js';
 
@@ -175,7 +176,7 @@ export function makeBattleCard(owned, def) {
   if (!def) throw new Error(`札の定義がない「${owned.id}」`);
   return {
     uid: owned.uid, id: owned.id, name: def.name ?? owned.id,
-    cat: (def.cat || []).slice(), tier: def.tier == null ? null : String(def.tier), grade: def.grade ?? null,
+    cat: (def.cat || []).slice(), tier: def.tier != null ? String(def.tier) : null, grade: def.grade ?? null, rar: owned.rar ?? null, ins: (owned.ins || []).slice(),
     enh: owned.enh ?? null, ed: owned.ed ?? null, seal: owned.seal ?? null,
     origin: owned.origin ?? 'orig', grow: owned.grow ?? 0, plusS: owned.mod?.plusS ?? 0, faceDown: false, vars: {},
     ...(def.props?.unbreakable ? { unbreakable: true } : {}),
@@ -183,6 +184,15 @@ export function makeBattleCard(owned, def) {
     ...(owned.mod?.cat ? { cat: owned.mod.cat.slice() } : {}),
     ...(owned.mod?.tier != null ? { tier: String(owned.mod.tier) } : {}),
   };
+}
+
+/** 刻印で足されたカテゴリを札に加える（3つまで） */
+function applyAffixCats(card) {
+  for (const x of card.ins || []) {
+    const c = String(x).split(':')[1];
+    if (c && !card.cat.includes(c) && card.cat.length < 3) card.cat.push(c);
+  }
+  return card;
 }
 
 /**
@@ -209,7 +219,7 @@ export function createBattle(base, o) {
     guestState: { ...(guestDef?.state || {}), ...(o.guestState || {}) }, quirk: o.quirk ?? null, quirkParams: o.quirkParams ?? null, heldRules: o.heldRules ?? null, xmods: o.xmods ?? null, itemPool: o.itemPool ?? null,
     sealed: { cats: [], hands: [], discard: false }, pendingFaceDown: 0, fixedPlay: null,
     lastHand: null, turnLastHand: null, lastPlayedCats: [], carryS: 0, banzukeFloorStart: o.banzukeFloorStart ?? null, initialClaim: ZERO, zeni: 0, overkill: null, result: null, rewardRate: 1,
-    stats: { plays: 0, maxV: ZERO, hands: {} },
+    stats: { plays: 0, maxV: ZERO, hands: {}, cats: {} },
     rngState: rng.getState(), uidSeq: 0, log: [],
   };
   for (const cat of balance.tiers.categories) if (B.banzuke[cat] == null) B.banzuke[cat] = balance.tiers.banzukeStart;
@@ -254,7 +264,7 @@ export function findOwner(B, owner) {
  */
 function attachDef(env, def, opt) {
   if (!def) return;
-  const me = { params: opt.params || {}, owner: opt.owner, rule: opt.rule ?? null, def };
+  const me = { params: opt.params || {}, owner: opt.owner, rule: opt.rule ?? null, def, affix: !!opt.affix };
   const reg = { group: opt.group, index: opt.index ?? 0, owner: opt.owner, tag: opt.tag };
   for (const [name, fn] of Object.entries(def.hooks || {})) env.hooks.add(name, (c, n) => fn(c, n, me), reg);
   for (const [sig, fn] of Object.entries(def.on || {})) env.hooks.on(sig, (c) => fn(c, me), reg);
@@ -265,7 +275,15 @@ function attachDef(env, def, opt) {
 export function attachCard(env, card) {
   const def = env.content.cards?.[card.id];
   if (!def) return;
-  attachDef(env, { on: def.on, listen: def.listen }, { group: 'played', owner: { kind: 'card', id: card.id, uid: card.uid }, tag: 'battle' });
+  if (!card.rar) card.rar = rarOf(env.balance, card, def);
+  applyAffixCats(card);
+  const owner = { kind: 'card', id: card.id, uid: card.uid };
+  attachDef(env, { on: def.on, listen: def.listen }, { group: 'played', owner, tag: 'battle' });
+  // 刻印（量はレアリティで増えない）
+  for (const x of card.ins || []) {
+    const a = env.content.affixes?.[String(x).split(':')[0]];
+    if (a?.listen?.length) attachDef(env, { listen: a.listen }, { group: 'played', owner, tag: 'battle', params: { affix: a.id }, affix: true });
+  }
 }
 
 /** 敵の特注を登録する */
@@ -456,9 +474,9 @@ export function gainItem(B, env, kind, extra) {
   const slots = env.balance.hands.play.itemSlots;
   if (B.items.length >= slots) return null;
   const no = layerNoAt(env.content, B.floor);
-  const defs = Object.values(env.content.items || {}).filter((d) => d.kind === kind && (!extra.hand || d.hand === extra.hand) && no >= (d.fromLayer ?? 1) && (!B.itemPool || B.itemPool.includes(d.id)));
+  const defs = Object.values(env.content.items || {}).filter((d) => d.kind === kind && no >= (d.fromLayer ?? 1) && (!B.itemPool || B.itemPool.includes(d.id)));
   const id = defs.length ? env.rng.pick(defs).id : null;
-  if (!id && kind !== '議題') return null;
+  if (!id) return null;
   const item = { uid: newUid(B, 'i'), id, kind, ...extra };
   B.items.push(item);
   log(B, { t: 'item', kind, id, hand: extra.hand ?? null });
@@ -600,8 +618,8 @@ export function playCards(B, env, cards, ti, opt = {}) {
   env.hooks.run('play.before', pctx, () => emitAll(env, '出しの前', pctx, played));
 
   // 組の判定
-  const views = cards.map((c) => cardView(c, balance));
-  const strengths = cards.map((c) => cardStrength(c, balance));
+  const views = cards.map((c) => cardView(c, balance, B.banzuke));
+  const strengths = cards.map((c) => cardStrength(c, balance, B.banzuke));
   const hctx = { battle: B, env, cards, views, strengths, result: null, choices };
   env.hooks.run('hand.evaluate', hctx, (c) => { c.result = evaluateHand(c.views, balance, c.strengths); });
   const res = hctx.result;
@@ -613,7 +631,14 @@ export function playCards(B, env, cards, ti, opt = {}) {
     const no = scored.filter((c) => cardView(c, balance).cats.some((x) => B.sealed.cats.includes(x)));
     if (no.length) { scored = scored.filter((c) => !no.includes(c)); kickers = cards.filter((c) => !scored.includes(c)); }
   }
-  const level = B.handLevels[res.hand] ?? balance.hands.levelStart ?? 1;
+  const level = 1;
+  // 重なり：最後に採点される札の見え方（ルールで変わった見え方を含む）から数える
+  const overlap = {};
+  for (const c of scored) {
+    const v = hctx.views[cards.indexOf(c)];
+    if (!v || v.stone) continue;
+    for (const cat of v.cats) overlap[cat] = (overlap[cat] || 0) + (v.count ?? 1);
+  }
 
   // 論破値
   let score;
@@ -621,13 +646,18 @@ export function playCards(B, env, cards, ti, opt = {}) {
     score = { V: ZERO, S: ZERO, M: ZERO, steps: [{ type: 'note', what: '封じ', src: { kind: 'rule' }, phase: 'base', S: ZERO, M: ZERO }], zeni: 0, broken: [] };
   } else {
     score = computeScore({
-      battle: B, env, rng: env.rng, hand: res.hand, level, played: cards, scored, kickers, held: B.hand.slice(),
+      battle: B, env, rng: env.rng, hand: res.hand, level, overlap, played: cards, scored, kickers, held: B.hand.slice(),
       target: ti, handBase: handBase(res.hand, level, balance), predict: !!opt.predict, choices,
     });
   }
   B.zeni += score.zeni;
   if (score.V.gt(B.stats.maxV)) B.stats.maxV = score.V;
-  B.stats.hands[res.hand] = (B.stats.hands[res.hand] || 0) + 1;
+  // 記録は「一番重なったカテゴリの枚数」ごと（解放条件 overlap が読む）
+  const top = String(Math.max(1, ...Object.values(overlap)));
+  B.stats.hands[top] = (B.stats.hands[top] || 0) + 1;
+  B.lastOverlap = overlap;
+  B.stats.cats ||= {};
+  for (const [cat, n] of Object.entries(overlap)) B.stats.cats[cat] = (B.stats.cats[cat] || 0) + n;
 
   // 演出の手順（札の show と、差し込み口 fx.queue で足されたもの）
   const fctx = { battle: B, env, cards, hand: res.hand, fx: [] };
@@ -646,10 +676,10 @@ export function playCards(B, env, cards, ti, opt = {}) {
   // 受け
   const tiers = balance.tiers;
   for (const c of kickers) {
-    const view = cardView(c, balance);
+    const view = cardView(c, balance, B.banzuke);
     if (view.cats.some((cat) => tiers.missing?.[B.banzuke[cat]]?.noGuard)) continue;
     const enh = c.enh && balance.hands.enhancements[c.enh];
-    const gctx = { battle: B, env, card: c, guard: cardStrength(c, balance) * (enh && enh.guardMul ? enh.guardMul : 1) };
+    const gctx = { battle: B, env, card: c, guard: cardStrength(c, balance, B.banzuke) * (enh && enh.guardMul ? enh.guardMul : 1) };
     emitFor(env, '受けに回る', gctx, c);
     B.guard += gctx.guard;
     if (gctx.guard) log(B, { t: 'guard', card: c.name, add: gctx.guard, guard: B.guard });
@@ -876,7 +906,6 @@ export function useItem(B, env, index, choices = {}, opt = {}) {
   const E = makeE({ battle: B, env, choices, target }, item, 'item', { id: item.id, name: def?.name ?? item.kind });
   try {
     if (def) { if (!def.if || testCond(E, def.if)) runDo(E, def.do || []); }
-    else if (item.kind === '議題' && item.hand) runDo(E, [{ 段位を上げる: { 組: item.hand } }]);
   } catch (err) {
     log(B, { t: 'error', hook: 'item.use', owner: { kind: 'item', id: item.id }, message: String(err.message ?? err) });
   }
@@ -911,7 +940,7 @@ export function predict(B, env, indices, target, choices) {
   return {
     hand: res.hand, level: entry?.level ?? 1, S: entry?.S, M: entry?.M, V: res.V, uncertain, usedRandom: first.used > 0,
     kills: C.enemies.filter((e, i) => e.dead && !B.enemies[i]?.dead).length, allDead: C.enemies.every((e) => e.dead),
-    scored: res.scored.map((c) => c.uid),
+    scored: res.scored.map((c) => c.uid), kickers: res.kickers.map((c) => c.uid), steps: res.steps, overlap: entry?.overlap ?? {},
   };
 }
 
@@ -923,7 +952,7 @@ export function guestActions(B, env) {
   return Object.keys(m?.actions || {}).map((name) => ({ name, label: m.ui?.[name]?.label ?? name, ask: m.ui?.[name]?.ask ?? [] }));
 }
 
-/** 出す札のうち、出す前に選ぶもの（宣言する組など）。ルールの特注が choices を持っていれば */
+/** 出す札のうち、出す前に選ぶもの（宣言するカテゴリなど）。ルールの特注が choices を持っていれば */
 export function choicesFor(env, cards) {
   const out = {};
   const scan = (list) => {
@@ -931,7 +960,7 @@ export function choicesFor(env, cards) {
       if (!item || typeof item !== 'object') continue;
       const r = item.ルール;
       const def = r && env.content.vocab.get('rule', r.名前);
-      if (def?.choices) for (const [k, type] of Object.entries(def.choices)) if (r[k.replace(/^宣言$/, '組')] == null) out[k] = type;
+      if (def?.choices) for (const [k, type] of Object.entries(def.choices)) if (r[k.replace(/^宣言$/, 'カテゴリ')] == null) out[k] = type;
     }
   };
   for (const c of cards) for (const fx of env.content.cards?.[c.id]?.fx || []) scan(fx.do);

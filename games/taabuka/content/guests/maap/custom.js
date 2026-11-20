@@ -49,8 +49,9 @@ export default {
       expect: { 状態: { 採配点: 3 } } },
     { name: '戦闘をまたいで残る', guest: 'maap', hand: [], state: { 採配点: 2, 採配数: 5 },
       expect: { 状態: { 採配点: 3, 採配数: 5 } } },
-    { name: '上げた番付が採点に効く', guest: 'maap', hand: [{ tier: 3, cat: ['麺'] }],
+    // 麺をT2へ：強さ15
+    { name: '上げた番付が採点に効く', guest: 'maap', hand: [{ cat: ['麺'] }],
       steps: [{ guest: '採配', args: { カテゴリ: '麺', 向き: 1 } }, { play: [0] }],
-      expect: { V: 22 } },
+      expect: { V: 15 } },
   ],
 };

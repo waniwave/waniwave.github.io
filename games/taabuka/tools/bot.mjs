@@ -26,7 +26,8 @@ import {
   createDive, diveBattle, finishBattle, enterDoor, openDoors, isHidden, answerChase, takeReward, rewardDests, closeReward,
   leaveRoom, buy, useBath, chooseEvent, eventChoices, landingInfo, descend, goBack, useExit, layerAt, defaultPool, genFloor,
 } from '../engine/dive.js';
-import { starterIds, newInn, beginDive, finishDive, upgrade, upgradeInfo, sell, stashRoom, refreshUnlocks, canTakeStarter, takeStarter } from '../engine/meta.js';
+import { starterIds, newInn, beginDive, finishDive, upgrade, upgradeInfo, sell, stashRoom, refreshUnlocks, canTakeStarter, takeStarter, fuseInfo, fuseCards } from '../engine/meta.js';
+import { rarIndex, rarOf } from '../engine/rarity.js';
 import { loadRealContent } from './fixtures/index.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -65,21 +66,19 @@ function bestPlay(B, env) {
   return best && { ...best, target };
 }
 
-/** 流す札：一番多いカテゴリかTierに寄らない札（最大3枚） */
+/** 流す札：一番多いカテゴリを持たない札（最大3枚） */
 function discardPick(B, keep) {
-  const cat = {}; const tier = {};
-  B.hand.forEach((c) => { for (const x of c.cat || []) cat[x] = (cat[x] || 0) + 1; if (c.tier != null) tier[c.tier] = (tier[c.tier] || 0) + 1; });
+  const cat = {};
+  B.hand.forEach((c) => { for (const x of c.cat || []) cat[x] = (cat[x] || 0) + 1; });
   const topCat = Object.entries(cat).sort((a, b) => b[1] - a[1])[0];
-  const topTier = Object.entries(tier).sort((a, b) => b[1] - a[1])[0];
-  const byTier = topTier && topTier[1] >= (topCat?.[1] ?? 0);
-  return B.hand.map((c, i) => ({ c, i })).filter(({ c, i }) => !keep.includes(i) && (byTier ? String(c.tier) !== topTier[0] : !(c.cat || []).includes(topCat?.[0])))
+  return B.hand.map((c, i) => ({ c, i })).filter(({ c, i }) => !keep.includes(i) && !(c.cat || []).includes(topCat?.[0]))
     .slice(0, 3).map(({ i }) => i);
 }
 
 /** 宿泊客の固有行動（倒せないときだけ）。行動したら true */
 function botGuest(B, env, c) {
   const id = B.guestSwap || B.guest;
-  const str = (x) => cardStrength(x, env.balance);
+  const str = (x) => cardStrength(x, env.balance, B.banzuke);
   const weakest = (n, keep = []) => B.hand.map((x, i) => ({ x, i })).filter(({ i }) => !keep.includes(i)).sort((a, b) => str(a.x) - str(b.x)).slice(0, n).map(({ i }) => i);
   const strongest = (n, keep = []) => B.hand.map((x, i) => ({ x, i })).filter(({ i }) => !keep.includes(i)).sort((a, b) => str(b.x) - str(a.x)).slice(0, n).map(({ i }) => i);
   try {
@@ -118,7 +117,7 @@ export function botBattle(B, env, rec) {
         try {
           play(B, env, c.s, c.target);
           const e = [...B.log].reverse().find((l) => l.t === 'play');
-          if (e) { rec.hands[e.hand] = (rec.hands[e.hand] || 0) + 1; rec.lastV.push(e.V); }
+          if (e) { const top = `${Math.max(1, ...Object.values(e.overlap || {}))}枚`; rec.hands[top] = (rec.hands[top] || 0) + 1; rec.lastV.push(e.V); }
           for (const i of c.s) { /* 札の使用回数 */ }
           continue;
         } catch { /* 出せない */ }
@@ -257,10 +256,22 @@ export function runCampaign(base, o) {
   for (let n = 1; n <= o.dives; n++) {
     // 札が足りなければ帳場の素泊まりセットを受け取る
     if (H.stash.filter((x) => x.type === 'card').length < base.balance.hands.play.deckMin && canTakeStarter(base, H)) takeStarter(base, H, H.unlocked.guests[0]);
-    // デッキ：蔵の札を格・Tierの順に強いほうから（質札は使わない）
-    const cards = H.stash.filter((x) => x.type === 'card' && x.origin !== 'pawn');
-    const tierRank = (x) => base.balance.tiers.tiers[String(C.cards[x.id]?.tier)]?.rank ?? 0;
-    cards.sort((a, b) => G.indexOf(C.cards[b.id]?.grade) - G.indexOf(C.cards[a.id]?.grade) || tierRank(b) - tierRank(a));
+    // デッキ：蔵の札をレアリティの高いほうから（質札は使わない）。同じなら一番多いカテゴリの札を先に
+    let cards = H.stash.filter((x) => x.type === 'card' && x.origin !== 'pawn');
+    if (cards.length < base.balance.hands.play.deckMin) cards = H.stash.filter((x) => x.type === 'card');
+    const R = (x) => rarIndex(base.balance, rarOf(base.balance, x, C.cards[x.id]));
+    const catN = {};
+    for (const x of cards) for (const c of C.cards[x.id]?.cat || []) catN[c] = (catN[c] || 0) + 1;
+    const fit = (x) => Math.max(0, ...(C.cards[x.id]?.cat || []).map((c) => catN[c] || 0));
+    // 合わせ：同じ札・同じレアリティが3枚あれば合わせる
+    for (const x of H.stash.filter((y) => y.type === 'card')) {
+      const same = H.stash.filter((y) => y.type === 'card' && y.id === x.id && R(y) === R(x)).slice(0, 3).map((y) => y.uid);
+      const left = H.stash.filter((y) => y.type === 'card' && y.origin !== 'pawn').length;
+      if (left - 2 >= base.balance.hands.play.deckMin + 3 && same.length === 3 && fuseInfo(base, H, same).ok && H.zeni >= fuseInfo(base, H, same).zeni) { try { fuseCards(base, H, same); } catch { /* できない */ } }
+    }
+    cards = H.stash.filter((x) => x.type === 'card' && x.origin !== 'pawn');
+    if (cards.length < base.balance.hands.play.deckMin) cards = H.stash.filter((x) => x.type === 'card');
+    cards.sort((a, b) => R(b) - R(a) || fit(b) - fit(a));
     H.deck = cards.slice(0, Math.min(base.balance.hands.play.deckMax, Math.max(base.balance.hands.play.deckMin, Math.min(22, cards.length)))).map((x) => x.uid);
     const regs = H.stash.filter((x) => x.type === 'regular').sort((a, b) => G.indexOf(C.regulars[b.id]?.grade) - G.indexOf(C.regulars[a.id]?.grade));
     H.loadout.seats = regs.slice(0, 3).map((x) => x.uid);
@@ -281,7 +292,7 @@ export function runCampaign(base, o) {
     out.push({ why: r.why, maxVlog: r.maxVlog, deck: D.deck.length, dive: n, deepest: D.stats.deepest, outcome: D.result?.outcome, guest: D.guest, depth: D.depth, sets: H.unlocked.sets.length, zeni: H.zeni, taa: D.stats.bosses.includes('core') ? 1 : 0 });
     // 蔵があふれたら弱い札から売る
     while (H.overflow || stashRoom(base, H).used > stashRoom(base, H).cap) {
-      const gr = (x) => G.indexOf((x.type === 'card' ? C.cards : x.type === 'regular' ? C.regulars : x.type === 'item' ? C.items : {})[x.id]?.grade);
+      const gr = (x) => (x.type === 'card' ? rarIndex(base.balance, rarOf(base.balance, x, C.cards[x.id])) : G.indexOf((x.type === 'regular' ? C.regulars : x.type === 'item' ? C.items : {})[x.id]?.grade));
       const weak = H.stash.filter((x) => x.type !== 'souvenir' || H.stash.length > stashRoom(base, H).cap + 5).sort((a, b) => (a.type === 'souvenir') - (b.type === 'souvenir') || gr(a) - gr(b))[0];
       if (!weak) break;
       sell(base, H, weak.uid);
@@ -332,13 +343,13 @@ export function summarize(rows) {
     'B6到達率 20〜35%': ok(S.b6reach, 0.2, 0.35),
     '通常戦 2〜3ターン': ok(S.turnsNormal, 2, 3),
     '層主 4〜6ターン': ok(S.turnsBoss, 4, 6),
-    '一つの組が50%以下': ok(S.topHand?.[1] ?? 0, 0, 0.5),
+    '一つの重なりが60%以下': ok(S.topHand?.[1] ?? 0, 0, 0.6),
   };
   S.text = [
     `潜行 ${n}回　脱出 ${pct(esc.length)}・未帰還 ${pct(n - esc.length)}`,
     `B3脱出率 ${pct(b3esc)}（目標60〜75%）${S.goals['B3脱出率 60〜75%']}　B6到達率 ${pct(b6)}（目標20〜35%）${S.goals['B6到達率 20〜35%']}`,
     `平均ターン：通常戦 ${S.turnsNormal.toFixed(2)}（目標2〜3）${S.goals['通常戦 2〜3ターン']}　層主 ${S.turnsBoss.toFixed(2)}（目標4〜6）${S.goals['層主 4〜6ターン']}`,
-    `組の使用率：${handShare.slice(0, 6).map(([h, s]) => `${h} ${(s * 100).toFixed(1)}%`).join('・')}　${S.goals['一つの組が50%以下']}`,
+    `一番重なった枚数の分布：${handShare.slice(0, 6).map(([h, s]) => `${h} ${(s * 100).toFixed(1)}%`).join('・')}　${S.goals['一つの重なりが60%以下']}`,
     `層ごとの到達：${layerReach(rows).map(([nm, k]) => `${nm} ${pct(k)}`).join('・')}　底の主撃破 ${pct(rows.filter((r) => r.taa).length)}`,
     `層ごとの脱出率（その層が最深だった潜行のうち脱出した割合）：${layerEscape(rows).map(([nm, a, b]) => `${nm} ${b ? ((a / b) * 100).toFixed(0) : '-'}%（${b}）`).join('・')}`,
     `宿泊客ごと（脱出率・平均最深）：${[...new Set(rows.map((r) => r.guest))].map((g) => { const a = rows.filter((r) => r.guest === g); return `${g} ${pct(a.filter((r) => r.outcome === 'escaped').length * n / a.length)}・B${(a.reduce((s2, r) => s2 + r.deepest, 0) / a.length).toFixed(1)}`; }).join('　')}`,
