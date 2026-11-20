@@ -48,7 +48,7 @@
 
 - id: shikomi
   name: 仕込み場
-  text: 札に仕込み・版・判を付ける
+  text: 札に仕込み・版・判を付ける。同じ札3枚の合わせ
   levels:
     - { effect: { enh: [金箔, 鋼, 守, 重し], ed: [], seal: [] } }
     - { cost: { zeni: 400, souvenirs: { sv_banzukekire: 3 } }, effect: { enh: [金箔, 鋼, 硝子, 多才, 石, 祝, 守, 重し] } }
