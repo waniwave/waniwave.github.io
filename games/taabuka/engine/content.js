@@ -4,6 +4,7 @@
 //
 // 読み込みは止まらない：おかしなところは issues（1件1行の日本語）に積み、使える部分だけで組み立てる。
 
+import { compileCombos } from './combo.js';
 import yaml from '../vendor/yaml.mjs';
 import { createVocab, checkArg, describeArgs, hint, KIND_JA, SCOPES } from './vocab/index.js';
 import { parseExpr, exprNames } from './vocab/expr.js';
@@ -140,7 +141,7 @@ export async function loadContent(io) {
   const vocab = createVocab();
   const content = {
     balance, vocab, sets: {}, cards: {}, regulars: {}, relics: {}, items: {}, enemies: {}, layers: {}, events: {},
-    guests: {}, souvenirs: {}, affixes: {}, facilities: [], achievements: [], shibari: [], kwDefs: {}, kwByName: {}, keywordRules: [], where: {}, customs: [],
+    guests: {}, souvenirs: {}, affixes: {}, facilities: [], combos: [], achievements: [], shibari: [], kwDefs: {}, kwByName: {}, keywordRules: [], where: {}, customs: [],
   };
 
   let index;
@@ -229,11 +230,13 @@ export async function loadContent(io) {
     if (f === 'facilities.yaml') content.facilities = list;
     if (f === 'achievements.yaml') content.achievements = list;
     if (f === 'shibari.yaml') content.shibari = list;
+    if (f === 'combos.yaml') { content.combos = list.combos || []; content.comboShortsRaw = list.shorts || {}; }
     if (f === 'affixes.yaml') for (const d of list) putDef(content, 'affixes', d, `content/${f}`, add);
   }
 
   validateContent(content, add);
   compileContent(content, add);
+  compileCombos(content, add);
   return { content, issues };
 }
 

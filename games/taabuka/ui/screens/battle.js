@@ -10,6 +10,7 @@ import {
   RAR_VAR, RAR_SHORT, rarOfCard,
 } from '../labels.js';
 import { tierOf } from '../../engine/hand.js';
+import { comboEffText } from '../labels.js';
 import { play, discard, endTurn, predict, guestAction, guestActions, guestStatus, choicesFor, useItem, layerNoAt } from '../../engine/battle.js';
 import { askItem } from '../items.js';
 import { Big } from '../../engine/big.js';
@@ -19,6 +20,8 @@ import { unitOf } from '../../engine/format.js';
 /** 主張の表示（底の主は「？？？」） */
 const claimText = (e, v) => (e?.hideClaim ? '？？？' : format(v));
 import { playShow, playStage, playKetagoe, stageOf, rollNumber } from '../fx/shows.js';
+import { playSpell, playCombo } from '../fx/combo.js';
+import { matchCombos } from '../../engine/combo.js';
 import { SE, buzz } from '../audio/audio.js';
 import { shards, embers } from '../fx/particles.js';
 
@@ -41,7 +44,7 @@ export function battleScreen(o) {
   function render() {
     refs = { cards: new Map(), foes: new Map(), slots: new Map(), seats: new Map() };
     if (B.enemies[st.target]?.dead || st.target < 0) st.target = B.enemies.findIndex((e) => !e.dead);
-    root.replaceChildren(renderTop(), renderBanzuke(), renderFoes(), renderSeats(), renderGuest(), renderCalc(), renderHand(), renderOps());
+    root.replaceChildren(renderTop(), renderBanzuke(), renderFoes(), renderSeats(), renderInfo(), renderCalc(), renderHand(), renderOps());
     updateCalc();
     renderSides();
   }
@@ -78,7 +81,7 @@ export function battleScreen(o) {
     let n = 0;
     for (const e of B.enemies) {
       if (e.dead || e.skip > 0) continue;
-      const t = intentText(env, e);
+      const t = intentText(env, e, B);
       if (t.dmg) n += t.dmg;
     }
     return n;
@@ -125,7 +128,7 @@ export function battleScreen(o) {
   function renderFoes() {
     const el = h('section.foes');
     B.enemies.forEach((e, i) => {
-      const it = intentText(env, e);
+      const it = intentText(env, e, B);
       const bar = h('div.bar', { style: { width: `${pct(e.claim, e.maxClaim)}%` } });
       const cl = h('div.cl', { text: e.dead ? '論破' : claimText(e, e.claim) });
       const foe = h(`button.foe${i === st.target ? '.tgt' : ''}${e.dead ? '.dead' : ''}`, { type: 'button', dataset: { uid: e.uid }, onclick: () => {
@@ -137,11 +140,11 @@ export function battleScreen(o) {
         h('div.art', { html: enemyArt(e) }),
         h('div.nm', { text: e.name }),
         ...((env.content.enemies[e.id]?.kwList || []).length ? [h('div.kw', { text: env.content.enemies[e.id].kwList.map((k) => k.label).join('・') })] : []),
-        h(`div.int${it.calm ? '.calm' : ''}${it.dmg ? '.atk' : ''}`, { text: it.text }),
+        h(`div.int${it.calm ? '.calm' : ''}${it.dmg ? '.atk' : ''}${it.warn ? '.warn' : ''}`, { text: it.text }),
         h('div.barw', {}, [bar]),
         cl,
       ]);
-      tip(foe, () => enemyTip(env, e));
+      tip(foe, () => enemyTip(env, e, B));
       refs.foes.set(e.uid, { el: foe, bar, cl, max: e.maxClaim });
       el.append(foe);
     });
@@ -164,15 +167,17 @@ export function battleScreen(o) {
     return el;
   }
 
-  function renderGuest() {
-    const line = B.guest ? guestStatus(B, env) : '';
-    const el = h('div.guestline', { text: line });
-    if (B.guest) {
-      const g = content.guests[B.guestSwap || B.guest];
-      const m = g?.mechanic ? content.vocab.get('mechanic', g.mechanic) : null;
-      const relics = B.relics.map((r) => content.relics[r.id]).filter(Boolean);
-      tip(el, () => `<b>${esc(g?.name ?? '')}</b><br>${esc(m?.text ?? '')}${relics.length ? `<br><span class="q">置物：${relics.map((d) => `${esc(d.name)}（${kwLines(d).join(' ')}）`).join('、')}</span>` : ''}`);
-    }
+  // 説明欄：押した札・敵・席・番付の説明がここに出る。何も押していないときは宿泊客の仕組み
+  function guestInfo() {
+    const sealed = B.sealed.cats.length ? `<span class="warnt">封じ中：${B.sealed.cats.map((c) => `〈${esc(c)}〉あと${B.sealed.catTurns?.[c] ?? '?'}ターン`).join('・')}（その札は採点されず受けになる）</span><br>` : '';
+    if (!B.guest) return sealed + '<span class="q">札・敵・席・番付を押すと、ここに説明が出ます</span>';
+    const g = content.guests[B.guestSwap || B.guest];
+    const m = g?.mechanic ? content.vocab.get('mechanic', g.mechanic) : null;
+    const relics = B.relics.map((r) => content.relics[r.id]).filter(Boolean);
+    return `${sealed}<b>${esc(g?.name ?? '')}</b>　${esc(guestStatus(B, env))}<br><span class="q">${esc(m?.text ?? '')}</span>${relics.length ? `<br><span class="q">置物：${relics.map((d) => `${esc(d.name)}（${kwLines(d).join(' ')}）`).join('、')}</span>` : ''}`;
+  }
+  function renderInfo() {
+    const el = h('section.infobox', { html: guestInfo() });
     refs.guest = el;
     return el;
   }
@@ -215,7 +220,16 @@ export function battleScreen(o) {
     if (ORIGIN_MARK[c.origin]) el.append(h('span.mark', { text: ORIGIN_MARK[c.origin] }));
     if (c.enh) el.append(h('span.enh', { text: c.enh }));
     if (c.seal) el.append(h('span.seal', { style: { background: SEAL_COLOR[c.seal] } }));
+    if (c.cat.some((x) => B.sealed.cats.includes(x))) { el.classList.add('sealedc'); el.append(h('span.sealmk', { text: '封' })); }
+    if (comboReady(c)) el.append(h('span.cmbmk', { text: '◎' }));
     return el;
+  }
+
+  /** 手札の中にコンボの相手がそろっている札 */
+  function comboReady(c) {
+    const ids = content.combosOf?.[c.id];
+    if (!ids) return false;
+    return ids.some((id) => { const cb = content.comboList.find((x) => x.id === id); return cb && matchCombos(content, B.hand.filter((x) => !x.faceDown)).some((m) => m.combo.id === id && m.uids.includes(c.uid)); });
   }
 
   function renderOps() {
@@ -225,7 +239,7 @@ export function battleScreen(o) {
     const ply = h('button.btn.main', { type: 'button', onclick: doPlay }, ['出す ', h('span.n', { text: B.playsLeft })]);
     const end = h('button.btn', { type: 'button', onclick: doEnd }, ['終了']);
     tip(dis, () => `<b>流す</b><br>選んだ札（${P.minCards}〜${P.maxDiscardCards}枚）を捨てて、同じ枚数を引く。残り ${B.discardsLeft}${B.sealed.discard ? '<br>封じられている' : ''}`);
-    tip(ply, () => `<b>出す</b><br>選んだ札（${P.minCards}〜${P.maxPlayCards}枚）を狙った敵に出す。採点されない札は受けになる。残り ${B.playsLeft}`);
+    tip(ply, () => `<b>出す</b><br>選んだ札（${P.minCards}〜${B.maxPlay ?? P.maxPlayCards}枚）を狙った敵に出す。採点されない札は受けになる。残り ${B.playsLeft}`);
     tip(end, () => '<b>終了</b><br>ターンを終える。敵が予告どおりに動く');
     const itm = h('button.btn', { type: 'button', onclick: openItems }, ['品 ', h('span.n', { text: B.items.length })]);
     tip(itm, () => `<b>お品書き</b><br>${B.items.length ? B.items.map((it) => esc(itemName(it))).join('、') : '持っていない'}`);
@@ -298,7 +312,7 @@ export function battleScreen(o) {
     }
     const P = balance.hands.play;
     const n = st.sel.length;
-    refs.ops.ply.disabled = !!B.result || B.playsLeft <= 0 || n < P.minCards || n > P.maxPlayCards || (B.fixedPlay != null && n !== Math.min(B.fixedPlay, B.hand.length));
+    refs.ops.ply.disabled = !!B.result || B.playsLeft <= 0 || n < P.minCards || n > (B.maxPlay ?? P.maxPlayCards) || (B.fixedPlay != null && n !== Math.min(B.fixedPlay, B.hand.length));
     refs.ops.dis.disabled = !!B.result || B.discardsLeft <= 0 || B.sealed.discard || n < P.minCards || n > P.maxDiscardCards
       || B.hand.some((c) => c.enh && balance.hands.enhancements[c.enh]?.blocksDiscard);
     refs.ops.end.disabled = !!B.result;
@@ -321,6 +335,8 @@ export function battleScreen(o) {
     for (const x of ov) kids.push(h('span.ov', { style: { background: catColor(x.src.id) } }, [`${catGlyph(x.src.id)}${x.src.n}`]));
     const iso = p.kickers?.length ?? 0;
     if (iso) kids.push(h('span.q', { text: ` 受け${iso}` }));
+    const cmb = [...new Set((p.steps || []).filter((x) => x.src?.kind === 'combo').map((x) => x.src.name))];
+    for (const n of cmb) kids.push(h('span.cmbtag', { text: `◎${n}` }));
     return kids;
   }
 
@@ -342,8 +358,8 @@ export function battleScreen(o) {
     if (queue.busy || B.result) return;
     const k = st.sel.indexOf(i);
     if (k >= 0) st.sel.splice(k, 1);
-    else if (st.sel.length < balance.hands.play.maxPlayCards) st.sel.push(i);
-    else { toast(`選べるのは${balance.hands.play.maxPlayCards}枚まで`); return; }
+    else if (st.sel.length < Math.max(B.maxPlay ?? 0, balance.hands.play.maxDiscardCards)) st.sel.push(i);
+    else { toast(`選べるのは${Math.max(B.maxPlay ?? 0, balance.hands.play.maxDiscardCards)}枚まで`); return; }
     st.sel.sort((a, b) => a - b);
     updateCalc();
   }
@@ -450,13 +466,21 @@ export function battleScreen(o) {
       switch (e.t) {
         case 'play': {
           tgtClaim = B.enemies[e.target] ? prev.claims.get(B.enemies[e.target].uid) : tgtClaim;
+          // 呪文（出した札の短い名前をつないだ掛け声）
+          if (e.spell) { let ms = 0; T.push({ get ms() { return ms; }, run: () => { ms = playSpell(X(), e.spell, !!e.combos?.length); } }); }
           // 演出の語彙（仕様書 第9章 show の全て。ui/fx/shows.js）
           for (const f of e.fx || []) {
             let ms = 0;
             T.push({ get ms() { return ms; }, run: () => { ms = playShow(f.show, f.arg, X()); } });
           }
           let pitch = 0;
+          const comboShown = new Set();
           for (const s of e.steps) {
+            if (s.src?.kind === 'combo' && !comboShown.has(s.src.id)) {
+              comboShown.add(s.src.id);
+              let ms = 0;
+              T.push({ get ms() { return ms; }, run: () => { ms = playCombo(X(), s.src, comboEffText(content, s.src.id)); } });
+            }
             switch (s.type) {
               case 'hand': T.push({ ms: 240, run: () => {
                 refs.calcHd.replaceChildren(h('b', { text: '採点' }));
@@ -634,7 +658,7 @@ export function battleScreen(o) {
         o.settings.speed = v; o.saveSettings(o.settings); document.documentElement.style.setProperty('--speed', v); s.close(); render();
       } }, [`速さ ×${v}`]))),
       h('div.row', {}, [
-        o.onDone ? null : holdButton('戦闘をやめる（長押し）', () => { s.close(); o.onExit(); }),
+        o.onDone ? null : holdButton('戦闘をやめる', () => { s.close(); o.onExit(); }),
         h('button.btn', { type: 'button', onclick: () => s.close() }, ['閉じる']),
       ]),
     ]);

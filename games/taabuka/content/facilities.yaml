@@ -4,7 +4,7 @@
 # 本編で全段階を改装できる。
 - id: chouba
   name: 帳場
-  text: 札を買う。素泊まりセットを渡す
+  text: 札とデッキを買う所。初期デッキ（素泊まりセット）ももらえる
   levels:
     - { effect: { shopCards: 5, shopGrades: [並, 上] } }   # 帳場の札はその札の最低レアリティ（コモン・アンコモン）
     - { cost: { zeni: 300 }, effect: { shopCards: 7, shopGrades: [並, 上, 特上] } }
@@ -13,7 +13,7 @@
 
 - id: kura
   name: 蔵
-  text: 持ち物をしまう。複製
+  text: 持ち物をしまい、デッキを組む所。札の複製もここ
   levels:
     - { effect: { capacity: 60, copyUpTo: null } }        # デッキに入れた札は数えない
     - { cost: { zeni: 300, souvenirs: { sv_furuikagi: 1 } }, effect: { capacity: 120, copyUpTo: アンコモン } }
@@ -22,7 +22,7 @@
 
 - id: monooki
   name: 物置
-  text: 懐とお守り袋の大きさ
+  text: 潜るときに持てる量を増やす（懐＝拾った物、お守り袋＝倒れても残る）
   levels:
     - { effect: { pouch: 8, charm: 1 } }
     - { cost: { zeni: 200, souvenirs: { sv_hakusen: 1 } }, effect: { pouch: 10 } }
@@ -32,7 +32,7 @@
 
 - id: kyakuma
   name: 客間
-  text: 潜行に連れていく常連客の数
+  text: 潜行に連れていく常連客の席を増やす
   levels:
     - { effect: { seats: 1 } }
     - { cost: { zeni: 500, souvenirs: { sv_obidome: 1 } }, effect: { seats: 2 } }
@@ -40,7 +40,7 @@
 
 - id: kamidana
   name: 神棚
-  text: 保険と供養
+  text: 保険をかける所（倒れて失っても一部戻る）。失った物の供養もここ
   levels:
     - { effect: { returnRate: 0.70, premium: 0.30 } }
     - { cost: { zeni: 600, souvenirs: { sv_yunohana: 2 } }, effect: { returnRate: 0.75, premium: 0.25 } }
@@ -48,9 +48,16 @@
 
 - id: shikomi
   name: 仕込み場
-  text: 札に仕込み・版・判を付ける。同じ札3枚の合わせ
+  text: 札を強くする所（仕込み・版・判を付ける）。同じ札3枚の合わせで格上げ
   levels:
     - { effect: { enh: [金箔, 鋼, 守, 重し], ed: [], seal: [] } }
     - { cost: { zeni: 400, souvenirs: { sv_banzukekire: 3 } }, effect: { enh: [金箔, 鋼, 硝子, 多才, 石, 祝, 守, 重し] } }
     - { cost: { zeni: 1500, souvenirs: { sv_waretagarasu: 2 } }, effect: { ed: [箔押し, ホロ] } }
     - { cost: { zeni: 5000, souvenirs: { sv_tsunokakera: 2 } }, effect: { ed: [箔押し, ホロ, 多色], seal: [朱判, 金判, 青判, 紫判] } }
+
+- id: keiko
+  name: 稽古場
+  text: 一度に出せる札の枚数を増やす
+  levels:
+    - { effect: { maxPlay: 5 } }
+    - { cost: { zeni: 2500, souvenirs: { sv_tsunokakera: 1, sv_taajirushi: 1 } }, effect: { maxPlay: 6 } }

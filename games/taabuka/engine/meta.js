@@ -7,11 +7,11 @@ import { Rng } from './rng.js';
 import { rarOf, rarIndex, rollAffixes } from './rarity.js';
 import { Big, ZERO } from './big.js';
 import { depthMods } from './battle.js';
-import { createDive, sellValue, nameOf, defaultPool } from './dive.js';
+import { createDive, sellValue, nameOf, defaultPool, warpFloors } from './dive.js';
 import { encodeShare, decodeShare, dailySeed, shareableSeed } from './share.js';
 
 export const SAVE_VERSION = 1;
-const FAC_KEYS = ['chouba', 'kura', 'monooki', 'kyakuma', 'kamidana', 'shikomi'];
+const FAC_KEYS = ['chouba', 'kura', 'monooki', 'kyakuma', 'kamidana', 'shikomi', 'keiko'];
 
 /** セーブの版を上げたら、ここに「前の版 → 次の版」を足す */
 const MIGRATIONS = {
@@ -167,7 +167,8 @@ function paySouvenir(H, sid, n) {
 export function carryOf(base, H, depth = 0) {
   const m = facility(base, H, 'monooki');
   const dm = depthMods(base.balance, depth);
-  return { pouch: m.pouch, charm: Math.max(0, m.charm + (dm.charmSlots || 0)), seats: facility(base, H, 'kyakuma').seats };
+  const k = (base.content.facilities || []).some((f) => f.id === 'keiko') ? facility(base, H, 'keiko') : {};
+  return { pouch: m.pouch, charm: Math.max(0, m.charm + (dm.charmSlots || 0)), seats: facility(base, H, 'kyakuma').seats, ...(k.maxPlay ? { maxPlay: k.maxPlay } : {}) };
 }
 
 /** 蔵の大きさと使っている数（デッキに入れている札は数えない） */
@@ -269,6 +270,83 @@ export function buyChouba(base, H, i) {
   H.stash.push({ uid: uid(H, 'c'), type: 'card', id: g.id, origin: 'orig' });
   (H.choubaSold ||= {})[H.records.dives] = [...(H.choubaSold[H.records.dives] || []), i];
   seen(H, g.id, true);
+  return H;
+}
+
+// ───────── 帳場：基礎札と構築済みデッキ（高いレアリティは売らない） ─────────
+const SPECIAL_ORIGIN = ['pawn', 'cursed', 'expiry', 'bet'];
+function catCards(base, H, cat, grades) {
+  const C = base.content;
+  return poolOf(base, H, null).cards.map((id) => C.cards[id])
+    .filter((d) => d && grades.includes(d.grade) && !SPECIAL_ORIGIN.includes(d.origin) && (d.cat || []).includes(cat))
+    .sort((a, b) => (a.cat.length - b.cat.length) || (grades.indexOf(a.grade) - grades.indexOf(b.grade)) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+/** カテゴリの基礎札 [{id, price}] */
+export function basicGoods(base, H, cat) {
+  const B = inn(base).basics;
+  return catCards(base, H, cat, B.grades).slice(0, B.perCat).map((d) => ({ id: d.id, price: B.price }));
+}
+export function buyBasic(base, H, cat, id) {
+  const g = basicGoods(base, H, cat).find((x) => x.id === id);
+  check(g, 'その札は売っていない');
+  check(H.zeni >= g.price, '宿銭が足りない');
+  const r = stashRoom(base, H); check(r.used < r.cap, '蔵がいっぱい');
+  H.zeni -= g.price;
+  H.stash.push({ uid: uid(H, 'c'), type: 'card', id, origin: 'orig' });
+  seen(H, id, true);
+  return H;
+}
+/** 構築済みデッキ（カテゴリ1つ中心）。帳場Lv が足りなければ null */
+export function deckGoods(base, H, cat) {
+  const D = inn(base).decks;
+  if ((H.facilities.chouba ?? 1) < D.fromLevel) return null;
+  const list = catCards(base, H, cat, D.grades);
+  if (!list.length) return null;
+  const ids = [];
+  for (let k = 0; ids.length < D.size && k < 3; k++) for (const d of list) if (ids.length < D.size) ids.push(d.id);
+  const price = Math.round(ids.reduce((a, id) => a + (econ(base).price.card[base.content.cards[id].grade] ?? 0), 0) * D.priceMul);
+  return { cat, ids, price };
+}
+/** 構築済みデッキを買う。asDeck ならそのままデッキにする（今のデッキの札は蔵に戻る） */
+export function buyDeck(base, H, cat, asDeck = true) {
+  const g = deckGoods(base, H, cat);
+  check(g, 'まだ売っていない');
+  check(H.zeni >= g.price, '宿銭が足りない');
+  const r = stashRoom(base, H);
+  check(r.used + (asDeck ? H.deck.length : g.ids.length) <= r.cap, '蔵に入りきらない');
+  H.zeni -= g.price;
+  const got = g.ids.map((id) => ({ uid: uid(H, 'c'), type: 'card', id, origin: 'orig' }));
+  H.stash.push(...got);
+  if (asDeck) H.deck = got.map((x) => x.uid);
+  for (const x of got) seen(H, x.id, true);
+  return got;
+}
+
+/** 帳場のコンボ帳：札を1枚でも見たことがあるコンボ。[{id, name, ids, price, ok, reason}] */
+export function comboGoods(base, H) {
+  const CB = inn(base).combos;
+  const C = base.content;
+  if ((H.facilities.chouba ?? 1) < CB.fromLevel) return [];
+  const f = facility(base, H, 'chouba');
+  const pool = new Set(poolOf(base, H, null).cards);
+  const known = new Set([...H.codex.seen, ...H.codex.owned]);
+  const out = [];
+  for (const cb of C.comboList || []) {
+    if (!cb.need.some((set) => set.some((id) => known.has(id)))) continue;
+    const ids = cb.need.map((set) => set.find((id) => pool.has(id) && f.shopGrades.includes(C.cards[id].grade) && !SPECIAL_ORIGIN.includes(C.cards[id].origin)) ?? null);
+    const ok = ids.every(Boolean);
+    const price = ok ? Math.round(ids.reduce((a, id) => a + (econ(base).price.card[C.cards[id].grade] ?? 0), 0) * CB.priceMul) : 0;
+    out.push({ id: cb.id, name: cb.name, ids, price, ok, reason: ok ? null : '帳場では売っていない札がある（潜って拾う）' });
+  }
+  return out;
+}
+export function buyCombo(base, H, comboId) {
+  const g = comboGoods(base, H).find((x) => x.id === comboId);
+  check(g && g.ok, g?.reason ?? 'そのコンボは売っていない');
+  check(H.zeni >= g.price, '宿銭が足りない');
+  const r = stashRoom(base, H); check(r.used + g.ids.length <= r.cap, '蔵に入りきらない');
+  H.zeni -= g.price;
+  for (const id of g.ids) { H.stash.push({ uid: uid(H, 'c'), type: 'card', id, origin: 'orig' }); seen(H, id, true); }
   return H;
 }
 
@@ -431,6 +509,9 @@ export function returnRate(base, H, depth) {
   return Math.max(0, facility(base, H, 'kamidana').returnRate + (depthMods(base.balance, depth).insuranceReturn || 0));
 }
 
+/** ワープで選べる入口の階（最深到達でひらく。1階はいつでも） */
+export function warpChoices(base, H) { return [1, ...warpFloors(base.content).filter((f) => (H.records.deepest ?? 0) >= f)]; }
+
 /** 持ち込みの見積もり：{deck, seats, charm, items, insured, premium, risk, errors} */
 export function prepInfo(base, H, L = H.loadout) {
   const P = base.balance.hands.play;
@@ -445,6 +526,7 @@ export function prepInfo(base, H, L = H.loadout) {
   if (charm.length > carry.charm) errors.push(`お守り袋は${carry.charm}つまで`);
   if (items.length > P.itemSlots) errors.push(`お品書きは${P.itemSlots}つまで`);
   if (L.depth > H.unlocked.depth) errors.push('その深度はまだ');
+  if (L.warp && !warpChoices(base, H).includes(L.warp)) errors.push('その入口にはまだ行けない');
   if (deck.some((x) => L.charm.includes(x.uid))) errors.push('デッキの札はお守り袋に入れられない');
   const prem = insured.reduce((s, x) => s + premium(base, H, x), 0);
   if (prem > H.zeni) errors.push(`掛け金が足りない（${prem}）`);
@@ -483,7 +565,7 @@ export function beginDive(base, H, o) {
     seed: o.seed, guest: L.guest, depth: L.depth, deck, seats, items, charm,
     relics: g?.relic ? [{ uid: `g_${g.relic}`, id: g.relic, guest: true }] : [],
     pool: poolOf(base, H, L.guest), carry: carryOf(base, H, 0), guestState: { ...(L.choose?.[L.guest] || {}) },
-    ...(L.shibari ? { shibari: L.shibari } : {}),
+    ...(L.shibari ? { shibari: L.shibari } : {}), ...(L.warp ? { startFloor: L.warp } : {}),
   });
   D.innDive = H.records.dives + 1;
   // 稽古の潜行（最初の1回・女将の案内つき）：倒れても持ち込んだ物は蔵に戻る。懐の拾い物は失う

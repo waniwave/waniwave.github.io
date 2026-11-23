@@ -84,7 +84,7 @@ export function labScreen(ctx) {
     h('div.grid2', {}, [field('floor', '階', { inputmode: 'numeric' }), field('hp', '体力（空なら宿泊客の値）', { inputmode: 'numeric' })]),
     h('div.grid2', {}, [field('seed', 'シード（空なら毎回違う）'), field('banzuke', '番付（例：麺=God ター=1）')]),
     h('button.btn.main', { type: 'button', onclick: start }, ['すぐ戦う']),
-    h('p.note', { text: '戦闘の画面で長押し（PCはマウスを乗せる）すると説明が出る。' }),
+    h('p.note', { text: '戦闘の画面で札や敵を押すと、説明欄に説明が出る。' }),
   ]);
   return { el };
 }

@@ -110,3 +110,4 @@ root:
   - achievements.yaml
   - shibari.yaml
   - affixes.yaml
+  - combos.yaml

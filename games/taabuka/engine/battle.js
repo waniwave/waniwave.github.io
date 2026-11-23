@@ -11,6 +11,7 @@ import { Hooks } from './hooks.js';
 import { cardView, evaluateHand, handBase } from './hand.js';
 import { rarOf, rarDef } from './rarity.js';
 import { computeScore, cardStrength, emitFor, slotDef } from './score.js';
+import { matchCombos, spellOf } from './combo.js';
 import { makeE, runDo, testCond } from './vocab/effect.js';
 
 /**
@@ -210,7 +211,7 @@ export function createBattle(base, o) {
     v: 1, floor: o.floor ?? 1, room: o.room ?? 0, depth: o.depth ?? 0, presence: o.presence ?? 0,
     turn: 0, hp: o.hp ?? guestDef?.hp, maxHp: o.maxHp ?? o.hp ?? guestDef?.hp, guard: 0,
     draw: [], hand: [], discard: [], exhaust: [], destroyed: [], inPlay: [], zones: {},
-    playsLeft: 0, discardsLeft: 0, handSize: play.handSize, turnPlays: 0,
+    playsLeft: 0, discardsLeft: 0, handSize: play.handSize, maxPlay: o.maxPlay ?? play.maxPlayCards, turnPlays: 0,
     enemies: [], seats: (o.seats || []).map((r) => ({ ...r, name: content.regulars?.[r.id]?.name ?? r.id, disabled: false, vars: {} })),
     relics: (o.relics || []).map((r) => ({ ...r, name: content.relics?.[r.id]?.name ?? r.id, vars: {} })),
     items: (o.items || []).slice(),
@@ -581,7 +582,8 @@ export function play(B, env, indices, target, opt = {}) {
   check(!B.result, '戦闘は終わっている');
   check(B.playsLeft > 0, '出しが残っていない');
   const idx = [...new Set(indices)].sort((a, b) => a - b);
-  check(idx.length >= P.minCards && idx.length <= P.maxPlayCards, `出せるのは${P.minCards}〜${P.maxPlayCards}枚`);
+  const maxP = B.maxPlay ?? P.maxPlayCards;
+  check(idx.length >= P.minCards && idx.length <= maxP, `出せるのは${P.minCards}〜${maxP}枚`);
   check(B.fixedPlay == null || idx.length === fixedCount(B), `いまは${fixedCount(B)}枚でしか出せない`);
   check(idx.every((i) => i >= 0 && i < B.hand.length), '手札にない札');
   const ti = aliveIndex(B, target);
@@ -667,6 +669,7 @@ export function playCards(B, env, cards, ti, opt = {}) {
     t: 'play', cards: cards.map((c) => c.name), hand: res.hand, level, scored: scored.map((c) => c.name),
     kickers: kickers.map((c) => c.name), steps: score.steps, V: score.V, S: score.S, M: score.M, target: ti, sealed: handSealed, ...(opt.src ? { src: opt.src } : {}),
     fx: fctx.fx, flags: { ...B.flags },
+    combos: score.combos || [], spell: spellOf(env.content, cards, matchCombos(env.content, cards)),
   });
 
   // 狙った敵に与える（貫通）
@@ -828,6 +831,11 @@ export function endTurn(B, env) {
   expire(B, env, 'turn');
   settle(B, env);
 
+  // 封じ（カテゴリ）は決まったターン数で解ける
+  for (const [cat, n] of Object.entries(B.sealed.catTurns || {})) {
+    if (n <= 1) { delete B.sealed.catTurns[cat]; B.sealed.cats = B.sealed.cats.filter((c) => c !== cat); log(B, { t: 'note', what: `〈${cat}〉の封じが解けた` }); }
+    else B.sealed.catTurns[cat] = n - 1;
+  }
   // 敵の番：左から予告どおり
   for (const e of B.enemies.slice()) {
     if (e.dead || B.result) continue;

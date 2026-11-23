@@ -1,6 +1,6 @@
 // サービスワーカー：オフライン起動。BUILD ごとに先読みし直す（一覧は tools/release.mjs が書く）。
 // 新しい版が入っても勝手に切り替えない。宿の画面の「更新」で切り替える（SKIP_WAITING を受けたら入れ替わる）。
-const BUILD = '1.0.1';
+const BUILD = '1.1.0';
 const FILES = [
   './content/achievements.yaml',
   './content/affixes.yaml',
@@ -10,6 +10,7 @@ const FILES = [
   './content/balance/hands.yaml',
   './content/balance/rarity.yaml',
   './content/balance/tiers.yaml',
+  './content/combos.yaml',
   './content/enemies/core.yaml',
   './content/enemies/custom/anka.js',
   './content/enemies/custom/byousoku.js',
@@ -207,6 +208,7 @@ const FILES = [
   './content/souvenirs.yaml',
   './engine/battle.js',
   './engine/big.js',
+  './engine/combo.js',
   './engine/content.js',
   './engine/dive.js',
   './engine/format.js',
@@ -236,6 +238,7 @@ const FILES = [
   './ui/audio/audio.js',
   './ui/coach.js',
   './ui/dom.js',
+  './ui/fx/combo.js',
   './ui/fx/flash.js',
   './ui/fx/particles.js',
   './ui/fx/queue.js',

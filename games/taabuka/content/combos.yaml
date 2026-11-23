@@ -1,0 +1,119 @@
+# 札同士のコンボ（カテゴリに関係なく、決まった札を同じ出しに入れると発動）
+# cards：札の名前かID。[A, B] の要素を配列にすると「そのどれか」。1枚の札は1つのコンボにしか使わない
+# effect：S（強さ＋）・M（倍率＋）・xM（倍率×）・xV（論破値×、最後に掛かる）・zeni（宿銭＋）
+# fx：専用の演出（ui/fx/combo.js）。無ければ共通のカットイン。color は演出の色
+# spell：呪文の中での呼び名（無ければ name）。shorts：呪文に使う札の短い名前
+shorts:
+  ウメハラ: ハラ
+  ターメリック: ターメ
+  ターメリックライス: ライス
+  宝石をちりばめた生ハーム: 宝ハーム
+  秒速5タームメートル: 秒速5
+  分速300タームメートル: 分速300
+  ゴールデン・オッペンターム: 金ペン
+  シルバー・オッペンターム: 銀ペン
+  ブロンズ・オッペンターム: 銅ペン
+  ライアン・ゴゴゴーグ: ゴゴゴ
+  ライアン・ゴゴゴゴーグ: ゴゴゴゴ
+  女将マープ: マープ
+  タームのことをワニだと勘違いして発砲しているレオン: レオン
+  ターミネーターの弟、ターミネータジュニア: ジュニア
+  ターミネータジュニアジュニア: ジュニジュニ
+  寿限無寿限無五劫の擦り切れ: 寿限無
+
+combos:
+  # ── 看板コンボ ──
+  - { id: cb_curry, name: カレー, cards: [ターメリック, ターメリックライス], effect: { xM: 4 }, fx: curry, color: '#d9a01c', text: ターメリックとターメリックライスでカレーになる }
+  - { id: cb_eooe, name: EOOE, cards: [EO, OE], effect: { xV: 10 }, fx: eooe, color: '#8a3fd0', text: EOとOEがそろうと論破値が10倍 }
+  - { id: cb_eoeo, name: EOEOOEO, cards: [EOEO, OEO], effect: { xV: 5 }, fx: eooe, color: '#6a2fb0', text: EOEOとOEOで論破値5倍 }
+  - { id: cb_eo_all, name: EOとOEの宴, cards: [EOとOE, [EO, OE, EOEO, OEO]], effect: { xM: 3 }, fx: eooe, color: '#8a3fd0', text: EOとOEに、EOかOEのどれかを添える }
+  - { id: cb_ham3, name: ハームの三段, cards: [ハーム, 生ハーム, 生生ハーム], effect: { xM: 5 }, fx: ham, color: '#e07a8a', text: ハーム・生ハーム・生生ハームの三段重ね }
+  - { id: cb_hamjewel, name: 至高のハーム, cards: [宝石をちりばめた生ハーム, [ハーム, 生ハーム, 生生ハーム, ハームの燻製]], effect: { xM: 3 }, fx: ham, color: '#e07a8a' }
+  - { id: cb_hamegg, name: ハームエッグ定食, cards: [ハームエッグ, [ごはんのおかわり, 定食, 宿の定食]], effect: { M: 8 }, color: '#e0a040' }
+  - { id: cb_speed, name: 同じ速さ, cards: [秒速5タームメートル, 分速300タームメートル], effect: { xV: 3 }, fx: speed, color: '#3a8ad0', text: 秒速5mと分速300mは同じ速さ }
+  - { id: cb_speed2, name: 残像, cards: [秒速5タームメートルの残像, [秒速5タームメートル, 秒速5タームメートルで通り過ぎた何か, 秒速のスニーカー]], effect: { xM: 2.5 }, fx: speed, color: '#3a8ad0' }
+  - { id: cb_tama, name: 木林森, cards: [タタ木, タタ林, タタ森], effect: { xM: 5 }, fx: tree, color: '#3f8a3a', text: 木が林になり森になる }
+  - { id: cb_tree, name: 大樹, cards: [大樹タタ木, [世界樹（自称）, 宿り木, ひこばえ]], effect: { xM: 2.5 }, fx: tree, color: '#3f8a3a' }
+  - { id: cb_oppen, name: 表彰台, cards: [ゴールデン・オッペンターム, シルバー・オッペンターム, ブロンズ・オッペンターム], effect: { xM: 5 }, fx: podium, color: '#d6a425', text: 金・銀・銅がそろう }
+  - { id: cb_oppen2, name: 表彰式, cards: [オッペンタームの表彰状, [ゴールデン・オッペンターム, シルバー・オッペンターム, ブロンズ・オッペンターム]], effect: { M: 10 }, fx: podium, color: '#d6a425' }
+
+  # ── 格ゲー ──
+  - { id: cb_shoryu, name: 見てから昇竜, cards: [昇龍拳コマンド, 小足見てから昇竜], effect: { xM: 3 }, fx: fgc, color: '#d0402a' }
+  - { id: cb_hadou, name: 波動昇龍, cards: [波動拳コマンド, 昇龍拳コマンド], effect: { xM: 2.5 }, fx: fgc, color: '#2a70d0', text: 飛ばせて落とす }
+  - { id: cb_kakuhan, name: 待ちガイル, cards: [待ち, 確定反撃], effect: { xM: 2 }, fx: fgc, color: '#2a70d0' }
+  - { id: cb_okizeme, name: 二択, cards: [起き攻め, 中段, 下段], effect: { xM: 4 }, fx: fgc, color: '#d0402a', text: 起き攻めから中段と下段の二択 }
+  - { id: cb_nage, name: 投げ択, cards: [当て投げ, [投げ抜け, コマ投げ]], effect: { xM: 2 }, fx: fgc, color: '#d0402a' }
+  - { id: cb_super, name: ゲージ吐き, cards: [ゲージ, 超必殺技], effect: { xM: 3 }, fx: fgc, color: '#e0a020' }
+  - { id: cb_ume, name: 背水の逆転, cards: [ウメハラ, [台パン, 体力リード, レバーレス]], effect: { xM: 3 }, fx: fgc, color: '#d0402a' }
+  - { id: cb_ume2, name: 逆転の夜, cards: [ウメハラ, ゲームセンターの店員], effect: { M: 12 }, fx: fgc, color: '#d0402a' }
+  - { id: cb_combo, name: 唐揚げコンボ練習, cards: [唐揚げコンボ, コンボ練習], effect: { xM: 2.5 }, fx: fgc, color: '#e0a020' }
+  - { id: cb_frame, name: 1フレ目押し, cards: [1フレ, [ガードキャンセル, シミー, 暴れ]], effect: { xM: 2 }, fx: fgc, color: '#2a70d0' }
+
+  # ── 食べ物 ──
+  - { id: cb_teishoku, name: 定食一式, cards: [定食, 定食の小鉢, 定食のみそ汁, 定食の漬物], effect: { xM: 6 }, fx: meal, color: '#c8702a', text: 定食・小鉢・みそ汁・漬物 }
+  - { id: cb_teishoku2, name: いただきます, cards: [[定食, 宿の定食, 完全な定食], 定食の割り箸], effect: { S: 60 }, fx: meal, color: '#c8702a' }
+  - { id: cb_oomori, name: 大食い, cards: [大盛り, [フードファイター, グターム]], effect: { xM: 2.5 }, fx: meal, color: '#c8702a' }
+  - { id: cb_gutaam, name: 底なしの胃袋, cards: [グターム, グタームの胃袋], effect: { xM: 3 }, fx: meal, color: '#c8702a' }
+  - { id: cb_karai, name: 涙の一皿, cards: [激辛ターリー, わさび], effect: { M: 10 }, fx: meal, color: '#d0402a' }
+  - { id: cb_ikeameat, name: 北欧の食卓, cards: [IKEAのミートボール, [IKEA, ミートボール, ホットドッグ]], effect: { xM: 2, zeni: 3 }, fx: ikea, color: '#2a5fb0' }
+  - { id: cb_taayu, name: ター油の湯, cards: [ター油, [ター油の湯, ター油の空き瓶, ター湯の栓]], effect: { xM: 2.5 }, fx: bath, color: '#c8501a' }
+
+  # ── ラーメン ──
+  - { id: cb_shoyu, name: 醤油ラーメン, cards: [中細ストレート麺, 鶏ガラスープ, 醤油ダレ], effect: { xM: 4 }, fx: ramen, color: '#8a4a1a' }
+  - { id: cb_shio, name: 塩ラーメン, cards: [[中細ストレート麺, 手もみ平打ち麺], [煮干しスープ, 鶏ガラスープ], 塩ダレ], effect: { xM: 4 }, fx: ramen, color: '#c8b070' }
+  - { id: cb_miso, name: 味噌ラーメン, cards: [中太縮れ麺, [豚骨スープ, 鶏ガラスープ], 赤味噌ダレ], effect: { xM: 4 }, fx: ramen, color: '#a0501a' }
+  - { id: cb_ie, name: 家系, cards: [家系の短い太麺, 豚骨醤油スープ, [海苔, ほうれん草, 鶏油]], effect: { xM: 4 }, fx: ramen, color: '#6a3a1a' }
+  - { id: cb_jiro, name: マシマシ, cards: [ニンニク入れますか, 野菜マシマシの山, [背脂, もやし]], effect: { xM: 4 }, fx: ramen, color: '#e0c040', text: ニンニク入れますか？ }
+  - { id: cb_tantan, name: 担々麺, cards: [芝麻醤ダレ, [ラー油, マー油, 特製ラー油弾]], effect: { xM: 3 }, fx: ramen, color: '#d0402a' }
+  - { id: cb_zenbu, name: 全部のせ, cards: [[チャーシュー, 炙りチャーシュー], 味玉, 海苔, メンマ], effect: { xM: 4 }, fx: ramen, color: '#8a4a1a' }
+  - { id: cb_kaedama, name: 替え玉, cards: [替え玉, [豚骨スープ, 豚骨醤油スープ]], effect: { M: 8 }, fx: ramen, color: '#c8b070' }
+  - { id: cb_tare, name: 秘伝, cards: [継ぎ足しの秘伝ダレ, 二度炊きの寸胴], effect: { xM: 3 }, fx: ramen, color: '#6a3a1a' }
+
+  # ── 宿 ──
+  - { id: cb_okami, name: 女将の采配, cards: [[女将マープ, 三代目女将, 女将マープの采配], [女将の一声, 采配の扇, 女将の番付表]], effect: { xM: 2.5 }, fx: inn, color: '#b8432c' }
+  - { id: cb_bantou, name: 帳場の算盤, cards: [番頭, [番頭のそろばん, 帳場の算盤]], effect: { M: 6, zeni: 2 }, fx: inn, color: '#b8432c' }
+  - { id: cb_onsen, name: 湯治, cards: [[源泉かけ流し, 大浴場, 露天風呂], 湯桶, [浴衣, 糊のきいた浴衣, 浴衣の帯]], effect: { xM: 3 }, fx: bath, color: '#3a8ad0' }
+  - { id: cb_makura, name: 修学旅行の夜, cards: [枕投げ, [浴衣, 糊のきいた浴衣, 客間の座布団]], effect: { M: 8 }, fx: inn, color: '#b8432c' }
+  - { id: cb_manshitsu, name: 満室御礼, cards: [満室御礼, 予約帳], effect: { xM: 2.5, zeni: 3 }, fx: inn, color: '#d6a425' }
+  - { id: cb_taajuku, name: ター宿からター深へ, cards: [ター宿, ター深], effect: { xV: 3 }, fx: podium, color: '#b8432c' }
+  - { id: cb_neko, name: 看板猫, cards: [宿の猫, [ネコターン, 子ネコターン]], effect: { M: 8 }, fx: animal, color: '#e0a040' }
+
+  # ── スレ・ネット ──
+  - { id: cb_thread, name: スレ立て乙, cards: [['>>1', スレ立て人, スレ主], '>>1乙'], effect: { xM: 2.5 }, fx: net, color: '#3a8a3a' }
+  - { id: cb_jisure, name: 次スレ, cards: [次スレ, [dat落ち職人, スレのdat落ち]], effect: { xM: 2 }, fx: net, color: '#3a8a3a' }
+  - { id: cb_sasaki, name: 佐々木の佐々木, cards: [佐々木, 佐々木の佐々木], effect: { xM: 3 }, fx: net, color: '#6e6455' }
+  - { id: cb_sasaki2, name: 強さ議論, cards: [佐々木強さ議論スレ, [佐々木, 佐々木の名札, 佐々木の佐々木]], effect: { M: 10 }, fx: net, color: '#6e6455' }
+  - { id: cb_tamvoice, name: 制度廃止, cards: [タムボイス制度, タムボイス制度廃止法案], effect: { xV: 2 }, fx: net, color: '#2f5d7c' }
+  - { id: cb_kincho, name: 今向かってるタム, cards: ['金武町タームくん「今向かってるタム」のとき', '金武町タームくん「着いたタム」のとき', '金武町タームくん「まだ寝てるタム」のとき'], effect: { xM: 5 }, fx: net, color: '#2f5d7c', text: 向かってる・着いた・まだ寝てる }
+  - { id: cb_kincho2, name: 金武町行き, cards: [金武町行きのバス, ['金武町タームくん「今向かってるタム」のとき', '金武町タームくん「着いたタム」のとき', '金武町タームくん「まだ寝てるタム」のとき']], effect: { M: 8 }, fx: net, color: '#2f5d7c' }
+
+  # ── 映画・人物 ──
+  - { id: cb_movie, name: クランクアップ, cards: [『ターム　』の主演ターマー, 『ターム　』の監督, [『ターム　』の助演ターマー, 『ターム　』の撮影クルー]], effect: { xM: 4 }, fx: movie, color: '#1d1a16' }
+  - { id: cb_sequel, name: 続編決定, cards: [『ターム　 』（続編）, [『ターム　』の主演ターマー, 『ターム　』の監督, タームのポスター]], effect: { xM: 2.5 }, fx: movie, color: '#1d1a16' }
+  - { id: cb_taam, name: TAAMの一家, cards: [TAAMで最初に死んだおばあさん, TAAMで最後死んだおじいさん, TAAMで最後生き残った孫], effect: { xM: 5 }, fx: movie, color: '#6e6455' }
+  - { id: cb_eterm, name: 時をかけるターム, cards: [エターム, [ビフォー・エターム, エタームの砂時計]], effect: { xM: 3 }, fx: movie, color: '#8b4fc4' }
+  - { id: cb_junior, name: ジュニアジュニア, cards: [ターミネーターの弟、ターミネータジュニア, ターミネータジュニアジュニア], effect: { xM: 3 }, fx: movie, color: '#6e6455' }
+  - { id: cb_ryan, name: ゴゴゴゴゴゴゴ, cards: [ライアン・ゴゴゴーグ, ライアン・ゴゴゴゴーグ], effect: { xM: 3 }, fx: movie, color: '#2f5d7c' }
+  - { id: cb_ryan2, name: 名刺交換, cards: [ライアン・ゴゴゴーグの名刺, [ライアン・ゴゴゴーグ, ライアン・ゴゴゴゴーグ]], effect: { M: 8 }, fx: movie, color: '#2f5d7c' }
+  - { id: cb_leon, name: 誤射, cards: [タームのことをワニだと勘違いして発砲しているレオン, [ワニ（本物）, レオンの弾丸]], effect: { xM: 3 }, fx: movie, color: '#3f7a3a' }
+  - { id: cb_soutou, name: 世代交代, cards: [相当老, 相当若], effect: { xM: 3 }, color: '#6e6455' }
+  - { id: cb_soutou2, name: 相当老の一喝, cards: [[相当老, 長老の昔話], [相当老の一喝, 相当老の入れ歯]], effect: { M: 8 }, color: '#6e6455' }
+  - { id: cb_doctor, name: 診察, cards: [ドクターム, ドクタームのカルテ], effect: { xM: 2.5 }, color: '#2f5d7c' }
+  - { id: cb_irobot, name: セレブ婚, cards: [アイロボット, アイロボットとセレブ婚したターマー], effect: { xM: 3, zeni: 3 }, color: '#d6a425' }
+  - { id: cb_taaaam, name: taaaam様専用, cards: [taaaam様, [taaaam様専用, taaaam様専用スリッパ]], effect: { xM: 3 }, color: '#d6a425' }
+
+  # ── IKEA・学校・土・角・動物 ──
+  - { id: cb_ikea, name: 組み立て完了, cards: [[IKEAの説明書, 組立説明書], [IKEAの六角レンチ, 予備の六角レンチ], [棚板, 木ダボ, 平たい箱]], effect: { xM: 4 }, fx: ikea, color: '#2a5fb0' }
+  - { id: cb_ikea2, name: 完成写真どおり, cards: [IKEAの完成形, [完成写真, 組み立てサービス]], effect: { xM: 3 }, fx: ikea, color: '#e0c040' }
+  - { id: cb_undoukai, name: 運動会, cards: [[綱引き, リレーのバトン, かけっこ一等賞], 運動会のテント, [ゼッケン, 白線の粉, 校庭の白線]], effect: { xM: 4 }, fx: school, color: '#3f8a3a' }
+  - { id: cb_chourei, name: 朝礼, cards: [[朝礼台, 朝礼台の上], [校長の話, 朝礼の挨拶, 集会の整列]], effect: { M: 8 }, fx: school, color: '#3f8a3a' }
+  - { id: cb_sotsugyo, name: 卒業, cards: [卒業証書, [卒業文集, 校歌]], effect: { xM: 2.5 }, fx: school, color: '#b8432c' }
+  - { id: cb_jikoshoukai, name: 自己紹介, cards: [[自己紹介をする土, 名乗りを上げる土], [自己紹介を聞かされた石, はじめまして]], effect: { xM: 3 }, fx: school, color: '#8a6a3a' }
+  - { id: cb_jugemu, name: フルネーム, cards: [寿限無寿限無五劫の擦り切れ, お名前をフルネームでお願いします], effect: { xV: 2 }, fx: school, color: '#8a6a3a' }
+  - { id: cb_kaku, name: 角づくし, cards: [ター角, [ター角の欠片, ター角の真骨頂], [角砂糖, 角煮, 角刈り, 角度]], effect: { xM: 4 }, color: '#2a2520' }
+  - { id: cb_maru, name: 角が取れる, cards: [[ター角, ター角の欠片], [ター丸, 四角い部屋を丸く掃く]], effect: { xM: 2.5 }, color: '#2a2520' }
+  - { id: cb_bakasi, name: 化かし合い, cards: [ターヌキ, キターツネ], effect: { xM: 2.5 }, fx: animal, color: '#c8702a' }
+  - { id: cb_oyako, name: 親子, cards: [ネコターン, 子ネコターン], effect: { M: 8 }, fx: animal, color: '#e0a040' }
+  - { id: cb_zoo, name: ふれあい動物園, cards: [[ふれあい広場, 動物園の飼育員, 動物園のお弁当], [ウサギター, ヒヨコーム, カピバターラ, パンダーム]], effect: { xM: 2.5 }, fx: animal, color: '#3f8a3a' }
+  - { id: cb_chanoma, name: 冬の茶の間, cards: [こたつ, [茶の間, 湯呑み], [梅干し, 漬物, 昔話]], effect: { xM: 3 }, color: '#8a6a3a' }
+  - { id: cb_chahan, name: プロトコルチャーハン, cards: [チャンカー, キルチョイサー], effect: { xM: 3 }, color: '#d0402a' }

@@ -1,4 +1,4 @@
-// 画面の小さな道具：要素を作る、長押しの説明、長押しで確定するボタン、下から出る窓、短い知らせ
+// 画面の小さな道具：要素を作る、押すと出る説明、決定のボタン、確認、下から出る窓、短い知らせ
 
 /** 要素を作る。h('div.a.b', {onclick}, [子…]) */
 export function h(sel, attrs = {}, kids = []) {
@@ -20,75 +20,73 @@ export function h(sel, attrs = {}, kids = []) {
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// ───────── 長押し0.4秒で説明（PCはマウスを乗せる） ─────────
-const TIP_MS = 400;
-let tipEl = null;
-function tipBox() { return tipEl ||= document.getElementById('tip'); }
+// ───────── 説明欄（長押しは使わない） ─────────
+// 押すと説明が出る。画面に「説明欄」（.infobox）があればそこへ、無ければ画面下の説明の窓へ。
+// 説明を出しても、押した物の本来の動き（札を選ぶなど）はそのまま起きる。マウスを乗せても何も出ない。
+let infoEl = null;
+function infoPanel() { return infoEl ||= document.getElementById('tip'); }
 
-export function showTip(html, x, y) {
-  const t = tipBox();
-  t.innerHTML = html;
+/** 説明を出す。screen 内に .infobox があればそこに、無ければ説明の窓に */
+export function showInfo(html, from = null) {
+  const scope = from?.closest?.('.sheet, .scr');
+  const box = scope ? scope.querySelector('.infobox') : document.querySelector('#app > .scr .infobox');
+  if (box) {
+    box.innerHTML = html;
+    box.classList.add('on');
+    box.scrollTop = 0;
+    return;
+  }
+  const t = infoPanel();
+  if (!t) return;
+  t.innerHTML = `<button type="button" class="tipx" aria-label="閉じる">✕</button>${html}`;
+  t.classList.add('on');
   t.style.display = 'block';
-  const r = t.getBoundingClientRect();
-  const W = window.innerWidth, H = window.innerHeight;
-  let left = Math.min(Math.max(8, x - r.width / 2), W - r.width - 8);
-  let top = y - r.height - 14;
-  if (top < 8) top = Math.min(H - r.height - 8, y + 18);
-  t.style.left = `${left}px`;
-  t.style.top = `${top}px`;
+  t.querySelector('.tipx').onclick = (e) => { e.stopPropagation(); hideTip(); };
 }
-export function hideTip() { const t = tipBox(); if (t) t.style.display = 'none'; }
+/** 以前の呼び名（説明の窓を出す） */
+export function showTip(html) { showInfo(html); }
+export function hideTip() { const t = infoPanel(); if (t) { t.style.display = 'none'; t.classList.remove('on'); } }
+// 説明の窓の外を押したら閉じる（押した物の動きは止めない）
+document.addEventListener('pointerdown', (e) => {
+  const t = infoPanel();
+  if (t && t.style.display === 'block' && !t.contains(e.target) && !e.target.closest?.('[data-info]')) hideTip();
+}, true);
 
 /**
- * 長押しで説明を出す。説明が出たら、そのあとのクリックは無視する
+ * 押すと説明が出るようにする
  * @param {HTMLElement} el @param {() => string} html 説明（HTML）
  */
 export function tip(el, html) {
-  let timer = null, shown = false, sx = 0, sy = 0;
-  const cancel = () => { clearTimeout(timer); timer = null; };
-  el.addEventListener('pointerdown', (e) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    shown = false; sx = e.clientX; sy = e.clientY;
-    cancel();
-    timer = setTimeout(() => { shown = true; showTip(html(), sx, sy); }, TIP_MS);
-  });
-  el.addEventListener('pointermove', (e) => { if (timer && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) cancel(); });
-  el.addEventListener('pointerup', () => { cancel(); if (shown) setTimeout(hideTip, 900); });
-  el.addEventListener('pointercancel', () => { cancel(); hideTip(); });
-  el.addEventListener('contextmenu', (e) => e.preventDefault());
-  el.addEventListener('click', (e) => { if (shown) { e.stopImmediatePropagation(); e.preventDefault(); shown = false; } }, true);
-  // PC：マウスを乗せると出る
-  el.addEventListener('pointerenter', (e) => {
-    if (e.pointerType !== 'mouse') return;
-    const r = el.getBoundingClientRect();
-    el._hover = setTimeout(() => showTip(html(), r.left + r.width / 2, r.top), 250);
-  });
-  el.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { clearTimeout(el._hover); hideTip(); } });
+  el.dataset.info = '1';
+  el._info = html;
+  el.addEventListener('click', () => { if (el.isConnected) showInfo(html(), el); });
   return el;
 }
 
-// ───────── 長押し0.8秒で確定するボタン ─────────
-export const HOLD_MS = 800;
+// ───────── 決定のボタン（長押しはやめた。名前は昔のまま） ─────────
 /**
- * 取り返せない確定のボタン。押している間、進み具合の帯が伸びる
+ * 押すと決まるボタン。取り返せない決定は、ボタンの文言で何が起きるか分かるようにする
  * @param {string} label @param {() => void} onConfirm @param {string} [cls]
  */
 export function holdButton(label, onConfirm, cls = '') {
-  const bar = h('span.bar');
-  const btn = h(`button.btn.hold${cls ? `.${cls}` : ''}`, { type: 'button' }, [bar, h('span.lbl', { text: label })]);
-  let anim = null, timer = null;
-  const stop = () => { clearTimeout(timer); if (anim) anim.cancel(); anim = null; };
-  btn.addEventListener('pointerdown', (e) => {
-    if (btn.disabled) return;
-    e.preventDefault();
-    stop();
-    anim = bar.animate([{ width: '0%' }, { width: '100%' }], { duration: HOLD_MS, fill: 'forwards' });
-    timer = setTimeout(() => { stop(); onConfirm(); }, HOLD_MS);
-  });
-  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) btn.addEventListener(ev, stop);
-  btn.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.repeat) onConfirm(); });
-  btn.title = '長押しで確定';
+  const btn = h(`button.btn.hold${cls ? `.${cls}` : ''}`, { type: 'button' }, [h('span.lbl', { text: label })]);
+  btn.addEventListener('click', () => { if (!btn.disabled) onConfirm(); });
   return btn;
+}
+
+/** はい／いいえの確認（取り返せない操作の前に）。はいなら true */
+export function confirmSheet(root, title, body, yes = 'はい', no = 'やめる') {
+  return new Promise((resolve) => {
+    let done = false;
+    const s = sheet(root, [
+      h('h2', { text: title }),
+      body ? (typeof body === 'string' ? h('p', { text: body }) : body) : null,
+      h('div.row', {}, [
+        h('button.btn', { type: 'button', onclick: () => s.close() }, [no]),
+        h('button.btn.main', { type: 'button', onclick: () => { done = true; s.close(); resolve(true); } }, [yes]),
+      ]),
+    ], { onClose: () => { if (!done) resolve(false); } });
+  });
 }
 
 // ───────── 下から出る窓 ─────────

@@ -271,10 +271,15 @@ export const ACTS = [
     } },
   { name: '伏せ', text: '次のターン、手札のN枚が裏向き（出せるが中身が見えない）', args: 'int',
     run(B, env, e, arg) { B.pendingFaceDown += arg; log(B, { t: 'act', enemy: e.uid, name: e.name, act: '伏せ', n: arg }); } },
-  { name: '封じ', text: 'その戦闘中、指定のものを採点しない／使えない', args: ['最多カテゴリ', '流し'],
+  { name: '封じ', text: '最多カテゴリ：手札で一番多いカテゴリを次のターンだけ採点しない（予告に出る）。流し：その戦闘中、流せない', args: ['最多カテゴリ', '流し'],
     run(B, env, e, arg) {
       if (arg === '流し') B.sealed.discard = true;
-      else { const c = mostCategory(B, env); if (c && !B.sealed.cats.includes(c)) B.sealed.cats.push(c); }
+      else {
+        const c = mostCategory(B, env);
+        if (c) { if (!B.sealed.cats.includes(c)) B.sealed.cats.push(c); (B.sealed.catTurns ||= {})[c] = env.balance.hands.sealTurns ?? 2; }
+        log(B, { t: 'act', enemy: e.uid, name: e.name, act: '封じ', what: c ? `〈${c}〉` : arg });
+        return;
+      }
       log(B, { t: 'act', enemy: e.uid, name: e.name, act: '封じ', what: arg });
     } },
   { name: '格下げ', text: '番付で一番高いカテゴリをN段下げる', args: 'int|none',

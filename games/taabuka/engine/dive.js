@@ -26,6 +26,8 @@ export function layerList(content) {
 export function layerAt(content, floor) {
   return layerList(content).find((L) => floor >= L.floors[0] && floor <= L.floors[1]) ?? null;
 }
+/** ワープできる階（2層め以降の各層の入口。底は除く） */
+export function warpFloors(content) { return layerList(content).slice(1).filter((L) => L.floors[1] > L.floors[0] && L.floors[1] < 9999).map((L) => L.floors[0]); }
 /** 層の番号（1から） */
 export function layerNo(content, L) { return layerList(content).indexOf(L) + 1; }
 /** 層の最後の階か（層主戦がある） */
@@ -88,7 +90,7 @@ export function createDive(base, o) {
     deck: (o.deck || []).map((x) => ({ ...x })), seats: (o.seats || []).map((x) => ({ ...x })), relics: (o.relics || []).map((x) => ({ ...x })),
     items: (o.items || []).slice(0, balance.hands.play.itemSlots).map((x) => ({ ...x })),
     pouch: [], charm: (o.charm || []).map((x) => ({ ...x })),
-    carry: { pouch: o.carry?.pouch ?? E.carry.pouch, charm: Math.min(dm.charmSlotsMax ?? Infinity, Math.max(0, (o.carry?.charm ?? E.carry.charm) + (dm.charmSlots || 0))) },
+    carry: { pouch: o.carry?.pouch ?? E.carry.pouch, charm: Math.min(dm.charmSlotsMax ?? Infinity, Math.max(0, (o.carry?.charm ?? E.carry.charm) + (dm.charmSlots || 0))), ...(o.carry?.maxPlay ? { maxPlay: o.carry.maxPlay } : {}) },
     sudomari: !!o.sudomari, battleState: null,
     zeni: 0, banzuke, handLevels: {}, guestState: { ...(g.state || {}), ...(o.guestState || {}) }, presence: 0, rules: [],
     bosses: {}, map: null, row: 0, floorBanzuke: { ...banzuke },
@@ -121,7 +123,10 @@ export function createDive(base, o) {
       D.guestState[ch.key] = balance.tiers.categories.reduce((best, cat) => ((n[cat] || 0) > (n[best] || 0) ? cat : best), balance.tiers.categories[0]);
     }
   }
-  enterFloor(base, D, 1);
+  // ワープ：到達した層の入口から始める（content の層の最初の階だけ）
+  const start = o.startFloor && warpFloors(content).includes(o.startFloor) ? o.startFloor : 1;
+  if (start > 1) D.warped = start;
+  enterFloor(base, D, start);
   return D;
 }
 
@@ -561,7 +566,7 @@ export function battleOptions(base, D) {
   return {
     seed: D.seed, floor: D.floor, room: bt.room, depth: D.depth, presence: D.presence,
     hp: D.hp, maxHp: D.maxHp, guest: D.guest, guestState: D.guestState,
-    deck: D.deck, seats: D.seats, relics: D.relics, items: D.items, rules: D.rules,
+    deck: D.deck, seats: D.seats, relics: D.relics, items: D.items, rules: D.rules, ...(D.carry?.maxPlay ? { maxPlay: D.carry.maxPlay } : {}),
     banzuke: D.banzuke, handLevels: D.handLevels, banzukeFloorStart: D.floorBanzuke,
     enemies: bt.enemies, weight: bt.kind === '番人' ? pouchWeight(base, D) : 0,
     ...(quirkOf(base, D) ? { quirk: quirkOf(base, D).name, quirkParams: quirkOf(base, D).params } : {}),

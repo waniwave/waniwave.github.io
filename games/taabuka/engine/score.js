@@ -15,6 +15,7 @@
 import { Big, ZERO } from './big.js';
 import { cardView, overlapMuls } from './hand.js';
 import { rarDef } from './rarity.js';
+import { matchCombos } from './combo.js';
 
 /** 札の出どころ（手順列・記録用） */
 export function srcOf(kind, obj) {
@@ -201,6 +202,20 @@ export function computeScore(o) {
     for (const o of overlapMuls(sc.overlap, balance)) sc.mulM(o.x, { kind: 'overlap', id: o.cat, n: o.n });
   });
 
+  // 2'' コンボ：出した札（採点されない札も）に決まった組み合わせがあれば（content/combos.yaml）
+  sc.phase = 'combo';
+  sc.combos = matchCombos(env.content, sc.played || []);
+  for (const m of sc.combos) {
+    const c = m.combo; const ef = c.effect || {};
+    const csrc = { kind: 'combo', id: c.id, name: c.name, fx: c.fx ?? null, color: c.color ?? null };
+    if (ef.S) sc.addS(ef.S, csrc);
+    if (ef.M) sc.addM(ef.M, csrc);
+    if (ef.xM) sc.mulM(ef.xM, csrc);
+    if (ef.xV) sc.finalMuls.push({ x: ef.xV, src: csrc });
+    if (ef.zeni) sc.zeni += ef.zeni;
+    if (!ef.S && !ef.M && !ef.xM) sc.note('コンボ', csrc);
+  }
+
   // 3 手札に残った札
   sc.phase = 'held';
   for (const card of sc.held) {
@@ -257,6 +272,6 @@ export function computeScore(o) {
     sc.steps.push({ type: 'final', src: { kind: 'rule' }, phase: 'final', S: sc.S, M: sc.M, V: sc.V });
   });
 
-  return { V: sc.V, S: sc.S, M: sc.M, steps: sc.steps, zeni: sc.zeni, broken: sc.broken, ctx: sc };
+  return { V: sc.V, S: sc.S, M: sc.M, steps: sc.steps, zeni: sc.zeni, broken: sc.broken, combos: (sc.combos || []).map((m) => m.combo.id), ctx: sc };
 }
 

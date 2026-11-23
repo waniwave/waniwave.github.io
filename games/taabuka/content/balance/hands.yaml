@@ -10,6 +10,9 @@ base: { S: 0, M: 1 }
 # カテゴリごとの掛けを全部掛け合わせる。重ね数で n は5を超えられる（cap まで）
 overlap: { step: 0.5, cap: 9 }
 
+# 敵の「封じ（最多カテゴリ）」が続くターン数（1＝次の1ターンだけ）。予告にどのカテゴリか出る
+sealTurns: 1
+
 play:
   handSize: 8
   playsPerTurn: 2

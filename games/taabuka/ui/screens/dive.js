@@ -1,7 +1,7 @@
 // 潜行の画面：階（襖の列3つ）・追跡者・報酬・商い・湯・謎・非常口・踊り場・脱出／未帰還（仕様書 第4章・第10章）
 // 状態 D は engine/dive.js が持つ。画面は D を描いて、dive.js の関数を呼ぶだけ。戦闘は battle 画面に任せる。
 
-import { thingEl as sharedThing } from '../things.js';
+import { thingEl as sharedThing, pickThing } from '../things.js';
 import { h, tip, toast, pick, sheet, holdButton, esc } from '../dom.js';
 import { GRADE_COLOR, catGlyph, catColor, tierLabel, kwLines, bindText, rarOfCard } from '../labels.js';
 import { askItem, ownedName } from '../items.js';
@@ -228,7 +228,7 @@ export function diveScreen(o) {
       el.addEventListener('click', async () => {
         if (!can) { toast(g.sold ? 'もう売れた' : '宿銭が足りない'); return; }
         if (g.type === 'remove') {
-          const uid = await pick(app, '除く札を選ぶ', D.deck.map((c) => ({ label: ownedName(content, c), value: c.uid })));
+          const uid = await pickThing(base, app, '除く札を選ぶ', D.deck.map((c) => ({ ...c, type: 'card' })), { yes: '除く' });
           if (uid != null) redo(() => buy(base, D, i, { card: uid }));
           return;
         }
@@ -251,7 +251,7 @@ export function diveScreen(o) {
       h('p.q', { text: D.bath.done ? '湯気が、ゆっくり上がっていく。' : 'ひとつだけ。' }),
       h('div.col', {}, opts.map((op) => h('button.btn', { type: 'button', disabled: D.bath.done, onclick: async () => {
         if (op.needCard) {
-          const uid = await pick(app, '仕込む札を選ぶ', D.deck.map((c) => ({ label: ownedName(content, c), value: c.uid })));
+          const uid = await pickThing(base, app, '仕込む札を選ぶ', D.deck.map((c) => ({ ...c, type: 'card' })), { yes: '仕込む' });
           if (uid != null) redo(() => useBath(base, D, op.id, uid));
         } else redo(() => useBath(base, D, op.id));
       } }, [op.label]))),

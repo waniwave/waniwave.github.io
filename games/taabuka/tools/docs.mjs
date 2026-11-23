@@ -52,6 +52,7 @@ export function contentGuide(content) {
 | 謎 | \`content/events/<層>.yaml\`（ファイル名の layerN が出る層） |
 | お土産 | \`content/souvenirs.yaml\` |
 | 宿の施設と段階 | \`content/facilities.yaml\` |
+| 札同士のコンボ・呪文の短い名前 | \`content/combos.yaml\` |
 
 書き方の雛形は \`docs/templates/\` にある。差し込み口の一覧は \`docs/hooks.md\`。
 
