@@ -1,0 +1,306 @@
+// combat.js — 神経発火、ダメージの逐次計算（EvalStep）、敵の行動、逆流汚染、脊髄臨界、アンプル
+// DOM に触れない。数値・敵・アイテムはすべて registry（content/）から受け取る。
+import { BigNum } from '../util.js';
+import { Board } from './board.js';
+import { collectEffects, callHooks } from './registry.js';
+
+const B = x => BigNum.from(x);
+
+export function enemyHp(mode, floor, edef, boss) {
+  return B(mode.hpBase).mul(B(mode.hpGrowth).pow(floor - 1)).mul(boss ? mode.bossMul ?? 1 : 1).mul(edef.hpMul ?? 1);
+}
+export function pickEnemy(mode, floor, rng) {
+  if (mode.bosses?.[floor]) return mode.bosses[floor];
+  return rng.pick(mode.pool);
+}
+
+export class Combat {
+  // o: { mode, floor, enemy, mutagens:[id], ampoules:[id], sync, syncMax, myelin, gauge, backflow, backflowOn }
+  constructor(reg, rng, o = {}) {
+    this.reg = reg; this.rng = rng; this.R = reg.rules;
+    this.mode = reg.get('modes', o.mode) ?? reg.all('modes')[0];
+    this.floor = o.floor ?? 1;
+    this.isBoss = !!this.mode.bossFloors?.includes(this.floor);
+    const edef = reg.get('enemies', o.enemy ?? pickEnemy(this.mode, this.floor, rng));
+    this.board = new Board(reg, rng);
+    this.nodes = Object.fromEntries(reg.all('nodes').map(n => [n.id, n]));
+    this.cmpDefs = this.board.cmpDefs;
+    this.mutagens = (o.mutagens || []).map(id => reg.get('mutagens', id)).filter(Boolean);
+    this.ampoules = Array.from({ length: this.R.combat.ampouleSlots }, (_, i) => o.ampoules?.[i] ?? null);
+    this.syncMax = o.syncMax ?? 100;
+    this.sync = Math.min(o.sync ?? this.syncMax, this.syncMax);
+    this.myelin = o.myelin ?? 0; this.gauge = o.gauge ?? 0; this.backflow = o.backflow ?? 0;
+    this.backflowOn = this.isBoss || !!this.mode.backflowAll || !!o.backflowOn;
+    const hp = enemyHp(this.mode, this.floor, edef, this.isBoss);
+    this.enemy = { def: edef, hp, hpMax: hp, timer: edef.interval, stunned: false, cycle: 0, shuffled: false };
+    Object.assign(this, { turn: 0, phase: 'think', chains: [], crit: false, reserved: false, echo: false, lastCrit: false,
+      rewindUsed: false, snapPrev: null, snapCur: null, freeze: 0, time: 0, bestDamage: B(0), maxChain: 0, alwaysWild: false });
+    this.events = [];
+    this.applyGimmicks('start', this.events);
+    this.telegraph(this.events);
+    this.startTurn();
+  }
+
+  // ---- 効果の出どころ（段階3で椎骨義体・形質・株を足す） ----
+  get sources() { return this.mutagens.map(m => ({ id: m.id, name: m.name, effect: m.effect, scale: m.base ?? 1 })); }
+  scope(chains = []) { return { chains, sync: this.sync, backflow: this.backflow, myelin: this.myelin, crit: this.crit }; }
+  stat(op) { return collectEffects(this.sources, this.scope([]), 'turn').filter(e => e.op === op); }
+  sumStat(op) { return this.stat(op).reduce((t, e) => t + (Number(e.v) || 0), 0); }
+  fireTime() { return this.R.fire.time + this.sumStat('addFireTime'); }
+  pulseTime() { const p = this.board.pulseDef; return p ? (p.time ?? 0) + this.sumStat('addPulseTime') : 0; }
+  get timeScale() {
+    if (this.crit) return this.R.spineBreak.timeScale;
+    if (this.echo) return this.stat('spineEcho')[0]?.args[1] ?? 1;
+    return 1;
+  }
+  get canCrit() { return this.gauge >= this.R.spineBreak.max; }
+
+  // ---- ターン ----
+  snapshot() { return { board: this.board.toJSON(), sync: this.sync, myelin: this.myelin, backflow: this.backflow }; }
+  startTurn() {
+    this.turn++;
+    this.snapPrev = this.snapCur; this.snapCur = this.snapshot();
+    this.phase = 'think'; this.chains = []; this.freeze = 0; this.reserved = false;
+    this.time = this.fireTime();
+  }
+  toggleReserve() { if (this.phase === 'think' && this.canCrit) this.reserved = !this.reserved; return this.reserved; }
+  beginFire() {
+    if (this.phase !== 'think') return false;
+    this.phase = 'fire';
+    if (this.reserved && this.canCrit) { this.crit = true; this.gauge = 0; this.board.spineWild = true; }
+    this.echo = !this.crit && this.lastCrit && this.stat('spineEcho').length > 0;
+    callHooks(this.sources, 'ON_FIRE_START', { combat: this });
+    return true;
+  }
+  // dt 秒進める。時間切れなら true
+  tick(dt) {
+    if (this.phase !== 'fire') return false;
+    if (this.freeze > 0) { this.freeze -= dt; if (this.freeze >= 0) return false; dt = -this.freeze; this.freeze = 0; }
+    this.time -= dt * this.timeScale;
+    return this.time <= 0;
+  }
+  commit(path) {
+    if (this.phase !== 'fire') return null;
+    const res = this.board.resolve(path);
+    if (!res) return null;
+    const ch = res.chain;
+    this.chains.push(ch);
+    this.maxChain = Math.max(this.maxChain, ch.cells.length);
+    res.pulses = ch.cells.filter(n => n.pulse).length;
+    this.time += res.pulses * this.pulseTime();
+    res.weakpoint = ch.specials.some(s => this.nodes[s.id]?.look === 'bracket');
+    if (res.weakpoint) { this.enemy.stunned = true; callHooks(this.sources, 'ON_WEAKPOINT_BREAK', { combat: this }); }
+    res.reflect = ch.specials.some(s => this.nodes[s.id]?.reflect && s.count > 0);
+    callHooks(this.sources, 'ON_CHAIN_COMMIT', { combat: this, chain: ch });
+    for (const m of res.merges) callHooks(this.sources, 'ON_MERGE_CREATED', { combat: this, merge: m });
+    return res;
+  }
+  // 発火中の予想（なぞり中のルートも含める）
+  preview(path) {
+    const chains = [...this.chains];
+    let cur = null;
+    if (path?.length >= this.board.minChain) { cur = this.board.buildChain(path).chain; chains.push(cur); }
+    const ev = this.evaluate(chains);
+    return { ...ev, current: cur };
+  }
+
+  // ---- ダメージ計算（仕様書 6.2） ----
+  evaluate(chainsIn) {
+    const C = this.R.combat, srcs = this.sources;
+    const real = chainsIn.filter(c => !c.burn);
+    const list = real.map((ch, i) => ({ ...ch, prevColor: i ? real[i - 1].color : null }));
+    const sc = this.scope(list);
+    const active = new Set();
+    const steps = [];
+    let base = B(0), mult = B(C.startMult), factor = B(1);
+    const push = s => steps.push({ ...s, base, mult, factor, total: base.mul(mult).mul(factor) });
+    let myelin = 0, gauge = 0, synapse = 0;
+    const turnEm = collectEffects(srcs, sc, 'turn');
+    const chainBase = [];
+    const nodeValue = (n, ch, useMods) => {
+      const def = this.nodes[n.color]; if (!def) return { v: 0, m: 0, my: 0 };
+      const val = { v: def.base ?? 0, m: def.mult ?? 0, my: def.myelin ?? 0 };
+      if (useMods) {
+        for (const e of collectEffects(srcs, { ...sc, chain: ch, node: n }, 'node')) {
+          active.add(e.src.id);
+          if (e.op === 'addBase') val.v += e.v; else if (e.op === 'addMult') val.m += e.v;
+          else if (e.op === 'baseMul') val.v *= e.v; else if (e.op === 'addMyelin') val.my += e.v;
+        }
+        callHooks(srcs, 'ON_NODE_EVAL', { combat: this, node: n, chain: ch, val });
+        if (n.spine) callHooks(srcs, 'ON_SPINE_PASS', { combat: this, node: n, chain: ch, val });
+      }
+      const cmp = n.cmp ? this.cmpDefs[n.cmp - 1] : null;
+      const k = (n.spine ? this.R.board.spineMul : 1) * (cmp ? cmp.valueMul ?? 1 : 1);
+      return { v: val.v * k, m: val.m * k + (cmp?.mult ?? 0), my: val.my * k, gauge: def.gauge ?? 0 };
+    };
+    // 焼灼アンプルなど：基礎値だけ加算（連結数には数えない）
+    for (const ch of chainsIn.filter(c => c.burn)) {
+      let cb = 0; for (const n of ch.cells) cb += nodeValue(n, null, false).v;
+      base = base.add(cb); push({ kind: 'burn', len: ch.cells.length, add: cb });
+    }
+    // 1〜2. 連結ごとの基礎値と倍率
+    for (const ch of list) {
+      let cb = 0, cm = 0;
+      for (const n of [...ch.cells, ...ch.blasted]) {
+        const x = nodeValue(n, ch, true);
+        cb += x.v; cm += x.m; myelin += x.my;
+        if (x.gauge) { gauge += x.gauge; synapse++; }
+      }
+      if (ch.cells.length >= C.bigChain) gauge += C.bigChainGauge;
+      let lb = 1; for (const [len, mul] of C.longBonus) if (ch.cells.length >= len) lb = mul;
+      cb *= lb; cm *= lb;
+      for (const e of turnEm) if (e.chain === ch && (e.op === 'baseMul' || e.op === 'addBase')) {
+        active.add(e.src.id); cb = e.op === 'baseMul' ? cb * e.v : cb + e.v;
+      }
+      chainBase.push(cb);
+      base = base.add(cb); mult = mult.add(cm);
+      push({ kind: 'chain', color: ch.color, len: ch.cells.length, blasted: ch.blasted.length, add: cb, multAdd: cm, long: lb });
+    }
+    const free = turnEm.filter(e => !e.chain || !['baseMul', 'addBase'].includes(e.op));
+    for (const e of free) {
+      if (e.op === 'addBase') { base = base.add(e.v); push({ kind: 'src', name: e.src.name, op: e.op, v: e.v }); }
+      else if (e.op === 'myelinToBase') { const v = this.myelin * e.v; base = base.add(v); push({ kind: 'src', name: e.src.name, op: 'addBase', v }); }
+      else if (e.op === 'baseMul') { base = base.mul(e.v); push({ kind: 'src', name: e.src.name, op: e.op, v: e.v }); }
+      else continue;
+      active.add(e.src.id);
+    }
+    for (const e of free.filter(e => e.op === 'addMult')) { mult = mult.add(e.v); active.add(e.src.id); push({ kind: 'src', name: e.src.name, op: e.op, v: e.v }); }
+    // 3. 連結数ボーナス
+    if (list.length > 1) {
+      const k = 1 + (C.chainBonus + this.sumStat('addChainBonus')) * (list.length - 1);
+      factor = factor.mul(k); push({ kind: 'chainBonus', n: list.length, k });
+    }
+    // 4. 乗算
+    for (const e of free.filter(e => e.op === 'mulMult')) { factor = factor.mul(e.v); active.add(e.src.id); push({ kind: 'src', name: e.src.name, op: e.op, v: e.v }); }
+    // 5. 再発動
+    for (const e of free.filter(e => e.op === 'retrigger')) {
+      const t = e.chain ? chainBase[list.indexOf(e.chain)] : Math.max(0, ...chainBase);
+      if (!t) continue;
+      base = base.add(t * (e.v || 1)); active.add(e.src.id);
+      push({ kind: 'src', name: e.src.name, op: 'retrigger', v: t * (e.v || 1) });
+    }
+    // 6. メタ増幅（系統共鳴・椎骨義体の枠）
+    for (const e of free.filter(e => e.op === 'metaMul')) { factor = factor.mul(e.v); active.add(e.src.id); push({ kind: 'src', name: e.src.name, op: e.op, v: e.v }); }
+    // 7. 装甲・反射・脊髄臨界
+    const armor = this.enemy.def.armor;
+    if (list.length && armor && !list.some(ch => ch.color === armor.color)) { factor = factor.mul(armor.mul); push({ kind: 'armor', k: armor.mul, color: armor.color }); }
+    const virus = list.flatMap(ch => ch.specials).find(s => this.nodes[s.id]?.reflect && s.count > 0);
+    if (list.length && virus) { const k = this.nodes[virus.id].reflect; factor = factor.mul(k); push({ kind: 'reflect', k }); }
+    if (list.length && this.crit) { factor = factor.mul(this.R.spineBreak.mul); push({ kind: 'crit', k: this.R.spineBreak.mul }); }
+    else if (list.length && this.echo) { const e = this.stat('spineEcho')[0]; factor = factor.mul(e.v); active.add(e.src.id); push({ kind: 'echo', k: e.v }); }
+    for (const e of turnEm) if (['addFireTime', 'addPulseTime', 'addChainBonus'].includes(e.op)) active.add(e.src.id);
+    const gaugeMul = 1 + this.sumStat('addGauge') / 100;
+    return { steps, base, mult, factor, total: base.mul(mult).mul(factor), myelin, gauge: gauge * gaugeMul, synapse, active, chainCount: list.length };
+  }
+
+  // 時間切れ・発火停止：ダメージを与える
+  endFire() {
+    if (this.phase !== 'fire') return null;
+    callHooks(this.sources, 'ON_FIRE_END', { combat: this });
+    const ev = this.evaluate(this.chains);
+    const e = this.enemy;
+    e.hp = BigNum.max(0, e.hp.sub(ev.total));
+    this.myelin += ev.myelin;
+    this.gauge = Math.min(this.R.spineBreak.max, this.gauge + ev.gauge);
+    const BF = this.R.backflow;
+    if (this.backflowOn && ev.synapse >= BF.reliefCount) this.backflow = Math.max(0, this.backflow - BF.relief);
+    ev.best = ev.total.gt(this.bestDamage) && this.bestDamage.gt(0);
+    if (ev.total.gt(this.bestDamage)) this.bestDamage = ev.total;
+    this.lastCrit = this.crit; this.crit = false; this.echo = false;
+    this.board.spineWild = this.alwaysWild;
+    const won = e.hp.lte(0);
+    ev.kill = won;
+    this.phase = won ? 'won' : 'enemy';
+    return { ev, won };
+  }
+
+  // ---- 敵の行動 ----
+  telegraph(events) {
+    const wp = Object.values(this.nodes).find(n => n.look === 'bracket');
+    if (wp && ![...this.board.cells()].some(p => p.cell?.special === wp.id)) {
+      const p = this.board.placeSpecial(wp.id); if (p) events.push({ type: 'place', ...p });
+    }
+    events.push({ type: 'telegraph', turns: this.enemy.timer });
+    this.applyGimmicks('telegraph', events);
+  }
+  applyGimmicks(on, events) {
+    const d = this.enemy.def, g = d.gimmicks || [];
+    let list;
+    if (d.cycle) list = on === 'attack' && g.length ? [g[this.enemy.cycle++ % g.length]] : [];
+    else list = g.filter(x => x.on === on);
+    for (const x of list) for (let i = 0; i < (x.n ?? 1); i++) {
+      const p = this.board.placeSpecial(x.place, { col: x.col === 'spine' ? this.board.spineCol : x.col });
+      if (p) events.push({ type: 'place', ...p });
+    }
+  }
+  hitSync(dmg, events, type, extra = {}) {
+    const absorbed = Math.min(this.myelin, dmg);
+    this.myelin -= absorbed;
+    const rest = dmg - absorbed;
+    this.sync = Math.max(0, this.sync - rest);
+    events.push({ type, dmg, absorbed, rest, ...extra });
+    return rest;
+  }
+  enemyPhase() {
+    if (this.phase !== 'enemy') return [];
+    const ev = [], e = this.enemy, BF = this.R.backflow, bm = this.mode.backflowMul ?? 1;
+    for (const v of this.board.tickSpecials()) {
+      const d = this.nodes[v.id];
+      if (d?.syncDamage) this.hitSync(d.syncDamage, ev, 'virus', { c: v.c, r: v.r });
+    }
+    if (e.def.shuffleAt && !e.shuffled && e.hp.lte(e.hpMax.mul(e.def.shuffleAt))) { e.shuffled = true; this.board.shuffle(); ev.push({ type: 'shuffle' }); }
+    this.applyGimmicks('turn', ev);
+    e.timer--;
+    if (e.timer <= 0) {
+      if (e.stunned) { e.stunned = false; ev.push({ type: 'stun' }); }
+      else {
+        this.hitSync(e.def.atk, ev, 'attack');
+        callHooks(this.sources, 'ON_ENEMY_HIT', { combat: this });
+        if (this.backflowOn) this.backflow += BF.perHit * bm;
+        this.applyGimmicks('attack', ev);
+      }
+      e.timer = e.def.interval;
+      this.telegraph(ev);
+    }
+    if (this.backflowOn) this.backflow += BF.perTurn * bm;
+    this.backflow = Math.min(BF.max, this.backflow);
+    if (this.sync <= 0) { this.phase = 'lost'; ev.push({ type: 'lost', cause: 'sync' }); }
+    else if (this.backflowOn && this.backflow >= BF.max) { this.phase = 'lost'; ev.push({ type: 'lost', cause: 'backflow' }); }
+    else this.startTurn();
+    return ev;
+  }
+
+  // ---- アンプル（思考フェーズ中のみ）。t: { row } / { color } / { from, to } ----
+  useAmpoule(i, t = {}) {
+    if (this.phase !== 'think') return { ok: false, reason: 'phase' };
+    const def = this.reg.get('ampoules', this.ampoules[i]);
+    if (!def) return { ok: false, reason: 'empty' };
+    const res = { ok: true, def };
+    switch (def.use) {
+      case 'freeze': this.freeze = def.value; break;
+      case 'heal': this.sync = Math.min(this.syncMax, this.sync + def.value); break;
+      case 'recolor': if (!t.from || !t.to || t.from === t.to) return { ok: false, reason: 'target' }; this.board.recolor(t.from, t.to); break;
+      case 'burnRow': {
+        if (t.row == null) return { ok: false, reason: 'target' };
+        const r = this.board.burnRow(t.row);
+        this.chains.push({ burn: true, color: null, cells: r.cells, blasted: [], specials: [] });
+        res.burn = r; break;
+      }
+      case 'magnet': {
+        if (!t.color) return { ok: false, reason: 'target' };
+        const k = def.range ?? 1, s = this.board.spineCol, cols = [];
+        for (let c = s - k; c <= s + k; c++) cols.push(c);
+        this.board.magnet(t.color, cols); break;
+      }
+      case 'rewind': {
+        if (this.rewindUsed || !this.snapPrev) return { ok: false, reason: 'rewind' };
+        const s = this.snapPrev;
+        this.board.load(s.board); this.sync = s.sync; this.myelin = s.myelin; this.backflow = s.backflow;
+        this.snapCur = s; this.snapPrev = null; this.rewindUsed = true; this.chains = [];
+        break;
+      }
+    }
+    this.ampoules[i] = null;
+    return res;
+  }
+}

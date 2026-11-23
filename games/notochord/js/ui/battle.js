@@ -1,0 +1,626 @@
+// battle.js — 盤面の描画と入力、HUD、ドック、計算演出、画面効果、アンプル、デバッグ
+// 戦闘のルールは engine/combat.js。ここは表示と入力だけを受け持つ。
+import { BigNum, fmt, clamp } from '../util.js';
+import { Combat } from '../engine/combat.js';
+import { key } from '../engine/board.js';
+
+const SQ3 = Math.sqrt(3);
+const fmtN = x => { const n = Number(x); return Number.isInteger(n) ? fmt(n) : (Math.abs(n) >= 1e6 ? fmt(n) : String(+n.toFixed(2))); };
+
+// opts: { mode, floor, enemy, mutagens, ampoules, settings, audio, seed, onEnd(result) }
+export function createBattle(root, reg, rng, opts = {}) {
+  const R = reg.rules, A = opts.audio, settings = opts.settings || {};
+  const nodes = Object.fromEntries(reg.all('nodes').map(n => [n.id, n]));
+  const cmpDefs = reg.all('nodes').filter(n => n.kind === 'cmp').sort((a, b) => a.tier - b.tier);
+  const pulseDef = reg.all('nodes').find(n => n.kind === 'overlay');
+  const specialDefs = reg.all('nodes').filter(n => n.kind === 'special');
+  const strains = Object.fromEntries(reg.all('strains').map(s => [s.id, s]));
+  const rarities = Object.fromEntries(reg.all('rarities').map(s => [s.id, s]));
+  const noise = reg.all('story').filter(s => s.type === 'noise').map(s => s.text);
+
+  const cb = new Combat(reg, rng, { mode: opts.mode, floor: opts.floor, enemy: opts.enemy, mutagens: opts.mutagens, ampoules: opts.ampoules });
+  const board = cb.board, E = cb.enemy, edef = E.def;
+  const T = cb.isBoss ? { ...R.theme, ...R.themeBoss } : R.theme;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'battle' + (cb.isBoss ? ' boss' : '');
+  wrap.innerHTML = `
+  <div class="bt">
+    <header class="hud">
+      <span class="h-sync">SYNC <b></b></span><span class="h-my">MYELIN <b></b></span>
+      <span class="h-bf">逆流 <b></b></span><span class="h-stage"></span>
+    </header>
+    <section class="enemy">
+      <div class="bf"><div class="bf-noise"></div></div>
+      <div class="en-top"><div class="en-sil"></div>
+        <div class="en-info"><div class="en-name"></div><div class="en-hp"><i></i><span></span></div><div class="en-intent"></div></div></div>
+      <div class="formula"><span class="f-main"></span><span class="f-memo"></span></div>
+      <div class="timer"><i></i><span></span></div>
+    </section>
+    <section class="board"><canvas></canvas><div class="evalbox"><div class="ev-lines"></div><div class="ev-total"></div></div><div class="hint"></div></section>
+    <footer class="dock"><div class="muts"></div><div class="amps"></div><div class="chipbox"></div><button class="act"></button></footer>
+  </div>
+  <div class="tip"></div>
+  <button class="dbg-toggle">DBG</button><div class="dbg"></div>`;
+  root.appendChild(wrap);
+  const $ = s => wrap.querySelector(s);
+  const el = {
+    bt: $('.bt'), sync: $('.h-sync b'), my: $('.h-my b'), bfHud: $('.h-bf'), bfTxt: $('.h-bf b'), stage: $('.h-stage'),
+    enemy: $('.enemy'), bf: $('.bf'), bfNoise: $('.bf-noise'), sil: $('.en-sil'), name: $('.en-name'),
+    hpBar: $('.en-hp i'), hpTxt: $('.en-hp span'), intent: $('.en-intent'), fMain: $('.f-main'), fMemo: $('.f-memo'),
+    timer: $('.timer'), timeBar: $('.timer i'), timeTxt: $('.timer span'),
+    boardBox: $('.board'), canvas: $('canvas'), evalbox: $('.evalbox'), evLines: $('.ev-lines'), evTotal: $('.ev-total'), hint: $('.hint'),
+    muts: $('.muts'), amps: $('.amps'), chipbox: $('.chipbox'), act: $('.act'), tip: $('.tip'), dbgBtn: $('.dbg-toggle'), dbg: $('.dbg'),
+  };
+  const ctx = el.canvas.getContext('2d');
+  const st = {
+    path: null, reach: null, ptr: null, lockUntil: 0, anim: null, fx: [], L: null, last: 0, raf: 0, dead: false,
+    evalAnim: null, busy: false, pick: null, lit: new Set(), preview: null, shake: null, hitstopUntil: 0, removed: 0,
+  };
+
+  // ---- レイアウト（仕様書 12：s = min((W-16)/8, H/13.0)） ----
+  function layout() {
+    const r = el.boardBox.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    el.canvas.width = Math.round(r.width * dpr); el.canvas.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const s = Math.max(4, Math.min((r.width - 16) / 8, r.height / 13.0)), h = SQ3 * s;
+    st.L = { W: r.width, H: r.height, s, h, ox: (r.width - 8 * s) / 2, oy: (r.height - 7.5 * h) / 2 };
+  }
+  const cx = c => st.L.ox + st.L.s + 1.5 * st.L.s * c;
+  const cy = (c, rr) => st.L.oy + st.L.h / 2 + st.L.h * rr + (c % 2 ? st.L.h / 2 : 0);
+  const ro = new ResizeObserver(layout); ro.observe(el.boardBox); layout();
+
+  // ---- 盤面の入力 ----
+  function hit(x, y, cands) {
+    let best = null, bd = Infinity;
+    const list = cands || [...board.cells()].map(({ c, r }) => [c, r]);
+    for (const [c, r] of list) { const d = Math.hypot(x - cx(c), y - cy(c, r)); if (d < bd) { bd = d; best = { c, r }; } }
+    return best && bd < st.L.s * (cands ? 0.9 : 0.95) ? best : null;   // マグネット吸着
+  }
+  const ptPos = e => { const r = el.canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  el.canvas.addEventListener('contextmenu', e => e.preventDefault());
+  el.boardBox.addEventListener('pointerdown', e => { if (st.evalAnim && !st.evalAnim.done) { e.preventDefault(); finishEval(); } });
+  el.canvas.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    A?.unlock();
+    if (st.evalAnim || st.busy) return;
+    const p = ptPos(e), h = hit(p.x, p.y);
+    if (st.pick) { if (h) pickTarget(h); return; }
+    if (st.path || (cb.phase !== 'think' && cb.phase !== 'fire')) return;
+    if (performance.now() < st.lockUntil) return;               // 落下中は触れない
+    if (!h || !board.chainable(h.c, h.r)) return;
+    try { el.canvas.setPointerCapture(e.pointerId); } catch {}
+    if (cb.phase === 'think') startFire();
+    st.ptr = e.pointerId; st.path = [h]; st.reach = board.reachable(st.path);
+    A?.trace(0); updatePreview();
+  });
+  el.canvas.addEventListener('pointermove', e => {
+    if (!st.path || e.pointerId !== st.ptr) return;
+    const p = ptPos(e), path = st.path, last = path[path.length - 1];
+    const h = hit(p.x, p.y, board.nb(last.c, last.r)); if (!h) return;
+    const act = board.canExtend(path, h.c, h.r);
+    if (act === 'add') path.push(h); else if (act === 'back') path.pop(); else return;
+    st.reach = board.reachable(path);
+    A?.trace(path.length - 1); updatePreview();
+  });
+  const up = e => { if (st.path && e.pointerId === st.ptr) commitPath(); };
+  el.canvas.addEventListener('pointerup', up);
+  el.canvas.addEventListener('pointercancel', up);
+  el.act.addEventListener('click', () => {
+    A?.unlock();
+    if (cb.phase === 'fire' && !st.evalAnim) endFire();
+    else if (cb.phase === 'think' && !st.busy && cb.canCrit) { cb.toggleReserve(); renderAll(); }
+  });
+
+  // ---- 神経発火 ----
+  function startFire() {
+    cb.beginFire();
+    st.removed = 0; A?.setOpen(0);
+    if (cb.crit) { A?.crit(); A?.setHalf(true); juice('mid'); }
+    renderAll();
+  }
+  function positions() { const m = new Map(); for (const { c, r, cell } of board.cells()) m.set(cell.id, { c, r }); return m; }
+  function animateFrom(old) {
+    const from = new Map();
+    for (let c = 0; c < board.cols; c++) {
+      let fresh = 0; for (let r = 0; r < board.rows; r++) if (!old.has(board.at(c, r).id)) fresh++;
+      for (let r = 0; r < board.rows; r++) {
+        const x = board.at(c, r), o = old.get(x.id);
+        if (!o) from.set(x.id, r - fresh); else if (o.c === c) from.set(x.id, o.r);
+      }
+    }
+    const dur = R.fire.fallTime * 1000;
+    st.anim = { t0: performance.now(), dur, from };
+    st.lockUntil = performance.now() + dur;
+  }
+  function commitPath() {
+    const path = st.path; st.path = null; st.reach = null; st.ptr = null;
+    if (!path || path.length < board.minChain || cb.phase !== 'fire') { updatePreview(); return; }
+    const old = positions();
+    const res = cb.commit(path);
+    if (!res) { updatePreview(); return; }
+    const ch = res.chain;
+    for (const x of [...ch.cells, ...ch.blasted]) burst(x.c, x.r, colorOf(x.color), 1);
+    for (const m of res.merges) burst(m.c, m.r, colorOf(m.color), 1.8);
+    animateFrom(old);
+    A?.chain(ch.cells.length);
+    if (res.weakpoint) A?.weak();
+    if (res.reflect) A?.reflect();
+    st.removed += ch.cells.length + ch.blasted.length;
+    A?.setOpen(st.removed / (R.audio?.lpFullNodes ?? 30));
+    const J = R.juice;
+    if (ch.cells.length >= J.midChain || ch.blasted.length) juice('mid');
+    else if (ch.cells.length >= J.smallChain || res.weakpoint) juice('small');
+    updatePreview(); renderAll();
+  }
+  function endFire() {
+    if (cb.phase !== 'fire') return;
+    if (st.path) commitPath();
+    st.hpShown = E.hp;                       // 計算演出が終わるまで HP バーは減らさない
+    const res = cb.endFire(); if (!res) return;
+    st.lit.clear(); A?.setHalf(false);
+    st.evalAnim = { ev: res.ev, won: res.won, i: 0, next: performance.now(), done: false };
+    el.evLines.innerHTML = ''; el.evTotal.textContent = '';
+    el.evalbox.classList.add('show');
+    renderAll();
+  }
+
+  // ---- 計算演出（EvalStep を1つずつ積む。タップで早送り） ----
+  function stepText(s) {
+    switch (s.kind) {
+      case 'chain': return [`${nodes[s.color]?.name ?? '?'}×${s.len}${s.blasted ? '+' + s.blasted : ''}`,
+        `+${fmt(s.add)}${s.multAdd ? ' 倍率+' + fmtN(s.multAdd) : ''}${s.long > 1 ? ' 長×' + s.long : ''}`];
+      case 'burn': return [`焼灼×${s.len}`, `+${fmt(s.add)}`];
+      case 'src': return [s.name, { addBase: '+', addMult: '倍率+', mulMult: '×', baseMul: '基礎×', retrigger: '再発動 +', metaMul: '×' }[s.op] + fmtN(s.v)];
+      case 'chainBonus': return [`連結数 ${s.n}`, `×${fmtN(s.k)}`];
+      case 'armor': return ['外殻装甲（白骨なし）', `×${fmtN(s.k)}`];
+      case 'reflect': return ['時限ウイルス反射', `×${fmtN(s.k)}`];
+      case 'crit': return ['脊髄臨界', `×${fmtN(s.k)}`];
+      case 'echo': return ['臨界残響', `×${fmtN(s.k)}`];
+      default: return [s.kind, ''];
+    }
+  }
+  const formulaOf = s => `${fmt(s.base)} × ${fmtN(s.mult.toNumber())}${s.factor.eq(1) ? '' : ' × ' + fmtN(s.factor.toNumber())}`;
+  function showStep(i) {
+    const s = st.evalAnim.ev.steps[i]; const [a, b] = stepText(s);
+    const d = document.createElement('div'); d.className = 'ev-line ' + s.kind;
+    d.innerHTML = `<span></span><b></b>`; d.firstChild.textContent = a; d.lastChild.textContent = b;
+    if (s.kind === 'chain') d.style.color = colorOf(s.color);
+    el.evLines.appendChild(d);
+    while (el.evLines.children.length > 6) el.evLines.firstChild.remove();
+    el.evTotal.textContent = `${formulaOf(s)} = ${fmt(s.total)}`;
+    A?.step(i);
+  }
+  function finishEval() {
+    const ea = st.evalAnim; if (!ea || ea.done) return;
+    while (ea.i < ea.ev.steps.length) showStep(ea.i++);
+    ea.done = true;
+    const ev = ea.ev;
+    el.evTotal.innerHTML = `<small></small><b></b>`;
+    el.evTotal.firstChild.textContent = ev.steps.length ? formulaOf(ev.steps[ev.steps.length - 1]) + ' =' : '';
+    el.evTotal.lastChild.textContent = fmt(ev.total);
+    el.evTotal.classList.add('final');
+    st.hpShown = null;
+    A?.final();
+    popup(ev.total.isZero() ? 'MISS' : '−' + fmt(ev.total), ev.kill ? 'big' : '');
+    if (ev.kill || ev.best) juice('big');
+    renderAll();
+    setTimeout(afterEval, R.evalAnim.holdMs);
+  }
+  function afterEval() {
+    if (st.dead) return;
+    const ea = st.evalAnim; st.evalAnim = null;
+    el.evalbox.classList.remove('show'); el.evTotal.classList.remove('final');
+    if (ea.won) { A?.win(); popup(edef.boss ? 'CORE DOWN' : 'DOWN', 'big'); setTimeout(() => end({ won: true }), 900); return; }
+    st.busy = true;
+    const old = positions();
+    const events = cb.enemyPhase();
+    animateFrom(old);
+    playEvents(events, 0);
+  }
+  function playEvents(events, i) {
+    if (st.dead) return;
+    if (i >= events.length) {
+      st.busy = false;
+      const lost = events.find(e => e.type === 'lost');
+      if (lost) { A?.lose(); juice('big'); setTimeout(() => end({ won: false, cause: lost.cause }), 900); }
+      renderAll(); return;
+    }
+    const e = events[i]; let wait = 120;
+    if (e.type === 'attack') { popup(`${edef.lines?.attack ?? ''} −${e.rest}%`, 'hurt'); if (e.absorbed) popup(`外殻 −${e.absorbed}`, ''); A?.hit(); juice('mid'); flash('hurt'); wait = 520; }
+    else if (e.type === 'virus') { burst(e.c, e.r, T.alert, 2.2); popup(`ウイルス破裂 −${e.rest}%`, 'hurt'); A?.hit(); juice('small'); wait = 420; }
+    else if (e.type === 'stun') { popup(edef.lines?.stun ?? 'STUNNED', ''); A?.weak(); wait = 520; }
+    else if (e.type === 'place') { burst(e.c, e.r, T.alert, 1.3); wait = 90; }
+    else if (e.type === 'telegraph') { A?.alarm(); wait = 150; }
+    else if (e.type === 'shuffle') { popup('盤面 再配列', ''); juice('mid'); wait = 500; }
+    renderAll();
+    setTimeout(() => playEvents(events, i + 1), wait);
+  }
+  function end(result) {
+    if (st.dead) return;
+    opts.onEnd?.({ ...result, mode: cb.mode, floor: cb.floor, enemy: edef, turns: cb.turn, best: cb.bestDamage, maxChain: cb.maxChain, combat: cb });
+  }
+
+  // ---- アンプル ----
+  const PICK_HINT = { row: '焼き消す横1列のノードをタップ', color: '集める色のノードをタップ', from: '変える色のノードをタップ', to: '変えた後の色のノードをタップ' };
+  function useAmp(i) {
+    if (cb.phase !== 'think' || st.busy || st.evalAnim) return;
+    if (st.pick?.i === i) { st.pick = null; renderAll(); return; }
+    const def = reg.get('ampoules', cb.ampoules[i]); if (!def) return;
+    if (def.target === 'none') return applyAmp(i, {});
+    st.pick = { i, def, stage: def.target === 'color2' ? 'from' : def.target };
+    renderAll();
+  }
+  function pickTarget(h) {
+    const p = st.pick, cell = board.at(h.c, h.r);
+    if (p.stage === 'row') return applyAmp(p.i, { row: h.r });
+    if (!cell?.color) return;
+    if (p.stage === 'color') return applyAmp(p.i, { color: cell.color });
+    if (p.stage === 'from') { p.from = cell.color; p.stage = 'to'; renderAll(); return; }
+    if (p.stage === 'to') { if (cell.color === p.from) return; applyAmp(p.i, { from: p.from, to: cell.color }); }
+  }
+  function applyAmp(i, t) {
+    const old = positions();
+    const res = cb.useAmpoule(i, t);
+    st.pick = null;
+    if (!res.ok) { popup(res.reason === 'rewind' ? '巻き戻せる前のターンがない' : '使用できない', ''); renderAll(); return; }
+    A?.ampoule();
+    if (res.burn) { for (const x of res.burn.cells) burst(x.c, x.r, T.alert, 1.2); animateFrom(old); juice('small'); }
+    else for (const { c, r } of board.cells()) if (!old.has(board.at(c, r).id) || old.get(board.at(c, r).id).c !== c) burst(c, r, T.pulse, 0.8);
+    popup(res.def.name, '');
+    updatePreview(); renderAll();
+  }
+
+  // ---- 画面効果（13.1） ----
+  function juice(level) {
+    const J = R.juice, soft = settings.reduceFlash;
+    const px = (level === 'big' ? J.big : level === 'mid' ? J.mid : J.small) * (soft ? 0.5 : 1);
+    st.shake = { px, until: performance.now() + (level === 'big' ? 380 : 240) };
+    if (level === 'big') {
+      st.hitstopUntil = performance.now() + J.hitstop;
+      if (!soft) { flash('neg', 50); flash('chroma', 160); }
+    }
+  }
+  function flash(cls, ms = 220) { el.bt.classList.add(cls); setTimeout(() => el.bt.classList.remove(cls), ms); }
+  function popup(text, cls) {
+    const d = document.createElement('div'); d.className = 'pop ' + (cls || ''); d.textContent = text;
+    d.style.top = (18 + (el.enemy.querySelectorAll('.pop').length % 3) * 22) + 'px';
+    el.enemy.appendChild(d); setTimeout(() => d.remove(), 1000);
+  }
+
+  // ---- 表示（DOM） ----
+  function updatePreview() {
+    st.preview = (cb.phase === 'fire' || cb.chains.length) ? cb.preview(st.path) : null;
+    const now = st.preview?.active ?? new Set();
+    for (const id of now) if (!st.lit.has(id)) A?.tick();
+    st.lit = cb.phase === 'fire' ? now : new Set();
+    renderFormula(); renderDock();
+  }
+  function renderFormula() {
+    const memo = [];
+    const cur = st.preview?.current;
+    if (cur) {
+      if (cur.specials.some(s => nodes[s.id]?.look === 'bracket')) memo.push('露出神経 破壊予定');
+      if (cur.specials.some(s => nodes[s.id]?.reflect && s.count > 0)) memo.push('反射×2 予定');
+      const pulses = cur.cells.filter(n => n.pulse).length;
+      if (pulses) memo.push(`脈動 +${fmtN(pulses * cb.pulseTime())}s`);
+      let lb = 1; for (const [len, mul] of R.combat.longBonus) if (cur.cells.length >= len) lb = mul;
+      if (lb > 1) memo.push(`長連結×${lb}`);
+    }
+    if (cb.crit) memo.push(`臨界×${R.spineBreak.mul}`);
+    else if (cb.reserved) memo.push('脊髄臨界 予約中');
+    if (E.stunned) memo.push('攻撃キャンセル済');
+    el.fMemo.textContent = memo.map(m => `[${m}]`).join('');
+    if (st.evalAnim) return;
+    if (st.preview && (cb.chains.length || cur)) {
+      const p = st.preview;
+      el.fMain.innerHTML = `${fmt(p.base)} × ${fmtN(p.mult.toNumber())}${p.factor.eq(1) ? '' : ' × ' + fmtN(p.factor.toNumber())} = <b>${fmt(p.total)}</b>`;
+    } else el.fMain.textContent = cb.phase === 'think' ? '思考中：最初のノードに触れると発火' : '';
+  }
+  function renderHud() {
+    el.sync.textContent = cb.sync + '%';
+    el.sync.parentElement.classList.toggle('low', cb.sync <= 30);
+    el.my.textContent = fmtN(cb.myelin);
+    el.bfHud.style.display = cb.backflowOn ? '' : 'none';
+    el.bfTxt.textContent = Math.round(cb.backflow) + '%';
+    el.stage.textContent = `${cb.mode.name} ${cb.floor}F${cb.isBoss ? ' ★' : ''}`;
+    el.name.textContent = edef.name;
+    const hp = st.hpShown ?? E.hp;
+    const ratio = clamp(hp.div(E.hpMax).toNumber(), 0, 1);
+    el.hpBar.style.width = (ratio * 100).toFixed(1) + '%';
+    el.hpTxt.textContent = `${fmt(hp)} / ${fmt(E.hpMax)}`;
+    el.sil.className = `en-sil shape-${edef.look?.shape ?? 'eye'}${E.stunned ? ' stunned' : ''}`;
+    el.sil.style.setProperty('--ec', edef.look?.color ?? T.alert);
+    el.intent.classList.toggle('stun', E.stunned);
+    el.intent.textContent = E.stunned ? `STUNNED — 次の攻撃はキャンセル` : `あと${E.timer}ターン：${edef.lines?.tele ?? '攻撃'}  SYNC −${edef.atk}%`;
+    // 逆流汚染：敵エリアの上から垂れ下がり、100% で盤面の上端に達する
+    el.bf.style.display = cb.backflowOn ? '' : 'none';
+    el.bf.style.height = clamp(cb.backflow, 0, 100) + '%';
+    el.bfNoise.textContent = cb.backflow >= 50 && noise.length ? [0, 3].map(k => noise[(cb.turn + k) % noise.length]).join('　') : '';
+    el.boardBox.classList.toggle('crit', cb.crit && !settings.reduceFlash);
+    el.boardBox.classList.toggle('crit-soft', cb.crit && !!settings.reduceFlash);
+  }
+  function slotTip(node, title, sub, desc) {
+    let t = null, shown = false;
+    node.addEventListener('pointerdown', () => { shown = false; t = setTimeout(() => { shown = true; showTip(title, sub, desc); }, 420); });
+    const clear = () => { clearTimeout(t); if (shown) setTimeout(() => el.tip.classList.remove('show'), 1400); };
+    node.addEventListener('pointerup', clear); node.addEventListener('pointerleave', clear); node.addEventListener('pointercancel', clear);
+    return () => shown;
+  }
+  function showTip(title, sub, desc) {
+    el.tip.innerHTML = '<b></b><small></small><p></p>';
+    el.tip.children[0].textContent = title; el.tip.children[1].textContent = sub; el.tip.children[2].textContent = desc;
+    el.tip.classList.add('show');
+  }
+  function renderDock() {
+    // 変異因子
+    el.muts.innerHTML = '';
+    for (let i = 0; i < R.combat.mutagenSlots; i++) {
+      const m = cb.mutagens[i], d = document.createElement('div');
+      d.className = 'slot mut' + (m ? '' : ' empty') + (m && st.lit.has(m.id) ? ' lit' : '');
+      if (m) {
+        d.style.setProperty('--rc', rarities[m.rarity]?.color ?? '#888');
+        d.innerHTML = '<i></i><span></span>';
+        d.firstChild.textContent = strains[m.strain]?.icon ?? '';
+        d.lastChild.textContent = m.label ?? m.name;
+        slotTip(d, m.name, `${rarities[m.rarity]?.name ?? ''} / ${strains[m.strain]?.name ?? ''}`, m.desc ?? '');
+      }
+      el.muts.appendChild(d);
+    }
+    // アンプル（思考中） / 連結の一覧（発火中）
+    const firing = cb.phase === 'fire' || !!st.evalAnim;
+    el.amps.style.display = firing ? 'none' : '';
+    el.chipbox.style.display = firing ? '' : 'none';
+    if (firing) {
+      const last = cb.chains.filter(c => !c.burn).at(-1);
+      el.chipbox.innerHTML = `<small>連結 ${cb.chains.filter(c => !c.burn).length}</small><span></span>`;
+      if (last) { const s = el.chipbox.lastChild; s.textContent = `${nodes[last.color]?.name}×${last.cells.length}`; s.style.color = colorOf(last.color); }
+    } else {
+      el.amps.innerHTML = '';
+      cb.ampoules.forEach((id, i) => {
+        const a = reg.get('ampoules', id), d = document.createElement('div');
+        d.className = 'slot amp' + (a ? '' : ' empty') + (st.pick?.i === i ? ' picking' : '');
+        if (a) {
+          d.textContent = a.label ?? a.name;
+          const tipShown = slotTip(d, a.name, '神経アンプル', a.desc ?? '');
+          d.addEventListener('click', () => { if (!tipShown()) { A?.unlock(); useAmp(i); } });
+        }
+        el.amps.appendChild(d);
+      });
+    }
+    // 臨界 / 停止
+    const a = el.act;
+    a.className = 'act';
+    if (cb.phase === 'fire' && !st.evalAnim) { a.textContent = '発火停止'; a.disabled = false; }
+    else if (cb.phase === 'think' && !st.busy) {
+      a.disabled = !cb.canCrit; a.textContent = cb.reserved ? '臨界 予約' : cb.canCrit ? '脊髄臨界' : `臨界 ${Math.floor(cb.gauge)}%`;
+      if (cb.canCrit) a.classList.add(cb.reserved ? 'reserved' : 'ready');
+    } else { a.disabled = true; a.textContent = '—'; }
+  }
+  function renderTimer() {
+    const t = Math.max(0, cb.time), full = cb.fireTime();
+    el.timeBar.style.width = clamp(t / full * 100, 0, 100).toFixed(1) + '%';
+    el.timeTxt.textContent = (cb.freeze > 0 ? `❄${cb.freeze.toFixed(1)} ` : '') + t.toFixed(2) + 's';
+    el.timer.classList.toggle('low', cb.phase === 'fire' && t <= 1);
+    el.timer.classList.toggle('frozen', cb.phase === 'fire' && cb.freeze > 0);
+  }
+  function renderHint() {
+    const p = st.pick;
+    el.hint.textContent = p ? `${p.def.name}：${PICK_HINT[p.stage]}（スロットを再タップで取消）` : '';
+    el.hint.classList.toggle('show', !!p);
+  }
+  function renderAll() { renderHud(); renderDock(); renderFormula(); renderTimer(); renderHint(); }
+
+  // ---- 描画（Canvas） ----
+  const colorOf = id => nodes[id]?.color ?? '#777';
+  function burst(c, r, color, size) { st.fx.push({ c, r, color, size, t0: performance.now() }); }
+  function hexPath(x, y, rad) {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i; ctx.lineTo(x + rad * Math.cos(a), y + rad * Math.sin(a)); }
+    ctx.closePath();
+  }
+  function symbol(kind, x, y, k, col) {
+    ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = Math.max(1.5, k * 0.16); ctx.lineJoin = 'round';
+    ctx.beginPath();
+    if (kind === 'bone') { ctx.moveTo(x, y - k); ctx.lineTo(x + k * 0.62, y); ctx.lineTo(x, y + k); ctx.lineTo(x - k * 0.62, y); ctx.closePath(); ctx.fill(); }
+    else if (kind === 'drop') {
+      ctx.moveTo(x, y - k); ctx.bezierCurveTo(x + k * 0.95, y + 0.05 * k, x + k * 0.7, y + k * 0.9, x, y + k * 0.9);
+      ctx.bezierCurveTo(x - k * 0.7, y + k * 0.9, x - k * 0.95, y + 0.05 * k, x, y - k); ctx.fill();
+    } else if (kind === 'bolt') {
+      ctx.moveTo(x + k * 0.3, y - k); ctx.lineTo(x - k * 0.5, y + k * 0.12); ctx.lineTo(x - k * 0.02, y + k * 0.12);
+      ctx.lineTo(x - k * 0.3, y + k); ctx.lineTo(x + k * 0.5, y - k * 0.16); ctx.lineTo(x + k * 0.04, y - k * 0.16); ctx.closePath(); ctx.fill();
+    } else if (kind === 'pulse') {
+      ctx.moveTo(x - k, y); ctx.lineTo(x - k * 0.4, y); ctx.lineTo(x - k * 0.2, y - k * 0.6);
+      ctx.lineTo(x + k * 0.1, y + k * 0.6); ctx.lineTo(x + k * 0.3, y); ctx.lineTo(x + k, y); ctx.stroke();
+    }
+  }
+  function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); ctx.fill(); }
+  function drawSpine(now) {
+    const { s, h } = st.L, c = board.spineCol, x = cx(c);
+    const top = cy(c, 0) - h / 2, bot = cy(c, board.rows - 1) + h / 2;
+    const g = board.spineWild ? 1 : cb.gauge / R.spineBreak.max;
+    ctx.fillStyle = '#000'; ctx.fillRect(x - s * 0.18, top, s * 0.36, bot - top);
+    if (g > 0) {
+      ctx.fillStyle = colorOf('SYNAPSE');
+      ctx.globalAlpha = board.spineWild || cb.canCrit ? 0.5 + 0.2 * Math.sin(now / 120) : 0.45;
+      ctx.fillRect(x - s * 0.18, bot - (bot - top) * g, s * 0.36, (bot - top) * g); ctx.globalAlpha = 1;
+    }
+    ctx.save();
+    ctx.shadowColor = board.spineWild ? '#fff' : T.pulse; ctx.shadowBlur = board.spineWild ? 14 : 6;
+    for (let r = 0; r < board.rows; r++) {
+      hexPath(x, cy(c, r), s * 1.06); ctx.fillStyle = T.panel; ctx.fill();
+      ctx.strokeStyle = board.spineWild ? '#ffffffaa' : T.line; ctx.lineWidth = 3; ctx.stroke();
+    }
+    ctx.restore();
+    ctx.fillStyle = T.line;
+    for (let r = 0; r < board.rows - 1; r++) {
+      const y = cy(c, r) + h / 2;
+      roundRect(x - s * 1.25, y - s * 0.07, s * 0.35, s * 0.14, s * 0.07);
+      roundRect(x + s * 0.9, y - s * 0.07, s * 0.35, s * 0.14, s * 0.07);
+    }
+  }
+  function drawCell(c, r, x, y, cell, now) {
+    const { s } = st.L;
+    const inPath = st.path?.some(p => p.c === c && p.r === r);
+    const dim = st.reach && !st.reach.has(key(c, r));
+    const lit = st.reach && !dim;
+    const base = dim ? 0.28 : 1;
+    ctx.globalAlpha = base;
+    const sp = cell.special ? nodes[cell.special] : null;
+    const col = cell.color ? colorOf(cell.color) : '#3a3f40';
+    hexPath(x, y, s * 0.9); ctx.fillStyle = T.panel; ctx.fill();
+    if (sp?.look === 'necrosis') {
+      ctx.fillStyle = '#16191a'; ctx.fill(); ctx.strokeStyle = '#4a4f50'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.strokeStyle = '#5a5f60'; ctx.beginPath();
+      ctx.moveTo(x - s * 0.4, y - s * 0.3); ctx.lineTo(x - s * 0.05, y + s * 0.05); ctx.lineTo(x + s * 0.15, y - s * 0.2);
+      ctx.moveTo(x - s * 0.05, y + s * 0.05); ctx.lineTo(x + s * 0.1, y + s * 0.45); ctx.stroke();
+      ctx.globalAlpha = 1; return;
+    }
+    ctx.globalAlpha = base * (lit ? 0.42 : 0.24); ctx.fillStyle = col; ctx.fill();
+    ctx.globalAlpha = base;
+    ctx.strokeStyle = col; ctx.lineWidth = inPath ? 3 : 1.5;
+    if (inPath) { ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 12; ctx.stroke(); ctx.restore(); } else ctx.stroke();
+    const cmp = cell.cmp ? cmpDefs[cell.cmp - 1] : null;
+    if (cmp?.look === 'ring') { hexPath(x, y, s * 0.68); ctx.lineWidth = 2; ctx.stroke(); }
+    else if (cmp?.look === 'poly') {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(now / 900); ctx.beginPath();
+      for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i; ctx.lineTo(s * 0.62 * Math.cos(a), s * 0.62 * Math.sin(a)); }
+      ctx.closePath(); ctx.lineWidth = 2; ctx.stroke(); ctx.rotate(-now / 450);
+      ctx.beginPath(); for (let i = 0; i < 3; i++) { const a = Math.PI * 2 / 3 * i; ctx.lineTo(s * 0.6 * Math.cos(a), s * 0.6 * Math.sin(a)); }
+      ctx.closePath(); ctx.stroke(); ctx.restore();
+    } else if (cmp?.look === 'organ') {
+      ctx.beginPath();
+      for (let i = 0; i <= 24; i++) {
+        const a = Math.PI * 2 * i / 24, w = s * 0.56 * (1 + 0.09 * Math.sin(a * 3 + now / 160));
+        ctx.lineTo(x + w * Math.cos(a), y + w * Math.sin(a));
+      }
+      ctx.globalAlpha = base * 0.55; ctx.fill(); ctx.globalAlpha = base; ctx.lineWidth = 2; ctx.stroke();
+    }
+    symbol(nodes[cell.color]?.symbol, x, y, s * (cmp ? 0.3 : 0.4), cmp?.look === 'organ' ? '#000' : col);
+    if (cmp) {
+      ctx.fillStyle = col; ctx.font = `600 ${Math.max(12, s * 0.3)}px monospace`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(cmp.name, x, y + s * 0.62);
+    }
+    if (cell.pulse && pulseDef) {
+      ctx.save(); ctx.shadowColor = pulseDef.color; ctx.shadowBlur = 6 + 6 * (0.5 + 0.5 * Math.sin(now / 200));
+      hexPath(x, y, s * 0.97); ctx.strokeStyle = pulseDef.color; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+      symbol(pulseDef.symbol, x, y - s * 0.6, s * 0.22, pulseDef.color);
+    }
+    if (board.isWild(c)) { hexPath(x, y, s * 0.8); ctx.setLineDash([4, 3]); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]); }
+    if (sp?.look === 'bracket') {
+      const k = s * 0.78, l = s * 0.28; ctx.strokeStyle = T.alert; ctx.lineWidth = 2.5; ctx.beginPath();
+      for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+        ctx.moveTo(x + sx * k, y + sy * k - sy * l); ctx.lineTo(x + sx * k, y + sy * k); ctx.lineTo(x + sx * k - sx * l, y + sy * k);
+      }
+      ctx.stroke();
+    } else if (sp?.look === 'countdown') {
+      const bx = x + s * 0.5, by = y - s * 0.5, br = s * 0.28;
+      ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fillStyle = T.alert; ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(12, br * 1.3)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(cell.count), bx, by + 1);
+    } else if (sp?.look === 'web') {
+      hexPath(x, y, s * 0.9); ctx.fillStyle = '#000a'; ctx.fill();
+      ctx.strokeStyle = '#9aa5a7'; ctx.lineWidth = 1.2; ctx.beginPath();
+      for (let i = 0; i < 3; i++) { const a = Math.PI / 3 * i + 0.3; ctx.moveTo(x - s * 0.8 * Math.cos(a), y - s * 0.8 * Math.sin(a)); ctx.lineTo(x + s * 0.8 * Math.cos(a), y + s * 0.8 * Math.sin(a)); }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  function drawPath() {
+    const path = st.path; if (!path?.length) return;
+    const col = colorOf(board.pathColor(path) ?? board.at(path[0].c, path[0].r).color);
+    ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = st.L.s * 0.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.shadowColor = col; ctx.shadowBlur = 14; ctx.globalAlpha = 0.85;
+    ctx.beginPath(); for (const p of path) ctx.lineTo(cx(p.c), cy(p.c, p.r)); ctx.stroke(); ctx.restore();
+    const l = path[path.length - 1], ok = path.length >= board.minChain;
+    ctx.fillStyle = ok ? '#fff' : '#ffffff88'; ctx.font = `700 ${Math.max(14, st.L.s * 0.5)}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(path.length), cx(l.c), cy(l.c, l.r) - st.L.s * 1.05);
+  }
+  function drawPick() {
+    const p = st.pick; if (!p || p.stage !== 'row') return;
+    ctx.fillStyle = T.alert; ctx.globalAlpha = 0.08;
+    for (let r = 0; r < board.rows; r++) ctx.fillRect(0, cy(0, r) - 2, st.L.W, 4);
+    ctx.globalAlpha = 1;
+  }
+  function drawFx(now) {
+    st.fx = st.fx.filter(f => now - f.t0 < 350);
+    for (const f of st.fx) {
+      const t = (now - f.t0) / 350;
+      ctx.globalAlpha = 1 - t; ctx.strokeStyle = f.color; ctx.lineWidth = 3 * (1 - t) + 1;
+      hexPath(cx(f.c), cy(f.c, f.r), st.L.s * (0.6 + 0.7 * t) * f.size); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  function draw(now) {
+    const { W, H } = st.L;
+    ctx.fillStyle = T.bg; ctx.fillRect(0, 0, W, H);
+    drawSpine(now);
+    const a = st.anim, t = a ? clamp((now - a.t0) / a.dur, 0, 1) : 1;
+    if (a && t >= 1) st.anim = null;
+    for (const { c, r, cell } of board.cells()) {
+      let rr = r;
+      if (a && a.from.has(cell.id)) { const f = a.from.get(cell.id); rr = f + (r - f) * t * t; }
+      drawCell(c, r, cx(c), cy(c, rr), cell, now);
+    }
+    drawPick(); drawPath(); drawFx(now);
+  }
+
+  // ---- ループ ----
+  function frame(now) {
+    if (st.dead) return;
+    const dt = st.last ? Math.min(0.1, (now - st.last) / 1000) : 0; st.last = now;
+    const stopped = now < st.hitstopUntil;
+    if (!stopped && cb.phase === 'fire' && !st.evalAnim && cb.tick(dt)) endFire();
+    const ea = st.evalAnim;
+    if (ea && !ea.done && !stopped) {
+      while (ea.i < ea.ev.steps.length && now >= ea.next) { showStep(ea.i++); ea.next = now + R.evalAnim.stepMs; }
+      if (ea.i >= ea.ev.steps.length && now >= ea.next) finishEval();
+    }
+    if (st.shake && now < st.shake.until) {
+      const k = st.shake.px * (st.shake.until - now) / 300;
+      el.bt.style.transform = `translate(${(k * Math.sin(now * 0.09)).toFixed(1)}px, ${(k * Math.cos(now * 0.13)).toFixed(1)}px)`;
+    } else if (st.shake) { st.shake = null; el.bt.style.transform = ''; }
+    renderTimer();
+    if (st.L.W > 0) draw(now);
+    st.raf = requestAnimationFrame(frame);
+  }
+
+  // ---- デバッグ（段階4で隠す） ----
+  function buildDebug() {
+    el.dbg.innerHTML = '';
+    const add = (label, fn, parent = el.dbg) => { const b = document.createElement('button'); b.textContent = label; b.onclick = () => { fn(b); updatePreview(); renderAll(); }; parent.appendChild(b); return b; };
+    const head = t => { const h = document.createElement('small'); h.textContent = t; el.dbg.appendChild(h); };
+    head('盤面');
+    for (const d of specialDefs) add('+ ' + d.name, () => board.placeSpecial(d.id));
+    add('盤面リセット', () => { if (!st.path) board.fill(); });
+    head('状態');
+    add('臨界ゲージ満タン', () => { cb.gauge = R.spineBreak.max; });
+    add('敵HP → 1', () => { E.hp = BigNum.from(1); });
+    add('SYNC 回復', () => { cb.sync = cb.syncMax; });
+    add('SYNC −40', () => { cb.sync = Math.max(1, cb.sync - 40); });
+    add('逆流 +30', () => { cb.backflowOn = true; cb.backflow = Math.min(99, cb.backflow + 30); });
+    add('アンプル補充', () => { const all = reg.all('ampoules').map(a => a.id); cb.ampoules = cb.ampoules.map((_, i) => all[(cb.turn * 2 + i) % all.length]); });
+    add('点滅軽減 ' + (settings.reduceFlash ? 'ON' : 'OFF'), b => { settings.reduceFlash = !settings.reduceFlash; b.textContent = '点滅軽減 ' + (settings.reduceFlash ? 'ON' : 'OFF'); });
+    head('変異因子');
+    add('すべて外す', () => { cb.mutagens = []; });
+    for (const m of reg.all('mutagens')) add(`+ ${m.name}`, () => {
+      if (cb.mutagens.some(x => x.id === m.id)) return;
+      if (cb.mutagens.length >= R.combat.mutagenSlots) cb.mutagens.shift();
+      cb.mutagens.push(m);
+    });
+    head('seed ' + (opts.seed ?? '-'));
+  }
+  el.dbgBtn.addEventListener('click', () => el.dbg.classList.toggle('open'));
+  buildDebug();
+
+  A?.playBgm(cb.isBoss ? R.audio?.bossBpm : R.audio?.bpm);
+  A?.setTempo(cb.isBoss ? R.audio?.bossBpm : R.audio?.bpm);
+  updatePreview(); renderAll();
+  st.raf = requestAnimationFrame(frame);
+  return {
+    combat: cb, state: st,
+    destroy() { st.dead = true; cancelAnimationFrame(st.raf); ro.disconnect(); A?.setHalf(false); A?.setOpen(0); wrap.remove(); },
+  };
+}
