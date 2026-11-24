@@ -7,7 +7,7 @@ export default {
   modes: [
     { id: 'abyss', name: 'ABYSS', title: '深淵潜行', sub: '設計図にない階層', order: 5, unlock: 'mode:abyss',
       floors: 0,                        // 0 は終わりなし
-      hpBase: 9.6e9, hpGrowth: 1.35, bossMul: 1.5,   // 仕様書9.3の 2.0e8 を、段階3の調整（×48）に合わせた値
+      hpBase: 1.5e7, hpGrowth: 1.35, bossMul: 1.5,   // 1層目が中枢神経核と同じくらい（仕様書9.3と同じ関係）
       bossEvery: 5, bossPool: ['b_abyss_warden', 'b_abyss_choir', 'b_abyss_omega'],
       backflowAll: true, backflowMul: 1.5,
       routeChoices: 3, eliteChance: 0.5, vaultChance: 0.2,

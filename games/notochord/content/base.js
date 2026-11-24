@@ -17,7 +17,8 @@ export default {
       shockRange: 2,                   // 主脊髄の衝撃波が癒着・壊死を解除する距離（通常は1）
       spineMul: 2,                     // 主脊髄の出力倍率
     },
-    fire: { time: 5.0, fallTime: 0.2 },
+    // traceSlow：なぞっている間の時間の進み（0.3 なら 0.3 倍の速さ）。holdTrace：時間切れでもなぞり中の連結は指を離すまで切らない
+    fire: { time: 5.0, fallTime: 0.2, traceSlow: 0.3, holdTrace: true },
     combat: {
       startMult: 1,                         // 初期倍率
       chainBonus: 0.1,                      // 連結数ボーナス ×(1 + 0.1 × (n−1))
@@ -30,7 +31,7 @@ export default {
     // 演出の段階（13.1）。shake は px、hitstop は ms
     juice: { smallChain: 6, midChain: 10, small: 3, mid: 5, big: 10, hitstop: 50 },
     evalAnim: { stepMs: 170, holdMs: 650 },
-    audio: { bpm: 128, bossBpm: 138, lpLow: 400, lpHigh: 4500, lpFullNodes: 30 },
+    audio: { bpm: 92, bossBpm: 100, lpLow: 300, lpHigh: 3500, lpFullNodes: 30 },   // ダークで重い BGM（段階4の調整）
     // 潜行の進行（4章・8.5・10章）
     run: { diveHeal: 15, residue: 0.3, finalBonus: 1.5, overkill: 2, overkillBonus: 0.2, rewardSyn: 0.5, ampouleDrop: 0.2,
            mutagenChoices: 3, strainWeight: 3 },
@@ -64,7 +65,7 @@ export default {
     // 色ノード（出現率 weight の比で抽選）
     { id: 'MARROW', name: '白骨', code: 'MARROW', kind: 'color', color: '#F2EFE9', symbol: 'bone', weight: 1, base: 10, mult: 0 },
     { id: 'VENOM', name: '神経毒', code: 'VENOM', kind: 'color', color: '#B8F227', symbol: 'drop', weight: 1, base: 2, mult: 1 },
-    { id: 'SYNAPSE', name: 'シナプス', code: 'SYNAPSE', kind: 'color', color: '#C63BFF', symbol: 'bolt', weight: 1, base: 2, mult: 0, myelin: 0.5, gauge: 1.5 },   // 段階3の調整：myelin は仕様書の5→0.5、gauge は4%→1.5%
+    { id: 'SYNAPSE', name: 'シナプス', code: 'SYNAPSE', kind: 'color', color: '#C63BFF', symbol: 'bolt', weight: 1, base: 5, mult: 0, myelin: 0.5, gauge: 1.5 },   // 段階3の調整：myelin は仕様書の5→0.5、gauge は4%→1.5%
     // 重なる印
     { id: 'PULSE', name: '脈動節', code: 'PULSE NODE', kind: 'overlay', color: '#3BE8FF', symbol: 'pulse', chance: 0.03, time: 1.5 },   // chance：仕様書は6%。段階3の調整で3%
     // 圧縮進化（tier 順。minSize は塊の大きさの下限）

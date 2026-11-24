@@ -1,4 +1,5 @@
 // sim.mjs — 戦闘の自動プレイによるバランス確認
+//   ボットは既定で「人間らしい」遊び方。bot=perfect で最長の連結を引く速いボット
 //   node tools/sim.mjs [試行数] [m=変異因子id,...] [modes=rank_d,rank_c] [board.mergeMin=5 など rules の上書き]
 //   node tools/sim.mjs campaign [試行数] … 契約を通しで自動プレイし、ランクごとの完遂までの潜行回数を出す
 //   node tools/sim.mjs abyss [試行数] [maxFloor=80] … 典型的なビルドで深淵を1層から潜り続け、何層まで届くかを出す
@@ -25,7 +26,7 @@ const QUICK = 120;     // 2本目以降：反射で探す範囲（近くから�
 const reg = await loadPacks();
 if (reg.errors.length) { console.log(reg.errors.join('\n')); process.exit(1); }
 for (const [k, v] of Object.entries(kv)) {
-  if (k === 'm' || k === 'modes' || k === 'maxFloor') continue;
+  if (k === 'm' || k === 'modes' || k === 'maxFloor' || k === 'bot') continue;
   if (k.startsWith('node.') || k.startsWith('enemy.')) { const [kind, id, field] = k.split('.'); const x = reg.get(kind === 'node' ? 'nodes' : 'enemies', id); if (x) x[field] = +v; continue; }
   if (k.startsWith('mode.')) { const [, id, field] = k.split('.'); const m = reg.get('modes', id); if (m) m[field] = +v; continue; }
   const path = k.split('.'); let o = reg.rules;
@@ -50,8 +51,44 @@ function longest(b, budget = BUDGET, rng = null) {
   return best && best.length >= b.minChain ? best : null;
 }
 
-// 1ターン分の発火（人間らしいボット）
+// 人間らしいボット（既定）：1本目は考えて 4〜6 個、2本目以降は反応に時間がかかり、近くで 3〜5 個。色はこだわらない
+// なぞっている間は rules.fire.traceSlow 倍で時間が進む
+const HUMAN = kv.bot !== 'perfect';
+const H_TRACE = 0.3, H_REACT = 0.9;
+function humanPath(b, brng, first) {
+  const cap = first ? 4 + brng.int(3) : 3 + brng.int(3);
+  let best = null, steps = 0;
+  const budget = first ? 300 : 40;
+  const dfs = p => {
+    if (++steps > budget) return;
+    if (p.length >= b.minChain && (!best || p.length > best.length)) best = p.slice();
+    if (p.length >= cap) return;
+    const l = p[p.length - 1];
+    for (const [c, r] of brng.shuffle(b.nb(l.c, l.r))) if (b.canExtend(p, c, r) === 'add') { p.push({ c, r }); dfs(p); p.pop(); if (best?.length >= cap) return; }
+  };
+  const starts = brng.shuffle([...b.cells()].filter(p => b.chainable(p.c, p.r)));
+  for (const s of starts) { dfs([{ c: s.c, r: s.r }]); if (steps > budget || best?.length >= cap) break; }
+  return best;
+}
+function playTurnHuman(cb, brng) {
+  if (cb.canCrit) cb.toggleReserve();
+  cb.beginFire();
+  const slow = reg.rules.fire.traceSlow ?? 1;
+  let first = true;
+  for (let guard = 0; guard < 20; guard++) {
+    if (!first && cb.tick(H_REACT)) break;
+    const path = humanPath(cb.board, brng, first);
+    if (!path) break;
+    cb.tick(path.length * H_TRACE, true);   // なぞり中（時間切れでも指を離すまで連結は切れない）
+    cb.commit(path); first = false;
+    if (cb.time <= 0 || cb.tick(cb.fallTime())) break;
+  }
+  return cb.endFire();
+}
+
+// 1ターン分の発火（最長の連結を引く速いボット：bot=perfect）
 function playTurn(cb, brng) {
+  if (HUMAN) return playTurnHuman(cb, brng);
   if (cb.canCrit) cb.toggleReserve();
   cb.beginFire();
   let first = true;
@@ -71,18 +108,8 @@ function fight(mode, floor, seed) {
   const brng = makeRng(seed ^ 0x5bd1e995);
   let chains = 0, dmg = BigNum.from(0); const perTurn = [];
   while (cb.turn <= MAX_TURNS) {
-    if (cb.canCrit) cb.toggleReserve();
-    cb.beginFire();
-    let first = true;
-    for (let guard = 0; guard < 40; guard++) {
-      const path = first ? longest(cb.board) : longest(cb.board, QUICK, brng);
-      if (!path) break;
-      const cost = (first ? 0 : REACT) + path.length * TRACE;
-      if (cb.tick(cost)) break;           // なぞり終える前に時間切れ
-      cb.commit(path); chains++; first = false;
-      if (cb.tick(fall)) break;
-    }
-    const { ev, won } = cb.endFire();
+    const { ev, won } = playTurn(cb, brng);
+    chains += ev.chainCount;
     dmg = dmg.add(ev.total); perTurn.push(ev.total.toNumber());
     if (won) return { turns: cb.turn, won: true, chains, dmg, perTurn };
     cb.enemyPhase();
@@ -93,7 +120,7 @@ function fight(mode, floor, seed) {
 
 if (CAMPAIGN) { await campaign(); process.exit(0); }
 if (ABYSS) { await abyss(); process.exit(0); }
-console.log(`試行 ${TRIALS} 回／1本目は最長・2本目以降は近場の探索（${QUICK}手）／なぞり ${TRACE}s/個・反応 ${REACT}s・落下 ${fall}s${MUTAGENS.length ? '／変異因子 ' + MUTAGENS.join(',') : '（無強化）'}${overrides ? '／' + overrides : ''}`);
+console.log(`試行 ${TRIALS} 回／${HUMAN ? `人間らしいボット（なぞり ${H_TRACE}s/個・反応 ${H_REACT}s・連結 4〜6／3〜5個）` : `速いボット（1本目は最長・なぞり ${TRACE}s/個・反応 ${REACT}s）`}・落下 ${fall}s${MUTAGENS.length ? '／変異因子 ' + MUTAGENS.join(',') : '（無強化）'}${overrides ? '／' + overrides : ''}`);
 console.log('| 契約 | 層 | 敵HP | 撃破ターン平均 | 撃破率 | 1ターンのダメージ（中央値） | 1ターン平均連結 | 5ターン撃破に要るHP倍率 |');
 console.log('| :-- | --: | --: | --: | --: | --: | --: | --: |');
 for (const mode of reg.all('modes').filter(m => !MODES.length || MODES.includes(m.id)).sort((a, b) => a.order - b.order)) {

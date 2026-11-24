@@ -116,32 +116,32 @@ export default {
   ],
 
   // 潜行モード：敵HP ＝ hpBase × hpGrowth^(階層−1)（ボスは ×bossMul）× 敵の hpMul
-  // 調整値（sim.mjs で確認）：hpBase は仕様書7.2の基準値 ×48（RANK C は ×96）。
-  // hpGrowth・bossMul は段階4の調整：失敗するのはボス階層（逆流汚染が満ちる前に倒せるか）なので、ボスを重くして完遂までの潜行回数を作る
+  // 調整値（人間らしいボットの sim.mjs で確認）：RANK D 1F が無強化 3〜5 ターン、B・A は完遂までの潜行回数が仕様書11に近くなる値
+  // hpGrowth・bossMul は仕様書どおり
   modes: [
     // routeChoices：経路の選択肢の数、eliteChance / vaultChance：各分岐で精鋭経路・データ金庫が出る確率
     // vertebraDrop：通常階層の義体ドロップ率、vertebraRarity / bossRarity / shopRarity / mutagenRarity：抽選の重み
     // careerCoef：熟練度の係数（8.7.1）、unlock：開放フラグ
     { id: 'rank_d', name: 'RANK D', title: '末梢神経網', sub: '物流下請け層', order: 1, floors: 3,
-      hpBase: 120000, hpGrowth: 2, bossMul: 80, bossFloors: [3], backflowMul: 1.0, synPerFloor: 30, careerCoef: 1,
+      hpBase: 10000, hpGrowth: 1.6, bossMul: 1.5, bossFloors: [3], backflowMul: 1.0, synPerFloor: 30, careerCoef: 1,
       routeChoices: 2, eliteChance: 0, vaultChance: 0, vertebraDrop: 0.1,
       vertebraRarity: { STANDARD: 90, REFINED: 10 }, bossRarity: { REFINED: 100 }, shopRarity: { STANDARD: 100 },
       mutagenRarity: { COMMON: 65, UNCOMMON: 30, RARE: 5 },
       pool: ['e_patrol_d', 'e_sorter_d'], bosses: { 3: 'b_d' } },
     { id: 'rank_c', name: 'RANK C', title: '自律神経結節', sub: '重工業中枢', order: 2, floors: 5, unlock: 'mode:rank_c',
-      hpBase: 1440000, hpGrowth: 2, bossMul: 40, bossFloors: [5], backflowMul: 1.0, synPerFloor: 80, careerCoef: 2,
+      hpBase: 60000, hpGrowth: 1.6, bossMul: 1.5, bossFloors: [5], backflowMul: 1.0, synPerFloor: 80, careerCoef: 2,
       routeChoices: 2, eliteChance: 0.35, vaultChance: 0, vertebraDrop: 0.1,
       vertebraRarity: { STANDARD: 70, REFINED: 30 }, bossRarity: { REFINED: 100 }, shopRarity: { STANDARD: 70, REFINED: 30 },
       mutagenRarity: { COMMON: 50, UNCOMMON: 35, RARE: 13, ANOMALY: 2 },
       pool: ['e_patrol_c', 'e_heavy_c', 'e_myelin_c'], bosses: { 5: 'b_c' } },
     { id: 'rank_b', name: 'RANK B', title: '視床下部演算層', sub: '生体兵器ラボ', order: 3, floors: 7, unlock: 'mode:rank_b',
-      hpBase: 7200000, hpGrowth: 2.3, bossMul: 14, bossFloors: [4, 7], backflowMul: 1.5, synPerFloor: 200, careerCoef: 4,
+      hpBase: 90000, hpGrowth: 1.6, bossMul: 1.5, bossFloors: [4, 7], backflowMul: 1.5, synPerFloor: 200, careerCoef: 4,
       routeChoices: 3, eliteChance: 0.35, vaultChance: 0.15, vertebraDrop: 0.1,
       vertebraRarity: { STANDARD: 40, REFINED: 55, PROTOTYPE: 5 }, bossRarity: { REFINED: 80, PROTOTYPE: 20 }, shopRarity: { STANDARD: 40, REFINED: 60 },
       mutagenRarity: { COMMON: 35, UNCOMMON: 40, RARE: 20, ANOMALY: 4, SINGULARITY: 1 },
       pool: ['e_virus_b', 'e_burn_b', 'e_heavy_b'], bosses: { 4: 'b_b_mid', 7: 'b_b' } },
     { id: 'rank_a', name: 'RANK A', title: '大脳皮質中枢', sub: 'THE SPINE', order: 4, floors: 10, unlock: 'mode:rank_a',
-      hpBase: 96000000, hpGrowth: 1.8, bossMul: 3, bossFloors: [5, 10], backflowMul: 1.5, synPerFloor: 500, careerCoef: 8,
+      hpBase: 140000, hpGrowth: 1.6, bossMul: 1.5, bossFloors: [5, 10], backflowMul: 1.5, synPerFloor: 500, careerCoef: 8,
       routeChoices: 3, eliteChance: 0.35, vaultChance: 0.15, vertebraDrop: 0.1,
       vertebraRarity: { REFINED: 60, PROTOTYPE: 40 }, bossRarity: { PROTOTYPE: 100 }, shopRarity: { STANDARD: 20, REFINED: 80 },
       mutagenRarity: { COMMON: 20, UNCOMMON: 40, RARE: 28, ANOMALY: 9, SINGULARITY: 3 },
@@ -305,13 +305,13 @@ export default {
     { id: 'tut_main', mode: 'rank_d', floor: 1, enemy: 'e_patrol_d', legend: { M: 'MARROW', V: 'VENOM', S: 'SYNAPSE' }, steps: [
       { id: 'tut_1', board: ['.....', '.....', '.....', '.M.M.', '.....', '.....', '.....'],
         path: [[1, 3], [2, 3], [3, 3]], demo: [[[1, 3], [2, 3], [3, 3]]], until: ['spineChain'],
-        text: '同じ色のノードを3個以上なぞって繋げ。中央の列――主脊髄――を通ったノードは、出力が2倍になる。' },
+        text: '同じ色のノードを3個以上なぞって繋げ。触れるまで時間は止まっている。指を置いている間は時間がゆっくり進む。中央の列（主脊髄）を通ると2倍。' },
       { id: 'tut_2', board: ['.....', '.....', '.....', '.M.M.', 'V....', 'V....', 'V....'],
         path: [[1, 3], [2, 3], [3, 3]], demo: [[[1, 3], [2, 3], [3, 3]], [[0, 4], [0, 5], [0, 6]]], until: ['multi'],
-        text: '1回の神経発火の中で、何度でも連結できる。白骨で基礎値を、神経毒で倍率を稼げ。最後にまとめて掛け算される。' },
+        text: '白骨（白）＝基礎値、ダメージの元。神経毒（緑）＝倍率、掛け算。1回の発火で白骨と神経毒を両方消せ。色は1本ずつでいい。順番も関係ない。' },
       { id: 'tut_3', board: ['MVMVS', 'SMSMS', 'VSVSM', 'MVMVM', 'SMSVV', 'VSVMv', 'MVSMV'],
         path: [[4, 4], [4, 5], [4, 6]], demo: [[[4, 4], [4, 5], [4, 6]]], until: ['merge', 'pulse'],
-        text: '落ちてきたノードで同じ色が4個以上揃うと、合体して圧縮進化（CMP）する。脈動節を含めて繋ぐと、発火時間が延びる。' },
+        text: '落ちてきたノードで同じ色が4個以上揃うと、合体して圧縮進化（CMP）。値が4〜10倍になる。水色の枠（脈動節）を含めて繋ぐと、発火時間が延びる。' },
       { id: 'tut_4', board: ['.....', '.....', '.....', '.MMM.', '.....', '.....', '.....'], gauge: 100,
         specials: [[2, 3, 'WEAKPOINT']], path: [[1, 3], [2, 3], [3, 3]], demo: [[[1, 3], [2, 3], [3, 3]]], crit: true, until: ['crit', 'weakpoint'],
         text: '照準の付いたノードは露出神経。連結に含めて消すと、敵の次の攻撃を止められる。ゲージが満ちた。右下の［脊髄臨界］を押してから繋げ。' },

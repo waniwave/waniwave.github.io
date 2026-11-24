@@ -32,37 +32,59 @@ export function createBattle(root, reg, rng, opts = {}) {
   wrap.innerHTML = `
   <div class="bt">
     <header class="hud">
-      <span class="h-sync">SYNC <b></b></span><span class="h-my">MYELIN <b></b></span>
+      <span class="h-sync">SYNC <span class="sbar"><i></i><em></em></span><b></b></span><span class="h-my">外殻 <b></b></span>
       <span class="h-bf">逆流 <b></b></span><span class="h-stage"></span>
     </header>
     <section class="enemy">
       <div class="bf"><div class="bf-noise"></div></div>
       <div class="en-top"><div class="en-sil"></div>
-        <div class="en-info"><div class="en-name"></div><div class="en-hp"><i></i><span></span></div><div class="en-intent"></div></div></div>
-      <div class="formula"><span class="f-main"></span><span class="f-memo"></span></div>
+        <div class="en-info"><div class="en-name"></div><div class="en-hp"><u></u><i></i><span></span></div><div class="en-intent"></div></div></div>
+      <div class="formula"><span class="f-main"></span><span class="f-memo"></span><button class="help">?</button></div>
       <div class="timer"><i></i><span></span></div>
     </section>
     <section class="board"><canvas></canvas><div class="evalbox"><div class="ev-lines"></div><div class="ev-total"></div></div><div class="hint"></div>
-      <div class="tut"><b></b><p></p><button>スキップ</button></div></section>
+      <div class="tut"><b></b><p></p><button>スキップ</button></div><div class="hitnum"></div></section>
     <footer class="dock"><div class="spinebar"></div><div class="muts"></div><div class="amps"></div><div class="chipbox"></div><button class="act"></button></footer>
   </div>
   <div class="tip"></div>
+  <div class="helpbox"><div class="hb-in">
+    <b>ダメージのしくみ</b>
+    <p class="hb-f">ダメージ ＝ <span class="c-m">基礎値</span> × <span class="c-v">倍率</span> × ボーナス</p>
+    <ul>
+      <li><i class="c-m">◆ 白骨</i>：<b>基礎値</b>（ダメージの元）。1個で +10。</li>
+      <li><i class="c-v">● 神経毒</i>：<b>倍率</b>（掛け算）。1個で 倍率+1（基礎値も +2）。</li>
+      <li><i class="c-s">⚡ シナプス</i>：<b>外殻</b>（敵の攻撃を先に受ける盾）と<b>臨界ゲージ</b>。基礎値 +5。</li>
+      <li>中央の列（主脊髄）を通ったノードは <b>2倍</b>。</li>
+      <li>1ターンに何回も繋げられる。回数が多いほど <b>連結ボーナス</b>（2回で×1.1、3回で×1.2…）。</li>
+    </ul>
+    <p class="hb-k">コツ：<b>白骨と神経毒を「同じターン」に両方消す。</b>1本の中で色を混ぜる必要はない。消す順番も関係ない（ターンの最後にまとめて計算）。</p>
+    <p class="hb-e">例：白骨5個（基礎50）と神経毒4個（基礎8・倍率+4）を1ターンで消す →（50＋8）×（1＋4）× 1.1 ＝ <b>319</b>。白骨9個だけなら 90。</p>
+    <ul>
+      <li>最初のノードに触れるまで時間は止まっている。じっくり考えてよい。</li>
+      <li>指を置いている間は時間が<b>ゆっくり</b>進む。時間切れでも、なぞっている途中の連結は指を離すまで有効。</li>
+      <li><i class="c-a">⌜ 赤い照準</i>（露出神経）を含めて消すと、敵の次の攻撃が止まる。</li>
+      <li>臨界ゲージが満ちたら右下の［脊髄臨界］→ 次のターンのダメージ <b>×3</b>、時間の減りが半分。</li>
+    </ul>
+    <button class="hb-x">閉じる</button></div></div>
   ${opts.debug ? '<button class="dbg-toggle">DBG</button><div class="dbg"></div>' : ''}`;
   root.appendChild(wrap);
   const $ = s => wrap.querySelector(s);
   const el = {
     bt: $('.bt'), sync: $('.h-sync b'), my: $('.h-my b'), bfHud: $('.h-bf'), bfTxt: $('.h-bf b'), stage: $('.h-stage'),
     enemy: $('.enemy'), bf: $('.bf'), bfNoise: $('.bf-noise'), sil: $('.en-sil'), name: $('.en-name'),
-    hpBar: $('.en-hp i'), hpTxt: $('.en-hp span'), intent: $('.en-intent'), fMain: $('.f-main'), fMemo: $('.f-memo'),
+    hpBar: $('.en-hp i'), hpTrail: $('.en-hp u'), hpTxt: $('.en-hp span'), sbar: $('.sbar i'), sbarMy: $('.sbar em'),
+    hitnum: $('.hitnum'), helpbox: $('.helpbox'), helpBtn: $('.help'), intent: $('.en-intent'), fMain: $('.f-main'), fMemo: $('.f-memo'),
     timer: $('.timer'), timeBar: $('.timer i'), timeTxt: $('.timer span'),
     boardBox: $('.board'), canvas: $('canvas'), evalbox: $('.evalbox'), evLines: $('.ev-lines'), evTotal: $('.ev-total'), hint: $('.hint'),
     muts: $('.muts'), spinebar: $('.spinebar'), tut: $('.tut'), amps: $('.amps'), chipbox: $('.chipbox'), act: $('.act'), tip: $('.tip'), dbgBtn: $('.dbg-toggle'), dbg: $('.dbg'),
   };
   const ctx = el.canvas.getContext('2d');
+  el.helpBtn.addEventListener('click', () => el.helpbox.classList.add('show'));
+  el.helpbox.addEventListener('click', e => { if (e.target === el.helpbox || e.target.classList.contains('hb-x')) el.helpbox.classList.remove('show'); });
   const st = {
     path: null, reach: null, ptr: null, lockUntil: 0, anim: null, fx: [], L: null, last: 0, raf: 0, dead: false,
     evalAnim: null, busy: false, pick: null, lit: new Set(), preview: null, shake: null, hitstopUntil: 0, removed: 0,
-    suggest: null, tutStep: -1, tutLog: null,
+    suggest: null, tutStep: -1, tutLog: null, texts: [], sparks: [],
   };
   const T_ = opts.tutorial;   // チュートリアル
   const vertSources = cb.extra.filter(x => x.kind === 'vertebra');
@@ -113,7 +135,7 @@ export function createBattle(root, reg, rng, opts = {}) {
     st.reach = board.reachable(path);
     A?.trace(path.length - 1); updatePreview();
   });
-  const up = e => { if (st.path && e.pointerId === st.ptr) commitPath(); };
+  const up = e => { if (st.path && e.pointerId === st.ptr) { commitPath(); if (st.timeUp) { st.timeUp = false; endFire(); } } };
   el.canvas.addEventListener('pointerup', up);
   el.canvas.addEventListener('pointercancel', up);
   el.act.addEventListener('click', () => {
@@ -155,6 +177,7 @@ export function createBattle(root, reg, rng, opts = {}) {
     if (st.tutLog) { const l = st.tutLog; l.chains.push(ch); l.merges += res.merges.length; l.pulses += res.pulses; l.weakpoint ||= res.weakpoint; }
     if (res.wreck) popup('残骸を回収', 'big');
     for (const x of [...ch.cells, ...ch.blasted]) burst(x.c, x.r, colorOf(x.color), 1);
+    chainLabel(ch, path[path.length - 1]);
     for (const m of res.merges) burst(m.c, m.r, colorOf(m.color), 1.8);
     animateFrom(old);
     A?.chain(ch.cells.length);
@@ -176,19 +199,30 @@ export function createBattle(root, reg, rng, opts = {}) {
     tutorialAfterFire();
     st.lit.clear(); A?.setHalf(false);
     st.evalAnim = { ev: res.ev, won: res.won, i: 0, next: performance.now(), done: false };
-    el.evLines.innerHTML = ''; el.evTotal.textContent = '';
+    el.evLines.innerHTML = '<div class="ev-head">ダメージ ＝ <span class="c-m">基礎値</span> × <span class="c-v">倍率</span> × ボーナス</div>'; el.evTotal.textContent = '';
     el.evalbox.classList.add('show');
     renderAll();
+  }
+
+  // 連結ごとに、何がどれだけ増えたかを盤面に浮かべる（白＝基礎値、緑＝倍率、紫＝外殻）
+  function chainLabel(ch, at) {
+    const one = cb.evaluate([ch]), stp = one.steps.find(x => x.kind === 'chain');
+    const lines = [];
+    if (stp) lines.push([`基礎 +${fmt(stp.add)}`, colorOf('MARROW')]);
+    if (stp?.multAdd) lines.push([`倍率 +${fmtN(stp.multAdd)}`, colorOf('VENOM')]);
+    if (one.myelin > 0) lines.push([`外殻 +${fmtN(one.myelin)}`, colorOf('SYNAPSE')]);
+    const t0 = performance.now();
+    lines.forEach(([text, color], i) => st.texts.push({ c: at.c, r: at.r, text, color, t0: t0 + i * 90, dy: i }));
   }
 
   // ---- 計算演出（EvalStep を1つずつ積む。タップで早送り） ----
   function stepText(s) {
     switch (s.kind) {
-      case 'chain': return [`${nodes[s.color]?.name ?? '?'}×${s.len}${s.blasted ? '+' + s.blasted : ''}`,
-        `+${fmt(s.add)}${s.multAdd ? ' 倍率+' + fmtN(s.multAdd) : ''}${s.long > 1 ? ' 長×' + s.long : ''}`];
+      case 'chain': return [`${nodes[s.color]?.name ?? '?'}×${s.len}${s.blasted ? '+' + s.blasted : ''}${s.long > 1 ? '（長連結×' + s.long + '）' : ''}`,
+        `基礎 +${fmt(s.add)}${s.multAdd ? '　倍率 +' + fmtN(s.multAdd) : ''}`];
       case 'burn': return [`焼灼×${s.len}`, `+${fmt(s.add)}`];
       case 'src': return [s.name, { addBase: '+', addMult: '倍率+', mulMult: '×', baseMul: '基礎×', retrigger: '再発動 +', metaMul: '×' }[s.op] + fmtN(s.v)];
-      case 'chainBonus': return [`連結数 ${s.n}`, `×${fmtN(s.k)}`];
+      case 'chainBonus': return [`連結ボーナス（${s.n}回）`, `×${fmtN(s.k)}`];
       case 'armor': return ['外殻装甲（白骨なし）', `×${fmtN(s.k)}`];
       case 'reflect': return ['時限ウイルス反射', `×${fmtN(s.k)}`];
       case 'crit': return ['脊髄臨界', `×${fmtN(s.k)}`];
@@ -196,15 +230,15 @@ export function createBattle(root, reg, rng, opts = {}) {
       default: return [s.kind, ''];
     }
   }
-  const formulaOf = s => `${fmt(s.base)} × ${fmtN(s.mult.toNumber())}${s.factor.eq(1) ? '' : ' × ' + fmtN(s.factor.toNumber())}`;
+  const formulaOf = s => `<span class="c-m">${fmt(s.base)}</span> × <span class="c-v">${fmtN(s.mult.toNumber())}</span>${s.factor.eq(1) ? '' : ' × ' + fmtN(s.factor.toNumber())}`;
   function showStep(i) {
     const s = st.evalAnim.ev.steps[i]; const [a, b] = stepText(s);
     const d = document.createElement('div'); d.className = 'ev-line ' + s.kind;
     d.innerHTML = `<span></span><b></b>`; d.firstChild.textContent = a; d.lastChild.textContent = b;
     if (s.kind === 'chain') d.style.color = colorOf(s.color);
     el.evLines.appendChild(d);
-    while (el.evLines.children.length > 6) el.evLines.firstChild.remove();
-    el.evTotal.textContent = `${formulaOf(s)} = ${fmt(s.total)}`;
+    while (el.evLines.children.length > 7) el.evLines.children[1].remove();
+    el.evTotal.innerHTML = `${formulaOf(s)} = ${fmt(s.total)}`;
     A?.step(i);
   }
   function finishEval() {
@@ -212,13 +246,12 @@ export function createBattle(root, reg, rng, opts = {}) {
     while (ea.i < ea.ev.steps.length) showStep(ea.i++);
     ea.done = true;
     const ev = ea.ev;
-    el.evTotal.innerHTML = `<small></small><b></b>`;
-    el.evTotal.firstChild.textContent = ev.steps.length ? formulaOf(ev.steps[ev.steps.length - 1]) + ' =' : '';
-    el.evTotal.lastChild.textContent = fmt(ev.total);
+    el.evTotal.innerHTML = `<small>${ev.steps.length ? formulaOf(ev.steps[ev.steps.length - 1]) + ' =' : ''}</small><b>${fmt(ev.total)}<em>ダメージ</em></b>`;
     el.evTotal.classList.add('final');
     st.hpShown = null;
     A?.final();
-    popup(ev.total.isZero() ? 'MISS' : '−' + fmt(ev.total), ev.kill ? 'big' : '');
+    popup(ev.total.isZero() ? 'MISS' : '−' + fmt(ev.total), 'dmg' + (ev.kill ? ' big' : ''));
+    if (!ev.total.isZero()) flash('enemy-hit', 300);
     if (ev.kill || ev.best) juice('big');
     renderAll();
     setTimeout(afterEval, R.evalAnim.holdMs);
@@ -245,8 +278,8 @@ export function createBattle(root, reg, rng, opts = {}) {
       renderAll(); return;
     }
     const e = events[i]; let wait = 120;
-    if (e.type === 'attack') { popup(`${edef.lines?.attack ?? ''} −${e.rest}%`, 'hurt'); if (e.absorbed) popup(`外殻 −${e.absorbed}`, ''); A?.hit(); juice('mid'); flash('hurt'); wait = 520; }
-    else if (e.type === 'virus') { burst(e.c, e.r, T.alert, 2.2); popup(`ウイルス破裂 −${e.rest}%`, 'hurt'); A?.hit(); juice('small'); wait = 420; }
+    if (e.type === 'attack') { popup(edef.lines?.attack ?? '攻撃', 'hurt'); hitNumber(e); A?.hit(); juice('mid'); wait = 900; }
+    else if (e.type === 'virus') { burst(e.c, e.r, T.alert, 2.2); popup('ウイルス破裂', 'hurt'); hitNumber(e); A?.hit(); juice('small'); wait = 800; }
     else if (e.type === 'stun') { popup(edef.lines?.stun ?? 'STUNNED', ''); A?.weak(); wait = 520; }
     else if (e.type === 'place') { burst(e.c, e.r, T.alert, 1.3); wait = 90; }
     else if (e.type === 'telegraph') { A?.alarm(); wait = 150; }
@@ -301,6 +334,12 @@ export function createBattle(root, reg, rng, opts = {}) {
     }
   }
   function flash(cls, ms = 220) { el.bt.classList.add(cls); setTimeout(() => el.bt.classList.remove(cls), ms); }
+  // 被ダメージ：盤面の上に大きく出す。外殻で防いだ分も見せる
+  function hitNumber(e) {
+    el.hitnum.innerHTML = (e.rest > 0 ? `<b>SYNC −${e.rest}%</b>` : '<b class="guard">防御成功</b>') + (e.absorbed ? `<small>外殻で ${fmtN(e.absorbed)} 防いだ</small>` : '');
+    el.hitnum.classList.remove('show'); void el.hitnum.offsetWidth; el.hitnum.classList.add('show');
+    if (e.rest > 0) flash('hurt', 600);
+  }
   function popup(text, cls) {
     const d = document.createElement('div'); d.className = 'pop ' + (cls || ''); d.textContent = text;
     d.style.top = (18 + (el.enemy.querySelectorAll('.pop').length % 3) * 22) + 'px';
@@ -334,11 +373,14 @@ export function createBattle(root, reg, rng, opts = {}) {
     if (st.evalAnim) return;
     if (st.preview && (cb.chains.length || cur)) {
       const p = st.preview;
-      el.fMain.innerHTML = `${fmt(p.base)} × ${fmtN(p.mult.toNumber())}${p.factor.eq(1) ? '' : ' × ' + fmtN(p.factor.toNumber())} = <b>${fmt(p.total)}</b>`;
-    } else el.fMain.textContent = cb.phase === 'think' ? '思考中：最初のノードに触れると発火' : '';
+      el.fMain.innerHTML = `基礎 <span class="c-m">${fmt(p.base)}</span> × 倍率 <span class="c-v">${fmtN(p.mult.toNumber())}</span>${p.factor.eq(1) ? '' : ' × ' + fmtN(p.factor.toNumber())} = <b>${fmt(p.total)}</b>`;
+    } else el.fMain.innerHTML = cb.phase === 'think'
+      ? '<span class="c-m">◆白骨=基礎値</span>　<span class="c-v">●神経毒=倍率</span>　<span class="c-s">⚡シナプス=外殻</span>' : '';
   }
   function renderHud() {
     el.sync.textContent = cb.sync + '%';
+    el.sbar.style.width = clamp(cb.sync / cb.syncMax * 100, 0, 100) + '%';
+    el.sbarMy.style.width = clamp(cb.myelin / cb.syncMax * 100, 0, 100) + '%';
     el.sync.parentElement.classList.toggle('low', cb.sync <= 30);
     el.my.textContent = fmtN(cb.myelin);
     el.bfHud.style.display = cb.backflowOn ? '' : 'none';
@@ -348,12 +390,15 @@ export function createBattle(root, reg, rng, opts = {}) {
     const hp = st.hpShown ?? E.hp;
     const ratio = clamp(hp.div(E.hpMax).toNumber(), 0, 1);
     el.hpBar.style.width = (ratio * 100).toFixed(1) + '%';
+    el.hpTrail.style.width = (ratio * 100).toFixed(1) + '%';
     el.hpTxt.textContent = `${fmt(hp)} / ${fmt(E.hpMax)}`;
     el.sil.className = `en-sil shape-${edef.look?.shape ?? 'eye'}${E.stunned ? ' stunned' : ''}`;
     el.sil.style.setProperty('--ec', edef.look?.color ?? T.alert);
     el.intent.classList.toggle('stun', E.stunned);
+    el.intent.classList.toggle('imminent', !cb.passive && !E.stunned && E.timer <= 1);
     el.intent.textContent = cb.passive ? `${edef.lines?.tele ?? '閉鎖まで'} 残り${Math.max(0, cb.turnLimit - cb.turn + 1)}ターン`
-      : E.stunned ? `STUNNED — 次の攻撃はキャンセル` : `あと${E.timer}ターン：${edef.lines?.tele ?? '攻撃'}  SYNC −${edef.atk}%`;
+      : E.stunned ? `STUNNED — 次の攻撃はキャンセル`
+      : E.timer <= 1 ? `⚠ このターンの後に攻撃 SYNC −${edef.atk}%` : `あと${E.timer}ターンで攻撃 SYNC −${edef.atk}%`;
     // 逆流汚染：敵エリアの上から垂れ下がり、100% で盤面の上端に達する
     el.bf.style.display = cb.backflowOn ? '' : 'none';
     el.bf.style.height = clamp(cb.backflow, 0, 100) + '%';
@@ -425,9 +470,10 @@ export function createBattle(root, reg, rng, opts = {}) {
   function renderTimer() {
     const t = Math.max(0, cb.time), full = cb.fireTime();
     el.timeBar.style.width = clamp(t / full * 100, 0, 100).toFixed(1) + '%';
-    el.timeTxt.textContent = (cb.freeze > 0 ? `❄${cb.freeze.toFixed(1)} ` : '') + t.toFixed(2) + 's';
+    el.timeTxt.textContent = (cb.freeze > 0 ? `❄${cb.freeze.toFixed(1)} ` : '') + (cb.phase === 'fire' && st.path ? (st.timeUp ? '指を離すと確定 ' : 'SLOW ') : '') + t.toFixed(2) + 's';
     el.timer.classList.toggle('low', cb.phase === 'fire' && t <= 1);
     el.timer.classList.toggle('frozen', cb.phase === 'fire' && cb.freeze > 0);
+    el.timer.classList.toggle('slow', cb.phase === 'fire' && !!st.path);
   }
   function renderHint() {
     const p = st.pick;
@@ -498,7 +544,12 @@ export function createBattle(root, reg, rng, opts = {}) {
 
   // ---- 描画（Canvas） ----
   const colorOf = id => nodes[id]?.color ?? '#777';
-  function burst(c, r, color, size) { st.fx.push({ c, r, color, size, t0: performance.now() }); }
+  function burst(c, r, color, size) {
+    const t0 = performance.now();
+    st.fx.push({ c, r, color, size, t0 });
+    // 火花：放射状に飛ぶ線
+    for (let i = 0; i < 6; i++) { const a = Math.PI * 2 * i / 6 + (c * 7 + r * 3 + i) * 0.37; st.sparks.push({ c, r, a, color, t0, len: 0.4 + (i % 3) * 0.25 }); }
+  }
   function hexPath(x, y, rad) {
     ctx.beginPath();
     for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i; ctx.lineTo(x + rad * Math.cos(a), y + rad * Math.sin(a)); }
@@ -565,7 +616,7 @@ export function createBattle(root, reg, rng, opts = {}) {
     ctx.globalAlpha = base * (lit ? 0.42 : 0.24); ctx.fillStyle = col; ctx.fill();
     ctx.globalAlpha = base;
     ctx.strokeStyle = col; ctx.lineWidth = inPath ? 3 : 1.5;
-    if (inPath) { ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 12; ctx.stroke(); ctx.restore(); } else ctx.stroke();
+    if (inPath || lit) { ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = inPath ? 16 : 8; ctx.stroke(); ctx.restore(); } else ctx.stroke();
     const cmp = cell.cmp ? cmpDefs[cell.cmp - 1] : null;
     if (cmp?.look === 'ring') { hexPath(x, y, s * 0.68); ctx.lineWidth = 2; ctx.stroke(); }
     else if (cmp?.look === 'poly') {
@@ -619,9 +670,12 @@ export function createBattle(root, reg, rng, opts = {}) {
   function drawPath() {
     const path = st.path; if (!path?.length) return;
     const col = colorOf(board.pathColor(path) ?? board.at(path[0].c, path[0].r).color);
-    ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = st.L.s * 0.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.shadowColor = col; ctx.shadowBlur = 14; ctx.globalAlpha = 0.85;
-    ctx.beginPath(); for (const p of path) ctx.lineTo(cx(p.c), cy(p.c, p.r)); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); for (const p of path) ctx.lineTo(cx(p.c), cy(p.c, p.r));
+    ctx.strokeStyle = col; ctx.lineWidth = st.L.s * 0.34; ctx.globalAlpha = 0.28; ctx.shadowColor = col; ctx.shadowBlur = 22; ctx.stroke();
+    ctx.globalAlpha = 0.95; ctx.lineWidth = st.L.s * 0.12; ctx.stroke();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(1.5, st.L.s * 0.04); ctx.shadowBlur = 0; ctx.stroke();
+    ctx.restore();
     const l = path[path.length - 1], ok = path.length >= board.minChain;
     ctx.fillStyle = ok ? '#fff' : '#ffffff88'; ctx.font = `700 ${Math.max(14, st.L.s * 0.5)}px sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -634,6 +688,24 @@ export function createBattle(root, reg, rng, opts = {}) {
     ctx.globalAlpha = 1;
   }
   function drawFx(now) {
+    st.sparks = st.sparks.filter(f => now - f.t0 < 320);
+    for (const f of st.sparks) {
+      const t = (now - f.t0) / 320, x = cx(f.c), y = cy(f.c, f.r), d0 = st.L.s * (0.4 + 1.2 * t), d1 = d0 + st.L.s * f.len * (1 - t);
+      ctx.globalAlpha = 1 - t; ctx.strokeStyle = f.color; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x + Math.cos(f.a) * d0, y + Math.sin(f.a) * d0); ctx.lineTo(x + Math.cos(f.a) * d1, y + Math.sin(f.a) * d1); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // 連結ごとの数値（基礎・倍率・外殻）
+    st.texts = st.texts.filter(f => now - f.t0 < 1100);
+    for (const f of st.texts) {
+      const t = Math.max(0, (now - f.t0) / 1100); if (now < f.t0) continue;
+      const x = clamp(cx(f.c), 60, st.L.W - 60), y = cy(f.c, f.r) - st.L.s * (0.6 + f.dy * 0.62) - t * st.L.s * 0.9;
+      ctx.globalAlpha = t < 0.75 ? 1 : (1 - t) * 4;
+      ctx.font = `800 ${Math.max(14, st.L.s * 0.46)}px ui-monospace, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 4; ctx.strokeStyle = '#000'; ctx.strokeText(f.text, x, y);
+      ctx.fillStyle = f.color; ctx.shadowColor = f.color; ctx.shadowBlur = 10; ctx.fillText(f.text, x, y); ctx.shadowBlur = 0;
+    }
+    ctx.globalAlpha = 1;
     st.fx = st.fx.filter(f => now - f.t0 < 350);
     for (const f of st.fx) {
       const t = (now - f.t0) / 350;
@@ -645,6 +717,14 @@ export function createBattle(root, reg, rng, opts = {}) {
   function draw(now) {
     const { W, H } = st.L;
     ctx.fillStyle = T.bg; ctx.fillRect(0, 0, W, H);
+    // 背景：細い格子と、上から下へ流れる走査線
+    ctx.strokeStyle = T.line; ctx.globalAlpha = 0.35; ctx.lineWidth = 1; ctx.beginPath();
+    for (let gx = (now / 80) % 24; gx < W; gx += 24) { ctx.moveTo(gx, 0); ctx.lineTo(gx, H); }
+    for (let gy = 0; gy < H; gy += 24) { ctx.moveTo(0, gy); ctx.lineTo(W, gy); }
+    ctx.stroke();
+    const sy = (now / 9) % (H + 80) - 40, sg = ctx.createLinearGradient(0, sy - 40, 0, sy + 4);
+    sg.addColorStop(0, 'transparent'); sg.addColorStop(1, T.pulse);
+    ctx.globalAlpha = 0.12; ctx.fillStyle = sg; ctx.fillRect(0, sy - 40, W, 44); ctx.globalAlpha = 1;
     drawSpine(now);
     const a = st.anim, t = a ? clamp((now - a.t0) / a.dur, 0, 1) : 1;
     if (a && t >= 1) st.anim = null;
@@ -661,7 +741,10 @@ export function createBattle(root, reg, rng, opts = {}) {
     if (st.dead) return;
     const dt = st.last ? Math.min(0.1, (now - st.last) / 1000) : 0; st.last = now;
     const stopped = now < st.hitstopUntil;
-    if (!stopped && cb.phase === 'fire' && !st.evalAnim && cb.tick(dt)) endFire();
+    if (!stopped && cb.phase === 'fire' && !st.evalAnim && cb.tick(dt, !!st.path)) {
+      // 時間切れでも、なぞっている途中の連結は指を離すまで待つ
+      if (st.path && R.fire.holdTrace) st.timeUp = true; else endFire();
+    }
     const ea = st.evalAnim;
     if (ea && !ea.done && !stopped) {
       while (ea.i < ea.ev.steps.length && now >= ea.next) { showStep(ea.i++); ea.next = now + R.evalAnim.stepMs; }

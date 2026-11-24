@@ -4,7 +4,7 @@
 
 ## 更新するとき（必ず）
 
-1. `index.html` の **BUILD 番号**を上げる。`index.html` の中の `?v=5` を、すべて新しい番号（例：`?v=6`）に置き換える（import map の各行・`style.css`・`main.js` の行。冒頭のコメントの番号も）。
+1. `index.html` の **BUILD 番号**を上げる。`index.html` の中の `?v=6` を、すべて新しい番号（例：`?v=7`）に置き換える（import map の各行・`style.css`・`main.js` の行。冒頭のコメントの番号も）。
    - ブラウザやスマホのキャッシュで古いファイルが混ざるのを防ぐため。パック（`content/*.js`）は `registry.js` が同じ番号を付けて読み込むので、`index.html` に書き足す必要はない。
 2. `node tools/check.mjs` を実行し、エラーが 0 件であることを確かめる。
 3. GitHub Pages にはフォルダごと置く（空の `.nojekyll` も一緒に）。

@@ -266,3 +266,65 @@ div.mode .row { margin-top: 6px; } div.mode .go { border-color: var(--pulse); }
   padding: 8px; background: #200008ee; border: 1px solid var(--alert); font-size: 12px; }
 .errors b { color: var(--alert); display: block; margin-bottom: 4px; }
 .t-dbg[hidden] { display: none; }
+
+/* ==== 段階4：説明・ダメージ表示・サイバー演出 ==== */
+.c-m { color: #F2EFE9; } .c-v { color: #B8F227; } .c-s { color: #D07BFF; } .c-a { color: #FF2A4B; font-style: normal; }
+/* 走査線と周辺減光（画面全体） */
+.battle::after, .scr::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 20;
+  background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.18) 2px 3px),
+              radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(0,0,0,.45) 100%); }
+.hud, .dock { box-shadow: 0 0 12px #3be8ff14 inset; }
+.hud { letter-spacing: .04em; }
+/* SYNC バー（外殻は水色で重ねる） */
+.h-sync { display: flex; align-items: center; gap: 5px; }
+.sbar { position: relative; width: 70px; height: 9px; background: #000; border: 1px solid var(--line); overflow: hidden; }
+.sbar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #1fa8bd, var(--pulse)); box-shadow: 0 0 8px var(--pulse); transition: width .4s; }
+.sbar em { position: absolute; inset: 0 auto 0 0; background: repeating-linear-gradient(90deg, #d07bffcc 0 3px, transparent 3px 5px); transition: width .4s; }
+.h-sync.low .sbar i { background: var(--alert); box-shadow: 0 0 8px var(--alert); }
+/* 敵HP：減った分が白く残ってから縮む */
+.en-hp u { position: absolute; inset: 0 auto 0 0; background: #fff; opacity: .85; transition: width .9s .35s ease-out; }
+.en-hp i { z-index: 1; } .en-hp span { z-index: 2; }
+.en-intent.imminent { color: #fff; background: #ff2a4b33; padding: 0 4px; animation: beat .7s infinite; }
+/* 計算式の行・ヘルプ */
+.formula { position: relative; }
+.help { flex: none; width: 22px; height: 20px; padding: 0; font-size: 12px; border-color: var(--pulse); color: var(--pulse); border-radius: 50%; }
+.helpbox { position: absolute; inset: 0; z-index: 45; display: none; background: #000c; padding: 10px; overflow-y: auto; }
+.helpbox.show { display: block; }
+.hb-in { padding: 12px; border: 1px solid var(--pulse); background: #051214f2; font-size: 13px; line-height: 1.6; box-shadow: 0 0 20px #3be8ff33; }
+.hb-in > b { display: block; font-size: 16px; color: var(--pulse); letter-spacing: .1em; }
+.hb-in ul { margin: 6px 0; padding-left: 18px; } .hb-in li { margin: 3px 0; } .hb-in i { font-style: normal; font-weight: 700; }
+.hb-f { font-size: 15px; text-align: center; margin: 8px 0; padding: 6px; border: 1px dashed var(--line); }
+.hb-k { padding: 6px 8px; background: #b8f2271a; border-left: 3px solid #B8F227; }
+.hb-e { color: #cfe3e6; font-size: 12px; }
+.hb-x { display: block; width: 100%; margin-top: 8px; padding: 10px; border-color: var(--pulse); }
+/* 計算演出 */
+.evalbox { border-color: var(--pulse); box-shadow: 0 0 18px #3be8ff33; background: #020a0cee; }
+.ev-head { font-size: 12px; color: var(--dim); padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px dashed var(--line); }
+.ev-total.final b { display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; font-size: 34px; }
+.ev-total.final b em { font-size: 13px; font-style: normal; color: var(--dim); text-shadow: none; }
+/* 与ダメージ：大きく、グリッチ */
+.pop.dmg { font-size: 34px; color: #fff; text-shadow: 2px 0 #ff2a4b, -2px 0 #3be8ff, 0 0 14px #fff; animation: pop 1.1s ease-out forwards, glitch .25s steps(2) 3; }
+.pop.dmg.big { font-size: 42px; }
+@keyframes glitch { 0% { clip-path: inset(0 0 60% 0); transform: translate(-48%, 0); } 50% { clip-path: inset(40% 0 0 0); transform: translate(-52%, 0); } 100% { clip-path: inset(0); } }
+.bt.enemy-hit .en-sil { filter: brightness(3) saturate(0); transform: scale(.92); }
+.bt.enemy-hit .en-hp { box-shadow: 0 0 12px #fff; }
+/* 被ダメージ：盤面の上に大きく、赤い周辺光 */
+.hitnum { position: absolute; left: 0; right: 0; top: 30%; z-index: 6; text-align: center; pointer-events: none; opacity: 0; }
+.hitnum b { display: block; font-size: 40px; font-weight: 900; color: #ff2a4b; text-shadow: 0 0 18px #ff2a4b, 2px 0 #fff; letter-spacing: .04em; }
+.hitnum b.guard { color: #D07BFF; text-shadow: 0 0 16px #C63BFF; }
+.hitnum small { display: block; font-size: 15px; color: #e8c8ff; text-shadow: 0 0 6px #000; }
+.hitnum.show { animation: hitpop 1.2s ease-out forwards; }
+@keyframes hitpop { 0% { opacity: 0; transform: scale(1.6); } 12% { opacity: 1; transform: scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
+.bt.hurt { box-shadow: inset 0 0 70px 10px #ff2a4bcc; }
+.bt.hurt .hud { background: #3a0610; }
+/* 発火時間：なぞっている間（スロー） */
+.timer.slow i { background: #8f7bff; box-shadow: 0 0 12px #8f7bff; }
+.timer.slow span { color: #d9d0ff; }
+/* タイトルのロゴ */
+.title h1 { animation: logoGlitch 4s infinite; }
+@keyframes logoGlitch { 0%, 92%, 100% { text-shadow: 0 0 14px #3be8ff88; transform: none; }
+  93% { text-shadow: 3px 0 #ff2a4b, -3px 0 #3be8ff; transform: translateX(2px) skewX(-8deg); }
+  95% { text-shadow: -2px 0 #ff2a4b, 2px 0 #3be8ff; transform: translateX(-2px); } }
+.enemy { grid-template-columns: minmax(0, 1fr); }
+.en-top, .formula, .timer { min-width: 0; }
+.hitnum { padding: 10px 0; background: linear-gradient(90deg, transparent, #0b0204e6 15%, #0b0204e6 85%, transparent); }

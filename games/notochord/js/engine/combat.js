@@ -101,14 +101,16 @@ export class Combat {
     callHooks(this.sources, 'ON_FIRE_START', { combat: this });
     return true;
   }
-  tick(dt) {
+  // tracing：指でなぞっている最中。なぞっている間は時間の進みが traceSlow 倍に遅くなる
+  tick(dt, tracing = false) {
     if (this.phase !== 'fire') return false;
     if (this.freeze > 0) { this.freeze -= dt; if (this.freeze >= 0) return false; dt = -this.freeze; this.freeze = 0; }
-    this.time -= dt * this.timeScale;
+    this.time -= dt * this.timeScale * (tracing ? this.R.fire.traceSlow ?? 1 : 1);
     if (this.time <= 0 && !this.graceUsed) {   // 猶予：0秒になった後も少しだけ続けられる
       this.graceUsed = true;
       const g = this.sumStat('graceTime'); if (g > 0) this.time = g;
     }
+    if (this.time < 0) this.time = 0;
     return this.time <= 0;
   }
   commit(path) {
