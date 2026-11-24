@@ -42,7 +42,7 @@ button { font: inherit; color: inherit; }
 .scr { position: absolute; inset: 0; display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 /* 低い画面（iPhone SE など）では画面ごと縦にスクロールできる。中身は縮みすぎない */
 .scr > * { flex-shrink: 0; }
-.scr > .zbody, .scr > .facs, .scr > .ibody, .scr > main.dv, .scr > .things.half { flex-shrink: 1; }
+.scr > .zbody, .scr > .facs, .scr > .ibody, .scr > main.dv, .scr > .things.half, .scr > .stbody { flex-shrink: 1; }
 .btn { min-height: var(--tap); min-width: var(--tap); border: 1.5px solid var(--line); border-radius: 10px; background: var(--paper); padding: 0 12px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; font-size: 16px; }
 .btn:disabled { opacity: .38; cursor: default; }
 .btn.main { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 14%, var(--paper)); font-weight: 700; }
@@ -618,3 +618,15 @@ button { font: inherit; color: inherit; }
 .iguide li { display: flex; align-items: center; gap: 8px; font-size: 16px; }
 .iguide .n { flex: 0 0 26px; height: 26px; border-radius: 50%; background: var(--acc); color: #fff; text-align: center; line-height: 26px; }
 .iguide .ic { color: #2a6ad0; display: inline-flex; }
+/* 蔵：一覧は中だけスクロール、下に常設の説明欄（押した物の全文） */
+.stash .stbody { flex: 1 1 auto; min-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.stash .stbody .things.deck { max-height: none; overflow: visible; }
+.stash .things.list2 { display: flex; flex-direction: column; gap: 4px; }
+.stash .detail { flex: 0 0 auto; max-height: 27vh; min-height: 64px; overflow-y: auto; padding: 6px 10px; border: 2px solid var(--acc2); border-radius: 10px; background: #fbf7ee; font-size: 14px; line-height: 1.5; }
+.stash .detail b { font-family: var(--mincho); font-size: 16px; }
+.thing.hasact { position: relative; padding-right: 64px; }
+.thing .tact { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); min-width: 52px; min-height: 38px; border-radius: 8px; border: 1.5px solid var(--line); font-weight: 700; font-size: 14px; background: var(--paper2); cursor: pointer; }
+.thing .tact.in { background: #e3efd9; border-color: #6a9a4a; }
+.thing .tact.out { background: #f3dcd4; border-color: var(--acc); }
+.thing.focus { outline: 2.5px solid var(--acc2); outline-offset: 1px; }
+.stash .things.deck { display: flex; flex-direction: column; gap: 4px; }

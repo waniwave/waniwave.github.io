@@ -134,7 +134,6 @@ export function zukanScreen(ctx) {
   const el = h('div.scr.zukan', {}, [
     h('header.ztop', {}, [h('h2', { text: '図鑑' }), h('button.btn', { type: 'button', onclick: () => ctx.back() }, ['戻る'])]),
     tabs, count, body,
-    h('p.q.zhint', { text: '名前を押すと説明。見たことのない物は影' }),
   ]);
   return { el };
 }

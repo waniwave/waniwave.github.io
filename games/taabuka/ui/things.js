@@ -63,8 +63,13 @@ export function thingEl(base, x, opt = {}) {
   const color = x.type === 'card' ? RAR_VAR[rarOfCard(base.balance, x, def)] : GRADE_COLOR[def?.grade] ?? 'var(--line)';
   const el = h(`div.thing${opt.on ? '.took' : ''}${x.type === 'card' ? `.r-${rarOfCard(base.balance, x, def)}` : ''}`, { style: { '--g': color }, dataset: { uid: x.uid } }, kids);
   if (x.type === 'card' && base.content.sets[def?.set]?.joke) { el.classList.add('joke'); el.append(h('span.jokemk', { text: 'おふざけ' })); }
+  if (opt.action) {
+    const b = h(`button.tact.${opt.action.cls ?? ''}`, { type: 'button', onclick: (e) => { e.stopPropagation(); opt.action.onclick(); } }, [opt.action.label]);
+    el.classList.add('hasact');
+    el.append(b);
+  }
   if (opt.onclick) { el.classList.add('tap'); el.addEventListener('click', opt.onclick); }
-  tip(el, () => thingTip(base, x));
+  if (opt.tip !== false) tip(el, () => thingTip(base, x));
   return el;
 }
 

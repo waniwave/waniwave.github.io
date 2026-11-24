@@ -5,7 +5,7 @@ import { encodeGhost, decodeGhost } from '../../engine/ghost.js';
 import { installButton, canOfferInstall } from '../install.js';
 import { innArt } from '../innart.js';
 import { h, tip, toast, pick, sheet, holdButton, esc, confirmSheet } from '../dom.js';
-import { thingEl, pickThing } from '../things.js';
+import { thingEl, pickThing, thingTip } from '../things.js';
 import { slotLabel, rarOfCard, ATTR_KIND, attrExplain, comboEffText } from '../labels.js';
 import { num as format } from '../num.js';
 import { SE } from '../audio/audio.js';
@@ -142,7 +142,6 @@ export function facilityScreen(ctx, id) {
         const u = await pickThing(base, app, '返す質札', held, { yes: '返す' });
         if (u) act(() => returnPawn(base, H, u));
       } }, ['借りた質札を返す']) : null,
-      h('p.q', { text: '脱出で返すと売値の半分の謝礼。未帰還で失うと売値が借金になる。' }),
     ];
   }
 
@@ -150,10 +149,9 @@ export function facilityScreen(ctx, id) {
   function comboPart() {
     const list = comboGoods(base, H);
     const CB = base.balance.economy.inn.combos;
-    if ((H.facilities.chouba ?? 1) < CB.fromLevel) return [h('p.q', { text: `帳場Lv${CB.fromLevel}でコンボ帳が開く（知っているコンボの札をひとそろい買える）。` })];
+    if ((H.facilities.chouba ?? 1) < CB.fromLevel) return [h('p.q', { text: `コンボ帳は帳場Lv${CB.fromLevel}から` })];
     return [
       h('h3', { text: `コンボ帳 ${list.length}` }),
-      h('p.q', { text: '決まった札を同じ出しに入れるとコンボ（カテゴリは関係ない）。札を全部持ったことのあるコンボだけ載る（足りない分や予備を買える）。' }),
       list.length ? h('div.mlist', {}, list.map((g) => h('div.attrrow', {}, [
         h('div', {}, [h('b', { text: g.name }), h('div.ax', { text: `${g.ids.map((id) => (id ? base.content.cards[id].name : '？')).join('＋')}　${comboEffText(base.content, g.id)}` }), g.ok ? null : h('div.q', { text: g.reason })]),
         h('button.btn', { type: 'button', disabled: !g.ok || H.zeni < g.price, onclick: () => act(() => { buyCombo(base, H, g.id); toast(`${g.name}の札を買った（蔵に入れた）`); }) }, [g.ok ? `買う ${g.price}` : '―']),
@@ -180,7 +178,6 @@ export function facilityScreen(ctx, id) {
             return el;
           })),
           h('h3', { text: '基礎札と構築済みデッキ（いつでも買える）' }),
-          h('p.q', { text: 'カテゴリを選ぶと、その基礎札（並の札）と、それだけで組んだデッキが買える。帳場ではレアより上は売っていない。' }),
           h('div.chips.cats', {}, cats.map((c) => h(`button.chip${c === ui.cat ? '.on' : ''}`, { type: 'button', onclick: () => { ui.cat = c; render(); } }, [c]))),
           h('div.things.list', {}, basics.map((g) => {
             const el = thingEl(base, { type: 'card', id: g.id, origin: 'orig', uid: `b${g.id}` }, { price: `宿銭 ${g.price}`, onclick: () => act(() => { buyBasic(base, H, ui.cat, g.id); toast('買った（蔵に入れた）'); }) });
@@ -209,15 +206,15 @@ export function facilityScreen(ctx, id) {
             const cp = base.balance.economy.inn.copy;
             const u = await pickThing(base, app, '複製する札を選ぶ', cards, { note: `写しを1枚作る。代金は売値×${cp.sellMul}と${base.content.souvenirs[cp.souvenir]?.name}1つ。写しは版と判を持たず、仕込みは写る`, yes: '複製する', price: (x) => `代金 ${copyInfo(base, H, x.uid).zeni}` });
             if (u) act(() => { copyCard(base, H, u); toast('写しを作った'); });
-          } }, ['札を複製する（写しを作る）']) : h('p.q', { text: 'Lv2で複製ができる（写し：版と判を持たず、仕込みは写る）。' }),
+          } }, ['札を複製する（写しを作る）']) : h('p.q', { text: '複製はLv2から' }),
         ];
       }
       case 'monooki': {
         const c = carryOf(base, H, 0);
-        return [h('p', { text: `懐 ${c.pouch}・お守り袋 ${c.charm}` }), h('p.q', { text: '懐が重いほど帰路の番人が強い。お守り袋の中身は未帰還でも残る。' })];
+        return [h('p', { text: `懐 ${c.pouch}・お守り袋 ${c.charm}` })];
       }
       case 'kyakuma':
-        return [h('p', { text: `潜行に連れていける常連客 ${f.seats}人` }), h('p.q', { text: '常連客は潜行準備で選ぶ。' })];
+        return [h('p', { text: `潜行に連れていける常連客 ${f.seats}人` })];
       case 'kamidana':
         return [
           h('p', { text: `戻り ${Math.round(f.returnRate * 100)}%・掛け金 売値の${Math.round(f.premium * 100)}%` }),
@@ -234,12 +231,11 @@ export function facilityScreen(ctx, id) {
         const sv = base.content.souvenirs[base.balance.economy.inn.shikomiCost.souvenir]?.name;
         const kinds = ['enh', 'ed', 'seal'];
         return [
-          h('p.q', { text: `付けるたびに宿銭＋${sv}1つ。付け直すと前のものは消える。` }),
+          h('p.q', { text: `代金：宿銭＋${sv}1つ` }),
           ...kinds.flatMap((k) => {
             const ms = menu.filter((m) => m.kind === k);
             return [
               h('h3', { text: ATTR_KIND[k].ja }),
-              h('p.q', { text: ATTR_KIND[k].what }),
               ms.length ? h('div.mlist', {}, ms.map((m) => h('div.attrrow', {}, [
                 h('div', {}, [h('b', { text: m.name }), h('div.ax', { text: attrExplain(base.balance, k, m.name) })]),
                 h('button.btn', { type: 'button', onclick: async () => {
@@ -271,7 +267,7 @@ export function facilityScreen(ctx, id) {
     const ready = [...groups.values()].filter((g) => g.length >= R.fuse.count).map((g) => ({ g, info: fuseInfo(base, H, g.slice(0, R.fuse.count).map((x) => x.uid)) })).filter((o) => o.info.ok);
     return [
       h('h3', { text: '合わせ' }),
-      h('p.q', { text: `同じ札・同じレアリティを${R.fuse.count}枚で、1段上の1枚に。作れるのは${R.fuse.max}まで（ユニーク・ミシックは拾うしかない）` }),
+      h('p.q', { text: `同じ札・同じレアリティ${R.fuse.count}枚 → 1段上（${R.fuse.max}まで）` }),
       ready.length
         ? h('div.mlist', {}, ready.map(({ g, info }) => h('div.itemrow', {}, [
           thingEl(base, g[0], { price: `×${g.length}` }),
@@ -354,17 +350,31 @@ export function stashScreen(ctx) {
       chosen.clear(); SE.coin?.(); ctx.save(); render(); toast(`宿銭＋${sum}`);
     });
   }
+  let focus = null;   // 説明欄に出している物
   function tap(x) {
+    focus = x.uid;
     if (selling) {
-      if (!canSell(x)) { toast('質札は売れない（質屋で返す）'); return; }
+      if (!canSell(x)) { toast('質札は売れない（質屋で返す）'); render(); return; }
       if (chosen.has(x.uid)) chosen.delete(x.uid); else chosen.add(x.uid);
-      render(); return;
     }
-    if (x.type !== 'card') return; // 説明だけ出る
-    if (guard(() => toggleDeck(base, H, x.uid))) { ctx.save(); render(); }
+    render();
   }
-  const el = (x) => thingEl(base, x, { on: selling ? chosen.has(x.uid) : H.deck.includes(x.uid), price: selling ? `売値 ${sellValue(base, x)}` : null, onclick: () => tap(x) });
+  function toggle(x) {
+    focus = x.uid;
+    if (guard(() => toggleDeck(base, H, x.uid))) ctx.save();
+    render();
+  }
+  const el = (x, inDeck) => {
+    const e = thingEl(base, x, {
+      on: selling ? chosen.has(x.uid) : false, tip: false, price: selling ? `売値 ${sellValue(base, x)}` : null, onclick: () => tap(x),
+      action: !selling && x.type === 'card' ? { label: inDeck ? '外す' : '入れる', cls: inDeck ? 'out' : 'in', onclick: () => toggle(x) } : null,
+    });
+    if (focus === x.uid) e.classList.add('focus');
+    return e;
+  };
+  let bodyEl = null;
   function render() {
+    const keep = bodyEl?.scrollTop ?? 0;
     const P = base.balance.hands.play;
     const T = STASH_TABS.find((t) => t.id === U.tab);
     const room = stashRoom(base, H);
@@ -372,13 +382,10 @@ export function stashScreen(ctx) {
     const rest = sorted(H.stash.filter((x) => T.has(x) && !(U.tab === 'card' && H.deck.includes(x.uid)) && match(x)));
     const sum = [...chosen].reduce((a, u) => a + sellValue(base, H.stash.find((x) => x.uid === u) ?? {}), 0);
     const souv = H.stash.filter((x) => x.type === 'souvenir');
-    put(root,
-      top('蔵', H, () => (H.overflow ? toast('先に売って蔵に収める') : ctx.go.inn())),
-      H.overflow ? h('p.warn', { text: `蔵があふれている：${room.used}/${room.cap}。「売る」で減らす` }) : h('p.q.center', { text: `蔵 ${room.used}/${room.cap} 枠　札はデッキに入れて潜る。押すと説明` }),
-      h('div.tabs', {}, STASH_TABS.map((t) => h(`button.tab${t.id === U.tab ? '.on' : ''}`, { type: 'button', onclick: () => { U.tab = t.id; chosen.clear(); render(); } }, [t.label, h('small', { text: ` ${H.stash.filter(t.has).length}` })]))),
-      h('div.infobox', { html: selling ? '<b>売る</b>　売りたい物を押して選び、下の「売る」で決める' : U.tab === 'card' ? 'デッキの札を押すと外す。蔵の札を押すとデッキに入れる' : U.tab === 'souvenir' ? 'お土産は施設の改装に使う。余りは売れる' : '常連客・品は「潜る」の準備画面で持っていく' }),
-      U.tab === 'card' ? h('h3', { text: `デッキ ${deck.length}枚（${P.deckMin}〜${P.deckMax}枚）` }) : null,
-      U.tab === 'card' ? h('div.things.deck', {}, sorted(deck).map(el)) : null,
+    const fx = focus ? H.stash.find((x) => x.uid === focus) : null;
+    bodyEl = h('main.stbody', {}, [
+      U.tab === 'card' ? h('h3', { text: `デッキ ${deck.length}枚（${P.deckMin}〜${P.deckMax}）` }) : null,
+      U.tab === 'card' ? h('div.things.deck', {}, sorted(deck).map((x) => el(x, true))) : null,
       h('div.filters', {}, [
         (() => { const x = h('select', { onchange: () => { U.sort = x.value; render(); } }, SORTS.map(([v, t]) => h('option', { value: v }, [`並び：${t}`]))); x.value = U.sort; return x; })(),
         ...(U.tab === 'card' ? [
@@ -388,7 +395,14 @@ export function stashScreen(ctx) {
         ] : []),
       ]),
       h('h3', { text: `${U.tab === 'card' ? '蔵の札' : T.label} ${rest.length}` }),
-      h('div.things.half.list2', {}, rest.length ? rest.map(el) : [h('p.q', { text: '無い' })]),
+      h('div.things.list2', {}, rest.length ? rest.map((x) => el(x, false)) : [h('p.q', { text: '無い' })]),
+    ]);
+    put(root,
+      top('蔵', H, () => (H.overflow ? toast('先に売って蔵に収める') : ctx.go.inn())),
+      H.overflow ? h('p.warn', { text: `蔵があふれている ${room.used}/${room.cap}` }) : null,
+      h('div.tabs', {}, STASH_TABS.map((t) => h(`button.tab${t.id === U.tab ? '.on' : ''}`, { type: 'button', onclick: () => { U.tab = t.id; chosen.clear(); focus = null; render(); } }, [t.label, h('small', { text: ` ${H.stash.filter(t.has).length}` })]))),
+      bodyEl,
+      h('div.detail', { html: fx ? thingTip(base, fx) : `<span class="q">蔵 ${room.used}/${room.cap}</span>` }),
       h('footer.ops', {}, selling ? [
         h('button.btn', { type: 'button', onclick: () => { selling = false; chosen.clear(); render(); } }, ['やめる']),
         h('button.btn', { type: 'button', onclick: () => { rest.filter(canSell).forEach((x) => chosen.add(x.uid)); render(); } }, ['全部選ぶ']),
@@ -399,6 +413,7 @@ export function stashScreen(ctx) {
         h('button.btn.main', { type: 'button', onclick: () => (H.overflow ? toast('先に売って蔵に収める') : ctx.go.inn()) }, ['宿へ']),
       ]),
     );
+    bodyEl.scrollTop = keep;
   }
   render();
   return { el: root, render };
@@ -455,7 +470,7 @@ export function prepScreen(ctx) {
         (() => { const t = h('span.q.dtext', { text: depthText(base, L.depth) }); return t; })()]),
       warpChoices(base, H).length > 1 ? h('div.prow', {}, [h('span', { text: '入口（ワープ）' }),
         h('div.chips', {}, warpChoices(base, H).map((f) => h(`button.chip${(L.warp || 1) === f ? '.on' : ''}`, { type: 'button', onclick: () => { L.warp = f === 1 ? null : f; ctx.save(); render(); } }, [`B${f}`])))]) : null,
-      L.warp ? h('p.q', { text: `B${L.warp}から潜る。それより上の階の拾い物と宿銭は無い（行ったことのある層の入口だけ）` }) : null,
+      L.warp ? h('p.q', { text: `B${L.warp}から（上の階の拾い物と宿銭は無し）` }) : null,
       h('div.pgrid', {}, [
         h('button.btn', { type: 'button', onclick: () => ctx.go.stash() }, [`デッキ ${info.deck.length}枚`]),
         h('button.btn', { type: 'button', onclick: () => multi('連れていく常連客', 'seats', notDeck.filter((x) => x.type === 'regular'), info.carry.seats) }, [`常連客 ${info.seats.length}/${info.carry.seats}`]),
@@ -643,7 +658,7 @@ export function boardScreen(ctx) {
       const d = dailyInfo(base, H, todayJST());
       return [
         h('p', { text: `${d.date} の日替わり潜行` }),
-        h('p.q', { text: `宿泊客：${d.guestName}・借り物デッキ20枚。全員が同じ階・同じ札で潜る。失うものはなく、拾った物は持ち帰れる。1日1回。` }),
+        h('p.q', { text: `宿泊客：${d.guestName}・借り物デッキ・1日1回` }),
         d.done ? h('p.warn', { text: '今日はもう潜った。結果の共有コードで見せ合おう。' })
           : holdButton('今日の潜行へ', () => ctx.go.daily(d.date), 'main'),
       ];
@@ -652,7 +667,6 @@ export function boardScreen(ctx) {
       const input = h('input.code', { type: 'text', value: code, placeholder: 'TB1-XXXX-XXXX-…', autocapitalize: 'characters', spellcheck: 'false' });
       input.addEventListener('input', () => { code = input.value; });
       return [
-        h('p.q', { text: '誰かの共有コードを読むと、同じシード・宿泊客・深度で素泊まり（持ち込みなし・喪失なし）で挑める。結果を比べられる。' }),
         input,
         h('button.btn', { type: 'button', onclick: () => { read = readShare(base, code); if (!read) toast('読めないコード'); render(); } }, ['読む']),
         read ? h('div.shareinfo', {}, [
@@ -665,10 +679,9 @@ export function boardScreen(ctx) {
       const w = weeklyInfo(base, H, weekJST());
       return [
         h('p', { text: `${w.week} の週替わり挑戦` }),
-        h('p.q', { text: `宿泊客：${w.guestName}・借り物デッキ・始めから底の呪い${w.curses}つ。今週はみんな同じ襖・同じ札。どこまで深く行けるかを競う。何度でも挑めて、失うものはない。` }),
+        h('p.q', { text: `宿泊客：${w.guestName}・借り物デッキ・底の呪い${w.curses}つ` }),
         h('p.ok', { text: w.best ? `今週の最高：B${w.best}` : 'まだ挑んでいない' }),
         holdButton('今週の挑戦へ', () => ctx.go.weekly(w.week), 'main'),
-        h('p.q', { text: '結果画面の共有コードを渡すと、友だちも同じ潜行に挑める（共有コードのタブ）。' }),
       ];
     }
     if (tab === 'ゴースト宿') {
@@ -681,8 +694,6 @@ export function boardScreen(ctx) {
       const g = code ? decodeGhost(base, code) : null;
       const rec = g ? H.ghosts?.[g.key] : null;
       return [
-        h('p.q', { text: '自分のデッキを「ゴースト」のコードにして友だちに渡すと、相手のゲームで論客になって立ちはだかる。友だちのコードを読めば、その宿のデッキと勝負できる。' }),
-        h('p.q', { text: `勝負：相手のデッキが${base.balance.economy.ghost.turns}ターンで出せた論破値の合計が相手の「主張」。こちらは自分のデッキで${base.balance.economy.ghost.turns}ターンのうちに論破できるか（相手の攻めは${base.balance.economy.ghost.turns}ターンでこちらの体力を削り切る強さ）。初めて勝つと宿銭＋${base.balance.economy.ghost.firstWinZeni}。` }),
         h('h3', { text: '自分のゴーストを書き出す' }),
         h('p.q', { text: `いまのデッキ ${deck.length}枚・宿泊客「${C.guests[H.loadout.guest]?.name ?? '？'}」で書き出す。` }),
         nameIn,
@@ -705,13 +716,12 @@ export function boardScreen(ctx) {
     if (tab === '噂') {
       const rs = H.rumors || [];
       return [
-        h('p.q', { text: 'コンボは、その札を全部持ったことがあると図鑑と札の説明に載る。噂は、まだ分かっていないコンボの札を1枚だけ教えてくれる（潜行から帰るたび1つ）。' }),
         rs.length ? h('div.mlist', {}, rs.map((r) => h('div.attrrow', {}, [h('div', {}, [h('b', { text: `「${C.cards[r.card]?.name ?? '？'}」` }), h('div.ax', { text: `には相方がいるらしい（札${r.n}枚のコンボ）` })])]))) : h('p.q', { text: 'まだ噂は無い' }),
       ];
     }
     const list = shibariList(base, H);
     return [
-      h('p.q', { text: `縛りを付けて、自分の持ち物で潜る（未帰還なら失う）。初めて脱出すると限定の札や常連客。${list.filter((x) => x.done).length}／${list.length}` }),
+      h('p.q', { text: `達成 ${list.filter((x) => x.done).length}／${list.length}` }),
       h('div.sblist', {}, list.map((x) => {
         const b = h(`button.sbrow${x.on ? '.on' : ''}${x.done ? '.done' : ''}`, { type: 'button', onclick: () => { setShibari(base, H, x.on ? null : x.id); ctx.save(); if (!x.on) ctx.go.prep(); else render(); } }, [
           h('b', { text: `${x.done ? '◆' : '◇'} ${x.name}` }), h('span.q', { text: x.text ?? '' }),
@@ -744,7 +754,6 @@ export function decorScreen(ctx) {
     put(root,
       top('内装', H, () => ctx.go.inn()),
       h('div.innart.big', {}, [h('div.art', { html: innArt(ds) }), h('div.rank', {}, [h('b', { text: ds.rank }), h('span', { text: ds.nextRank ? `格 ${ds.pts}／次「${ds.nextRank.name}」まで ${ds.nextRank.pts - ds.pts}` : `格 ${ds.pts}（最高）` })])]),
-      h('p.q.center', { text: '宿銭で宿を飾る。買うと絵が変わり「宿の格」が上がる。強さにはほとんど関わらない（少しだけ便利なものもある）。' }),
       h('main.ibody', {}, ds.slots.map((s) => h('div.attrrow', {}, [
         h('div', {}, [
           h('b', { text: `${s.name}：${s.cur.name}` }),
