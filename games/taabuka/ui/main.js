@@ -313,7 +313,7 @@ innCtx.applyUpdate = async () => { await saving; swReloading = true; swWaiting?.
 // ───────── タイトル ─────────
 const dev = new URLSearchParams(location.search).get('dev') === '1';
 const ctx = {
-  app, base, show, toast, startBattleScreen, tempDeck,
+  app, base, show, toast, startBattleScreen, tempDeck, rerender: () => { if (current?.where === 'title') home(); },
   showZukan: () => show(zukanScreen({ ...ctx, back: home })),
   showFxLab: () => show(fxLabScreen({ ...ctx, queue, back: home })),
   title: () => ({ H, D }),

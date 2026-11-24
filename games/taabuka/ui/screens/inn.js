@@ -2,6 +2,7 @@
 // 状態 H は engine/meta.js が持つ。画面は H を描き、meta.js の関数を呼んで ctx.save() するだけ。
 
 import { encodeGhost, decodeGhost } from '../../engine/ghost.js';
+import { installButton, canOfferInstall } from '../install.js';
 import { innArt } from '../innart.js';
 import { h, tip, toast, pick, sheet, holdButton, esc, confirmSheet } from '../dom.js';
 import { thingEl, pickThing } from '../things.js';
@@ -553,7 +554,8 @@ export function resultScreen(ctx, rep) {
     setTimeout(() => {
       const s = sheet(ctx.app, [
         h('h2', { text: '宿を守る' }),
-        h('p', { text: 'ブラウザの共有メニューから「ホーム画面に追加」すると、アプリのように開ける。' }),
+        canOfferInstall() ? h('p', { text: '「ホーム画面に追加」すると、アプリのようにアイコンから全画面で開ける。' }) : null,
+        canOfferInstall() ? installButton(ctx.app) : null,
         h('p', { text: 'セーブはこの端末の中だけにある。設定の「書き出し」で文字列にして残せる。' }),
         h('div.row', {}, [h('button.btn', { type: 'button', onclick: () => { s.close(); ctx.go.settings(); } }, ['書き出す']), h('button.btn.main', { type: 'button', onclick: () => s.close() }, ['わかった'])]),
       ]);
@@ -593,6 +595,7 @@ export function settingsScreen(ctx) {
           h('button.btn', { type: 'button', onclick: () => { ctx.coach?.reset(); toast('案内を最初から聞ける。宿に戻ると始まる'); render(); } }, ['案内を最初から']),
           h('button.btn', { type: 'button', onclick: () => rulesSheet(ctx) }, ['遊び方']),
         ]),
+      ...(canOfferInstall() ? [h('h3', { text: 'ホーム画面に追加' }), h('p.q', { text: 'アイコンからアプリのように全画面で遊べる。' }), installButton(ctx.app)] : []),
       h('h3', { text: '書き出し' }),
       out,
       h('div.row', {}, [

@@ -3,6 +3,7 @@
   "short_name": "ター深",
   "description": "宿の床下に、ター深がある。潜って、拾って、帰ってくるカードゲーム。",
   "lang": "ja",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

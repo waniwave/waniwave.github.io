@@ -1,5 +1,6 @@
 // タイトル：奥へ襖が開いて落ちていく背景、筆文字風のロゴ、記録、「はじめる」か「つづきから」
 // 試し場はタイトルに出さない。ロゴを10回叩くと開く（作り直し仕様 A）
+import { installButton } from '../install.js';
 import { h, holdButton, toast } from '../dom.js';
 import { num as format } from '../num.js';
 
@@ -26,6 +27,7 @@ export function titleScreen(ctx) {
       H ? h('button.btn.main', { type: 'button', onclick: () => ctx.resume() }, [H.diving && D ? `つづきから（B${D.floor}）` : 'つづきから'])
         : holdButton('はじめる', () => ctx.begin(), 'main'),
       h('button.btn', { type: 'button', onclick: () => ctx.showZukan() }, ['図鑑']),
+      installButton(ctx.app ?? document.getElementById('app'), () => ctx.rerender?.()),
     ]),
   ];
   return { el: h('div.scr.title', {}, kids), where: 'title' };

@@ -611,3 +611,10 @@ button { font: inherit; color: inherit; }
 /* おふざけ札：虹色のふち */
 .thing.joke, .card.joke { position: relative; border-image: linear-gradient(90deg, #ff6aa8, #ffd23f, #6ad4ff, #8aff6a, #ff6aa8) 1; border-width: 3px; border-style: solid; box-shadow: 0 0 8px #ff6aa888; }
 .thing .jokemk { position: absolute; right: 4px; top: 2px; font-size: 11px; font-weight: 900; color: #fff; background: #ff6aa8; border-radius: 4px; padding: 0 4px; }
+/* ホーム画面に追加 */
+.btn.install { border-style: dashed; }
+.title .btn.install { background: #efe6d2; }
+.iguide { padding-left: 0; list-style: none; display: grid; gap: 10px; margin: 10px 0; }
+.iguide li { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.iguide .n { flex: 0 0 26px; height: 26px; border-radius: 50%; background: var(--acc); color: #fff; text-align: center; line-height: 26px; }
+.iguide .ic { color: #2a6ad0; display: inline-flex; }

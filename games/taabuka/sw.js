@@ -1,6 +1,6 @@
 // サービスワーカー：オフライン起動。BUILD ごとに先読みし直す（一覧は tools/release.mjs が書く）。
 // 新しい版が入っても勝手に切り替えない。宿の画面の「更新」で切り替える（SKIP_WAITING を受けたら入れ替わる）。
-const BUILD = '1.3.0';
+const BUILD = '1.3.1';
 const FILES = [
   './content/achievements.yaml',
   './content/affixes.yaml',
@@ -252,6 +252,7 @@ const FILES = [
   './ui/fx/shows.js',
   './ui/fx/silly.js',
   './ui/innart.js',
+  './ui/install.js',
   './ui/items.js',
   './ui/labels.js',
   './ui/lessons.js',
