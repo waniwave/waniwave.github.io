@@ -11,6 +11,7 @@ import { Hooks } from './hooks.js';
 import { cardView, evaluateHand, handBase } from './hand.js';
 import { rarOf, rarDef } from './rarity.js';
 import { computeScore, cardStrength, emitFor, slotDef } from './score.js';
+import { moodDef, tickMood } from './vocab/mood.js';
 import { matchCombos, spellOf } from './combo.js';
 import { makeE, runDo, testCond } from './vocab/effect.js';
 
@@ -682,7 +683,8 @@ export function playCards(B, env, cards, ti, opt = {}) {
     const view = cardView(c, balance, B.banzuke);
     if (view.cats.some((cat) => tiers.missing?.[B.banzuke[cat]]?.noGuard)) continue;
     const enh = c.enh && balance.hands.enhancements[c.enh];
-    const gctx = { battle: B, env, card: c, guard: cardStrength(c, balance, B.banzuke) * (enh && enh.guardMul ? enh.guardMul : 1) };
+    const md = moodDef(B, balance);
+    const gctx = { battle: B, env, card: c, guard: cardStrength(c, balance, B.banzuke) * (enh && enh.guardMul ? enh.guardMul : 1) * (md?.guardMul ?? 1) };
     emitFor(env, '受けに回る', gctx, c);
     B.guard += gctx.guard;
     if (gctx.guard) log(B, { t: 'guard', card: c.name, add: gctx.guard, guard: B.guard });
@@ -831,6 +833,8 @@ export function endTurn(B, env) {
   expire(B, env, 'turn');
   settle(B, env);
 
+  // 場の状態は決まったターン数で戻る
+  tickMood(B, log);
   // 封じ（カテゴリ）は決まったターン数で解ける
   for (const [cat, n] of Object.entries(B.sealed.catTurns || {})) {
     if (n <= 1) { delete B.sealed.catTurns[cat]; B.sealed.cats = B.sealed.cats.filter((c) => c !== cat); log(B, { t: 'note', what: `〈${cat}〉の封じが解けた` }); }

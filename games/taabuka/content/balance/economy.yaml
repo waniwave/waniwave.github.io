@@ -69,9 +69,11 @@ souvenirQuality: { 上等: 0.5 }
 inn:
   shikomiCost: { 仕込み: 20, 箔押し: 60, ホロ: 90, 多色: 300, 判: 120, souvenir: sv_banzukekire }   # 仕込み場（＋お土産1）
   copy: { sellMul: 3, souvenir: sv_waretagarasu }   # 複製：売値×3＋割れた硝子
-  basics: { price: 15, perCat: 3, grades: [並] }      # 帳場の基礎札：各カテゴリの並の札。売り切れない
+  basics: { price: 28, perCat: 3, grades: [並] }      # 帳場の基礎札：各カテゴリの並の札。売り切れない
+  rumors: { max: 8 }
+  weekly: { curses: 2 }   # 週替わりの挑戦：最初から掛かる底の呪いの数   # 噂（まだ分かっていないコンボの札を1枚教える）。帰るたび1つ、最大8
   combos: { fromLevel: 2, priceMul: 1.5 }   # 帳場のコンボ帳（Lv2〜）：知っているコンボの札をひとそろい。帳場で売る段の札だけ
-  decks: { fromLevel: 2, size: 15, priceMul: 0.8, grades: [並, 上] }   # 構築済みデッキ（帳場Lv2〜）：1カテゴリ中心。並・上だけ
+  decks: { fromLevel: 2, size: 15, priceMul: 1.1, grades: [並, 上] }   # 構築済みデッキ（帳場Lv2〜）：1カテゴリ中心。並・上だけ
   kuyoMul: 2              # 供養：売値×2の供養点で買い戻す
   kuyoRate: 0.1           # 失った札・常連客の売値のこの割合が供養点に
   lostLogSize: 20
@@ -83,3 +85,9 @@ inn:
   betZeniPerGrow: 5       # 賭け札：脱出で育ち×5の宿銭
   depthMax: 20            # 解放できる深度の上限（深度NでB16から脱出で N＋1）
   pawn: { goods: 3, max: 2, grades: [特上, 極] }   # 質屋：品揃え3枚・2枚まで・質札の格
+
+# おふざけ札の出る確率（札を1枚引くたび）。base：どの階でも／abyss：底（B17〜）／perCurse：底の呪い1つごとに＋／weekly：週替わり挑戦で＋／max：上限
+joke: { base: 0.0025, abyss: 0.05, perCurse: 0.01, weekly: 0.02, max: 0.15 }
+
+# ゴースト宿（掲示板）：相手のデッキが turns ターンで出せた論破値の合計×claimMul が主張。攻めは自分の体力を turns ターンで削り切る強さ
+ghost: { turns: 5, claimMul: 1.0, firstWinZeni: 300, enemy: en_ghost }

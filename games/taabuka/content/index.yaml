@@ -48,6 +48,7 @@ sets:
   koutei: [cards.yaml, regulars.yaml, relics.yaml, set.yaml]
   maap: [cards.yaml, regulars.yaml, relics.yaml, set.yaml]
   noren_soto: [cards.yaml, items.yaml, relics.yaml, set.yaml]
+  ofuzake: [cards.yaml, set.yaml]
   ryukogo: [cards.yaml, custom/kougo.js, custom/nibai.js, custom/sengen.js, keywords.yaml, set.yaml]
   soutourou: [cards.yaml, regulars.yaml, relics.yaml, set.yaml]
   taaaam: [cards.yaml, regulars.yaml, relics.yaml, set.yaml]
@@ -85,6 +86,7 @@ enemies:
   - custom/tier8.js
   - custom/tsuchi_nashi.js
   - custom/yakkan8.js
+  - ghost.yaml
   - layer1.yaml
   - layer2.yaml
   - layer3.yaml
@@ -111,3 +113,4 @@ root:
   - shibari.yaml
   - affixes.yaml
   - combos.yaml
+  - decor.yaml

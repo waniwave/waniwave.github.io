@@ -563,3 +563,51 @@ button { font: inherit; color: inherit; }
 .cmb { color: var(--acc); font-weight: 700; }
 #tip .cmb { color: #ffb08a; }
 .zrow .zfx { grid-column: 1 / -1; font-size: 13px; color: var(--ink); opacity: .8; margin: -4px 0 4px; }
+/* 宿の絵と格 */
+.innart { position: relative; display: block; width: 100%; padding: 0; border: 2px solid #5a3a22; border-radius: 10px; overflow: hidden; background: #2a3a5c; cursor: pointer; flex-shrink: 0; }
+.innart .art svg { display: block; width: 100%; height: auto; max-height: 120px; }
+.innart.big .art svg { max-height: 200px; }
+.innart .rank { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 8px; align-items: baseline; padding: 3px 10px; background: linear-gradient(transparent, #1b1612cc 40%); color: #f6e8c6; font-size: 13px; }
+.innart .rank b { font-family: var(--mincho); font-size: 18px; color: #ffd27a; }
+.innart .rank .go { margin-left: auto; font-weight: 700; }
+.curses { flex-shrink: 0; margin: 0 10px; padding: 3px 8px; border-radius: 6px; background: #3a1a2a; color: #f6d8e0; font-size: 13px; line-height: 1.4; }
+.curses b { color: #ff9ab0; }
+.board textarea.code { width: 100%; font: 13px/1.4 ui-monospace, monospace; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); word-break: break-all; resize: none; }
+.board .ibody input.code[placeholder^="TG1"], .board .ibody input.code[placeholder^="宿の名前"] { text-transform: none; }
+.board .btabs { flex-wrap: wrap; }
+/* おふざけ演出と場の状態 */
+.ov.silly { z-index: 32; pointer-events: none; }
+.ov.enka { inset: 0; background: repeating-radial-gradient(circle at 50% 120%, #7a3a6a33 0 18px, transparent 18px 36px); }
+.ov.okami { left: 0; bottom: 18%; display: flex; align-items: center; gap: 6px; padding: 8px 14px 8px 8px; background: #fbf7ee; border: 3px solid #b8432c; border-left: 0; border-radius: 0 40px 40px 0; box-shadow: 4px 4px 0 #1b1612; }
+.ov.okami i { width: 40px; height: 40px; border-radius: 50%; background: radial-gradient(circle at 50% 38%, #f0d8b8 0 30%, transparent 31%), radial-gradient(circle at 50% 18%, #1d1a16 0 32%, transparent 33%), #b8432c; }
+.ov.okami b { font-family: var(--mincho); font-size: 28px; font-weight: 900; color: #b8432c; }
+.ov.spot { inset: 0; background: radial-gradient(circle at 50% 45%, transparent 0 80px, #000c 140px); }
+.ov.gion { font-family: var(--mincho); font-weight: 900; font-size: 52px; color: #1b1612; -webkit-text-stroke: 2px #fff; letter-spacing: -.05em; white-space: nowrap; }
+.ov.clap { left: 50%; bottom: 22%; font-size: 26px; font-weight: 900; white-space: nowrap; color: #1b1612; text-shadow: 0 0 6px #fff; }
+.ov.mirror { inset: 0; background: conic-gradient(from 0deg, #ff6aa833, #6ad4ff33, #ffe46a33, #8aff6a33, #ff6aa833); mix-blend-mode: screen; animation: mspin 1.2s linear infinite; }
+@keyframes mspin { to { filter: hue-rotate(360deg); } }
+.ov.gloom { inset: 0; display: flex; align-items: center; justify-content: center; background: #2a3a5c88; font-family: var(--mincho); font-size: 40px; color: #c8d4e8; }
+.ov.ff { inset: 0; display: flex; align-items: center; justify-content: center; font-size: 90px; color: #fff; text-shadow: 0 0 10px #000; background: repeating-linear-gradient(0deg, transparent 0 12px, #ffffff22 12px 14px); }
+.ov.tate { left: 50%; top: 45%; writing-mode: vertical-rl; font-family: var(--mincho); font-weight: 900; font-size: 40px; color: #1b1612; text-shadow: 0 0 6px #fff, 0 0 12px #fff; }
+.ov.cross { left: 0; top: 55%; font-size: 48px; }
+.ov.cross.ufo { top: 18%; }
+.ov.moodban { left: 50%; top: 32%; z-index: 33; display: flex; flex-direction: column; align-items: center; padding: 10px 22px; border-radius: 14px; background: var(--mc); color: #fff; border: 3px solid #f6e8c6; box-shadow: 0 6px 0 #1b1612; white-space: nowrap; }
+.ov.moodban b { font-family: var(--mincho); font-size: 40px; font-weight: 900; text-shadow: 2px 2px 0 #1b1612; }
+.ov.moodban span { font-size: 15px; font-weight: 700; }
+.mono { filter: grayscale(1) contrast(1.2); }
+.bop { animation: bop .35s ease-in-out 4 alternate; }
+@keyframes bop { to { transform: translateY(-8px) rotate(-3deg); } }
+.blush { animation: blush 1.4s ease; }
+@keyframes blush { 30%, 70% { filter: sepia(1) saturate(4) hue-rotate(-40deg); transform: scale(1.06); } }
+.spin { animation: cspin .8s ease; }
+@keyframes cspin { to { transform: rotateY(360deg); } }
+.battle[data-mood="ノリノリ"] { background-image: linear-gradient(#e8508a14, #e8508a14); }
+.battle[data-mood="しんみり"] { background-image: linear-gradient(#5a7aa822, #5a7aa822); }
+.battle[data-mood="修羅場"] { background-image: linear-gradient(#6a1a1a22, #6a1a1a22); }
+.battle[data-mood="お祭り"] { background-image: linear-gradient(#d0402a14, #d6a42514); }
+.battle[data-mood="演歌"] { background-image: linear-gradient(#7a3a6a1a, #7a3a6a1a); }
+.battle[data-mood="静寂"] { filter: saturate(.6); }
+.moodt { font-weight: 700; }
+/* おふざけ札：虹色のふち */
+.thing.joke, .card.joke { position: relative; border-image: linear-gradient(90deg, #ff6aa8, #ffd23f, #6ad4ff, #8aff6a, #ff6aa8) 1; border-width: 3px; border-style: solid; box-shadow: 0 0 8px #ff6aa888; }
+.thing .jokemk { position: absolute; right: 4px; top: 2px; font-size: 11px; font-weight: 900; color: #fff; background: #ff6aa8; border-radius: 4px; padding: 0 4px; }

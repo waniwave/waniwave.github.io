@@ -4,6 +4,7 @@
 import { cardView, tierOf } from '../hand.js';
 import { testCond, num } from './effect.js';
 import { rarIndex } from '../rarity.js';
+import { MOODS } from './mood.js';
 
 const tierRank = (balance, t) => balance.tiers.tiers[String(t)]?.rank ?? -Infinity;
 const slotRank = (balance, s) => (balance.tiers.tiers[String(s)] || balance.tiers.missing?.[String(s)])?.rank ?? -Infinity;
@@ -33,6 +34,7 @@ export function isVanilla(E, card) {
 }
 
 export const IF = [
+  { name: '場の状態', text: 'いまの場の状態がこれ（「何か」ならどれでも）', args: [...MOODS, '何か'], test: (E, a) => !!E.B?.mood && (a === '何か' || E.B.mood.id === a) },
   { name: '値', text: '式の値が 以上／以下（宿泊客の状態や札の熟成などを比べる）', args: { 式: 'expr', '以上?': 'number', '以下?': 'number' },
     test: (E, a) => { const v = num(E, a.式); return (a.以上 == null || v >= a.以上) && (a.以下 == null || v <= a.以下); } },
   { name: '重なり以上', text: '採点札で同じカテゴリが N 枚以上重なっている（カテゴリを書けばそのカテゴリ。「この札」も書ける）', args: 'int', extra: { 'カテゴリ?': 'category' },

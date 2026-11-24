@@ -16,6 +16,7 @@ import { Big, ZERO } from './big.js';
 import { cardView, overlapMuls } from './hand.js';
 import { rarDef } from './rarity.js';
 import { matchCombos } from './combo.js';
+import { moodDef } from './vocab/mood.js';
 
 /** 札の出どころ（手順列・記録用） */
 export function srcOf(kind, obj) {
@@ -214,6 +215,20 @@ export function computeScore(o) {
     if (ef.xV) sc.finalMuls.push({ x: ef.xV, src: csrc });
     if (ef.zeni) sc.zeni += ef.zeni;
     if (!ef.S && !ef.M && !ef.xM) sc.note('コンボ', csrc);
+  }
+
+  // 2''' 場の状態（content/balance/moods.yaml）
+  sc.phase = 'mood';
+  const md = moodDef(sc.battle, balance);
+  if (md) {
+    const msrc = { kind: 'mood', id: md.id, name: md.id };
+    const n = (sc.scored || []).length;
+    if (md.perScoredS && n) sc.addS(md.perScoredS * n, msrc);
+    if (md.perScoredM && n) sc.addM(md.perScoredM * n, msrc);
+    if (md.addM) sc.addM(md.addM, msrc);
+    if (md.xM) sc.mulM(md.xM, msrc);
+    if (md.xV) sc.finalMuls.push({ x: md.xV, src: msrc });
+    if (md.zeniPerPlay) sc.zeni += md.zeniPerPlay;
   }
 
   // 3 手札に残った札

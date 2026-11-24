@@ -1,0 +1,81 @@
+# 宿の内装（宿銭の使い道）。強さにはほとんど関わらない。買うと宿の絵が変わり「宿の格」が上がる
+# slots：場所ごとに段（levels）を順に買う。最初の段（cost なし）は元から。pts は格の点
+# stones：底の石（底＝B17〜から生きて帰るともらえる）も要る段
+# perk（少しだけ便利）：startZeni（潜行の始めの宿銭）・maxHp（体力の上限）・rumor（帰るたびの噂＋）・song（宿のBGM）
+ranks:
+  - { pts: 0, name: 素泊まり宿 }
+  - { pts: 15, name: 民宿 }
+  - { pts: 40, name: 旅籠 }
+  - { pts: 80, name: 温泉宿 }
+  - { pts: 130, name: 名旅館 }
+  - { pts: 190, name: 老舗旅館 }
+  - { pts: 250, name: 伝説の宿 }
+slots:
+  - id: kanban
+    name: 看板
+    levels:
+      - { name: 手書きの板 }
+      - { name: 木彫りの看板, cost: 300, pts: 5 }
+      - { name: 漆塗りの看板, cost: 1500, pts: 10 }
+      - { name: 金箔の看板, cost: 6000, stones: 2, pts: 20 }
+  - id: noren
+    name: 暖簾
+    levels:
+      - { name: 暖簾なし }
+      - { name: 藍染めの暖簾, cost: 400, pts: 5, perk: { startZeni: 10 } }
+      - { name: 屋号入りの暖簾, cost: 2000, pts: 10, perk: { startZeni: 25 } }
+      - { name: 西陣織の暖簾, cost: 8000, stones: 2, pts: 18, perk: { startZeni: 50 } }
+  - id: chouchin
+    name: 灯り
+    levels:
+      - { name: 裸電球 }
+      - { name: 赤提灯, cost: 300, pts: 4 }
+      - { name: 提灯の列, cost: 1800, pts: 10 }
+      - { name: 灯籠の参道, cost: 7000, stones: 2, pts: 20 }
+  - id: niwa
+    name: 庭
+    levels:
+      - { name: 空き地 }
+      - { name: 松の木, cost: 800, pts: 6 }
+      - { name: 枯山水, cost: 3000, pts: 12 }
+      - { name: 錦鯉の池, cost: 9000, stones: 3, pts: 22 }
+  - id: yu
+    name: 湯
+    levels:
+      - { name: 桶風呂 }
+      - { name: 檜風呂, cost: 1200, pts: 8, perk: { maxHp: 3 } }
+      - { name: 露天風呂, cost: 5000, pts: 16, perk: { maxHp: 6 } }
+      - { name: 源泉の大露天, cost: 15000, stones: 3, pts: 30, perk: { maxHp: 10 } }
+  - id: kakejiku
+    name: 掛け軸
+    levels:
+      - { name: 掛け軸なし }
+      - { name: 「ター」の書, cost: 600, pts: 5 }
+      - { name: 名人の書, cost: 4000, stones: 1, pts: 12, perk: { rumor: 1 } }
+  - id: oto
+    name: 宿の音
+    levels:
+      - { name: 女将の鼻歌, perk: { song: 宿 } }
+      - { name: 三味線弾き, cost: 2500, pts: 8, perk: { song: 宿・三味線 } }
+      - { name: お座敷囃子, cost: 8000, stones: 2, pts: 15, perk: { song: 宿・囃子 } }
+  - id: kimono
+    name: 女将の着物
+    levels:
+      - { name: 普段着の割烹着 }
+      - { name: 紬, cost: 1000, pts: 5 }
+      - { name: 訪問着, cost: 4000, pts: 10 }
+      - { name: 金襴の打掛, cost: 12000, stones: 3, pts: 20 }
+  - id: heya
+    name: 客室
+    levels:
+      - { name: 煎餅布団 }
+      - { name: 新しい畳, cost: 700, pts: 5 }
+      - { name: 床の間付き, cost: 3500, pts: 12 }
+      - { name: 特別室, cost: 10000, stones: 3, pts: 22 }
+  - id: yane
+    name: 屋根
+    levels:
+      - { name: トタン屋根 }
+      - { name: 瓦屋根, cost: 2000, pts: 8 }
+      - { name: 二階建て, cost: 9000, pts: 18 }
+      - { name: 金の鯱, cost: 25000, stones: 5, pts: 30 }

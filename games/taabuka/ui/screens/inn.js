@@ -1,6 +1,8 @@
 // 宿の画面：宿（施設の縦一覧）・各施設・蔵と編成・潜行準備・結果・設定（仕様書 第6章・第10章）
 // 状態 H は engine/meta.js が持つ。画面は H を描き、meta.js の関数を呼んで ctx.save() するだけ。
 
+import { encodeGhost, decodeGhost } from '../../engine/ghost.js';
+import { innArt } from '../innart.js';
 import { h, tip, toast, pick, sheet, holdButton, esc, confirmSheet } from '../dom.js';
 import { thingEl, pickThing } from '../things.js';
 import { slotLabel, rarOfCard, ATTR_KIND, attrExplain, comboEffText } from '../labels.js';
@@ -10,7 +12,7 @@ import { confetti, shards } from '../fx/particles.js';
 import { nameOf, sellValue } from '../../engine/dive.js';
 import {
   facility, facilityDef, upgradeInfo, upgrade, stashRoom, toggleDeck, sell, choubaGoods, buyChouba, canTakeStarter, takeStarter, pawnGoods, pawnInfo, borrowPawn, returnPawn, setShibari, shibariList, dailyInfo, readShare,
-  shikomiMenu, applyShikomi, basicGoods, buyBasic, deckGoods, buyDeck, comboGoods, buyCombo, copyInfo, copyCard, fuseInfo, fuseCards, kuyoPrice, kuyo, prepInfo, insurable, charmable, premium, returnRate, carryOf, warpChoices,
+  shikomiMenu, applyShikomi, basicGoods, buyBasic, decorState, buyDecor, weeklyInfo, deckGoods, buyDeck, comboGoods, buyCombo, copyInfo, copyCard, fuseInfo, fuseCards, kuyoPrice, kuyo, prepInfo, insurable, charmable, premium, returnRate, carryOf, warpChoices,
 } from '../../engine/meta.js';
 
 const FAC_TEXT = {
@@ -89,6 +91,7 @@ export function innScreen(ctx) {
     put(root, 
       top('宿', H, null, h('button.btn', { type: 'button', onclick: () => rulesSheet(ctx) }, ['遊び方'])),
       ctx.updateReady?.() ? h('button.btn.update', { type: 'button', onclick: () => ctx.applyUpdate() }, ['新しい版があります。更新する']) : null,
+      (() => { const ds = decorState(base, H); return h('button.innart', { type: 'button', onclick: () => ctx.go.decor() }, [h('div.art', { html: innArt(ds) }), h('div.rank', {}, [h('b', { text: ds.rank }), h('span', { text: ds.nextRank ? `格 ${ds.pts}／次「${ds.nextRank.name}」${ds.nextRank.pts}` : `格 ${ds.pts}` }), h('span.go', { text: '内装 ›' })])]); })(),
       h('div.recs', { text: `最深 B${H.records.deepest}・最大論破値 ${format(H.records.maxV)}・脱出 ${H.records.extracts}・未帰還 ${H.records.deaths}` }),
       h('div.facs', {}, rows),
       H.overflow ? h('p.warn', { text: `蔵があふれている（${room.used}/${room.cap}）。売ってから潜る` }) : null,
@@ -149,7 +152,7 @@ export function facilityScreen(ctx, id) {
     if ((H.facilities.chouba ?? 1) < CB.fromLevel) return [h('p.q', { text: `帳場Lv${CB.fromLevel}でコンボ帳が開く（知っているコンボの札をひとそろい買える）。` })];
     return [
       h('h3', { text: `コンボ帳 ${list.length}` }),
-      h('p.q', { text: '決まった札を同じ出しに入れるとコンボ（カテゴリは関係ない）。札を見たことのあるコンボだけ載る。' }),
+      h('p.q', { text: '決まった札を同じ出しに入れるとコンボ（カテゴリは関係ない）。札を全部持ったことのあるコンボだけ載る（足りない分や予備を買える）。' }),
       list.length ? h('div.mlist', {}, list.map((g) => h('div.attrrow', {}, [
         h('div', {}, [h('b', { text: g.name }), h('div.ax', { text: `${g.ids.map((id) => (id ? base.content.cards[id].name : '？')).join('＋')}　${comboEffText(base.content, g.id)}` }), g.ok ? null : h('div.q', { text: g.reason })]),
         h('button.btn', { type: 'button', disabled: !g.ok || H.zeni < g.price, onclick: () => act(() => { buyCombo(base, H, g.id); toast(`${g.name}の札を買った（蔵に入れた）`); }) }, [g.ok ? `買う ${g.price}` : '―']),
@@ -474,6 +477,7 @@ export function prepScreen(ctx) {
 // ───────────────────────── 結果 ─────────────────────────
 export function resultScreen(ctx, rep) {
   const H = ctx.H();
+  const { base } = ctx;
   const ok = rep.outcome === 'escaped';
   const q = ctx.queue;
   const list = (title, items) => (items.length ? [h('h3', { text: title }), h('p.lst', { text: items.join('、') })] : []);
@@ -498,6 +502,9 @@ export function resultScreen(ctx, rep) {
       ...list('解放', rep.unlocked.filter((u) => u.type !== 'achievement').map((u) => `${u.type === 'guest' ? '宿泊客' : 'セット'}「${u.name}」`)),
       ...list('実績', rep.unlocked.filter((u) => u.type === 'achievement').map((u) => `「${u.name}」${u.zeni ? `（宿銭＋${u.zeni}）` : ''}`)),
       rep.depthUp ? h('p.ok', { text: `深度${rep.depthUp}が開いた` }) : null,
+      rep.weekly ? h('p.ok', { text: `週替わり ${rep.weekly.key}：B${rep.weekly.deepest}${rep.weeklyBest ? '（今週の最高を更新）' : `（今週の最高 B${rep.weekly.best}）`}` }) : null,
+      rep.stones ? h('p.ok', { text: `底の石を${rep.stones}つ持ち帰った（内装の最高の段に使う）` }) : null,
+      rep.rumor ? h('p.ok', { text: `噂を聞いた：「${base.content.cards[rep.rumor.card]?.name ?? '？'}」には相方がいるらしい（掲示板の「噂」）` }) : null,
       rep.shibariReward ? h('p.ok', { text: `縛り「${rep.shibariReward.name}」初の脱出：${rep.shibariReward.what}` }) : null,
       rep.versus ? h('p', { text: `相手：B${rep.versus.their.deepest}・最大 1e${rep.versus.their.maxVlog.toFixed(1)}　自分：B${rep.versus.mine.deepest}・最大 1e${rep.versus.mine.maxVlog.toFixed(1)}　${rep.versus.mine.deepest > rep.versus.their.deepest || (rep.versus.mine.deepest === rep.versus.their.deepest && rep.versus.mine.maxVlog > rep.versus.their.maxVlog) ? '勝ち' : rep.versus.mine.deepest === rep.versus.their.deepest && rep.versus.mine.maxVlog === rep.versus.their.maxVlog ? '引き分け' : '負け'}` }) : null,
       rep.share ? h('div.share', {}, [h('span.q', { text: '共有コード' }), h('code', { text: rep.share }),
@@ -609,6 +616,17 @@ export function settingsScreen(ctx) {
 /** 日本時間の今日（YYYY-MM-DD）。日付は画面側で決める（engine は時計を見ない） */
 export function todayJST() { return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); }
 
+/** 日本時間の週（YYYY-Www、月曜はじまりのISO週） */
+export function weekJST() {
+  const d = new Date(Date.now() + 9 * 3600 * 1000);
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - day);
+  const y = t.getUTCFullYear();
+  const w = Math.ceil(((t - Date.UTC(y, 0, 1)) / 86400000 + 1) / 7);
+  return `${y}-W${String(w).padStart(2, '0')}`;
+}
+
 export function boardScreen(ctx) {
   const { base, app } = ctx;
   const H = ctx.H();
@@ -640,6 +658,54 @@ export function boardScreen(ctx) {
         ]) : null,
       ];
     }
+    if (tab === '週替わり') {
+      const w = weeklyInfo(base, H, weekJST());
+      return [
+        h('p', { text: `${w.week} の週替わり挑戦` }),
+        h('p.q', { text: `宿泊客：${w.guestName}・借り物デッキ・始めから底の呪い${w.curses}つ。今週はみんな同じ襖・同じ札。どこまで深く行けるかを競う。何度でも挑めて、失うものはない。` }),
+        h('p.ok', { text: w.best ? `今週の最高：B${w.best}` : 'まだ挑んでいない' }),
+        holdButton('今週の挑戦へ', () => ctx.go.weekly(w.week), 'main'),
+        h('p.q', { text: '結果画面の共有コードを渡すと、友だちも同じ潜行に挑める（共有コードのタブ）。' }),
+      ];
+    }
+    if (tab === 'ゴースト宿') {
+      const deck = H.deck.map((u) => H.stash.find((x) => x.uid === u)).filter(Boolean);
+      const nameIn = h('input.code', { type: 'text', value: H.ghostName ?? '', placeholder: '宿の名前（12文字まで）', maxlength: '12' });
+      nameIn.addEventListener('input', () => { H.ghostName = nameIn.value; });
+      const out = h('textarea.code', { readonly: true, rows: 3, placeholder: '「コードを作る」を押すとここに出る' });
+      const gin = h('input.code', { type: 'text', value: code, placeholder: 'TG1-…', spellcheck: 'false' });
+      gin.addEventListener('input', () => { code = gin.value; });
+      const g = code ? decodeGhost(base, code) : null;
+      const rec = g ? H.ghosts?.[g.key] : null;
+      return [
+        h('p.q', { text: '自分のデッキを「ゴースト」のコードにして友だちに渡すと、相手のゲームで論客になって立ちはだかる。友だちのコードを読めば、その宿のデッキと勝負できる。' }),
+        h('p.q', { text: `勝負：相手のデッキが${base.balance.economy.ghost.turns}ターンで出せた論破値の合計が相手の「主張」。こちらは自分のデッキで${base.balance.economy.ghost.turns}ターンのうちに論破できるか（相手の攻めは${base.balance.economy.ghost.turns}ターンでこちらの体力を削り切る強さ）。初めて勝つと宿銭＋${base.balance.economy.ghost.firstWinZeni}。` }),
+        h('h3', { text: '自分のゴーストを書き出す' }),
+        h('p.q', { text: `いまのデッキ ${deck.length}枚・宿泊客「${C.guests[H.loadout.guest]?.name ?? '？'}」で書き出す。` }),
+        nameIn,
+        h('div.row', {}, [
+          h('button.btn', { type: 'button', onclick: () => { if (deck.length < 5) { toast('デッキが少なすぎる'); return; } out.value = encodeGhost(base, { name: nameIn.value || '名無しの宿', guest: H.loadout.guest, deck, rank: decorState(base, H).rank, deepest: H.records.deepest }); ctx.save(); } }, ['コードを作る']),
+          h('button.btn', { type: 'button', onclick: async () => { if (!out.value) return; try { await navigator.clipboard.writeText(out.value); toast('写した'); } catch { out.select(); toast('選んだので写してください'); } } }, ['写す']),
+        ]),
+        out,
+        h('h3', { text: '友だちのゴーストと勝負する' }),
+        gin,
+        h('button.btn', { type: 'button', onclick: () => { if (!decodeGhost(base, code)) toast('読めないコード'); render(); } }, ['読む']),
+        g ? h('div.shareinfo', {}, [
+          h('p', {}, [h('b', { text: `${g.name}` }), ` ${g.rank ? `（${g.rank}）` : ''}・宿泊客「${C.guests[g.guest]?.name ?? '？'}」・デッキ${g.deck.length}枚・最深 B${g.deepest}`]),
+          h('p.q', { text: [...new Set(g.deck.map((x) => C.cards[x.id]?.name))].slice(0, 12).join('、') + (g.deck.length > 12 ? '…' : '') }),
+          rec ? h('p.ok', { text: `これまで ${rec.tries}戦${rec.wins}勝` }) : null,
+          h('button.btn.main', { type: 'button', onclick: () => ctx.go.ghost(code) }, ['この宿と勝負する']),
+        ]) : null,
+      ];
+    }
+    if (tab === '噂') {
+      const rs = H.rumors || [];
+      return [
+        h('p.q', { text: 'コンボは、その札を全部持ったことがあると図鑑と札の説明に載る。噂は、まだ分かっていないコンボの札を1枚だけ教えてくれる（潜行から帰るたび1つ）。' }),
+        rs.length ? h('div.mlist', {}, rs.map((r) => h('div.attrrow', {}, [h('div', {}, [h('b', { text: `「${C.cards[r.card]?.name ?? '？'}」` }), h('div.ax', { text: `には相方がいるらしい（札${r.n}枚のコンボ）` })])]))) : h('p.q', { text: 'まだ噂は無い' }),
+      ];
+    }
     const list = shibariList(base, H);
     return [
       h('p.q', { text: `縛りを付けて、自分の持ち物で潜る（未帰還なら失う）。初めて脱出すると限定の札や常連客。${list.filter((x) => x.done).length}／${list.length}` }),
@@ -656,8 +722,34 @@ export function boardScreen(ctx) {
   function render() {
     put(root,
       top('掲示板', H, () => ctx.go.inn()),
-      h('div.chips.btabs', {}, ['日替わり', '共有コード', '縛り潜行'].map((k) => h(`button.chip${k === tab ? '.on' : ''}`, { type: 'button', onclick: () => { tab = k; render(); } }, [k]))),
+      h('div.chips.btabs', {}, ['日替わり', '週替わり', 'ゴースト宿', '共有コード', '縛り潜行', '噂'].map((k) => h(`button.chip${k === tab ? '.on' : ''}`, { type: 'button', onclick: () => { tab = k; render(); } }, [k]))),
       h('main.ibody', {}, body()),
+    );
+  }
+  render();
+  return { el: root, render };
+}
+
+// ───────────────────────── 内装（宿の格） ─────────────────────────
+export function decorScreen(ctx) {
+  const { base, app } = ctx;
+  const H = ctx.H();
+  const root = h('div.scr.inn.decor');
+  const perkText = (p = {}) => [p.startZeni && `潜行の始めに宿銭＋${p.startZeni}`, p.maxHp && `体力の上限＋${p.maxHp}`, p.rumor && `帰るたびの噂＋${p.rumor}`, p.song && `宿の曲「${p.song}」`].filter(Boolean).join('・');
+  function render() {
+    const ds = decorState(base, H);
+    put(root,
+      top('内装', H, () => ctx.go.inn()),
+      h('div.innart.big', {}, [h('div.art', { html: innArt(ds) }), h('div.rank', {}, [h('b', { text: ds.rank }), h('span', { text: ds.nextRank ? `格 ${ds.pts}／次「${ds.nextRank.name}」まで ${ds.nextRank.pts - ds.pts}` : `格 ${ds.pts}（最高）` })])]),
+      h('p.q.center', { text: '宿銭で宿を飾る。買うと絵が変わり「宿の格」が上がる。強さにはほとんど関わらない（少しだけ便利なものもある）。' }),
+      h('main.ibody', {}, ds.slots.map((s) => h('div.attrrow', {}, [
+        h('div', {}, [
+          h('b', { text: `${s.name}：${s.cur.name}` }),
+          s.next ? h('div.ax', { text: `次「${s.next.name}」格＋${s.next.pts}${perkText(s.next.perk) ? `・${perkText(s.next.perk)}` : ''}` }) : h('div.q', { text: '最高の段' }),
+          perkText(s.cur.perk) ? h('div.q', { text: `いま：${perkText(s.cur.perk)}` }) : null,
+        ]),
+        s.next ? h('button.btn', { type: 'button', disabled: H.zeni < s.next.cost || H.stash.filter((x) => x.id === 'sv_sokonoishi').length < (s.next.stones || 0), onclick: () => { if (guard(() => buyDecor(base, H, s.id))) { ctx.save(); ctx.refreshBgm?.(); SE.fanfare?.(); render(); toast(`${s.next.name}にした`); } } }, [`${s.next.cost}${s.next.stones ? `＋底の石${s.next.stones}` : ''}`]) : null,
+      ]))),
     );
   }
   render();

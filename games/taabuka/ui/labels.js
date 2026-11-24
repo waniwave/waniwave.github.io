@@ -200,12 +200,16 @@ export function comboEffText(content, id) {
   const e = c?.effect || {};
   return [e.S && `強さ＋${e.S}`, e.M && `倍率＋${e.M}`, e.xM && `倍率×${e.xM}`, e.xV && `論破値×${e.xV}`, e.zeni && `宿銭＋${e.zeni}`].filter(Boolean).join('・');
 }
-/** 札が入るコンボの説明行（相手の札の名前つき） */
+/** コンボが分かっているか（画面側で差し替える：宿の持ったことのある札＋いまの潜行の札） */
+export const comboView = { known: () => true, rumor: () => false };
+/** 札が入るコンボの説明行（相手の札の名前つき）。分かっていないコンボは出さない（噂なら「相方がいるらしい」） */
 export function comboLines(content, cardId) {
   const ids = content.combosOf?.[cardId] || [];
-  return ids.map((id) => {
+  const out = [];
+  if (ids.some((id) => !comboView.known(id) && comboView.rumor(id, cardId))) out.push('<span class="cmb">◎噂：この札には相方がいるらしい</span>');
+  return out.concat(ids.filter((id) => comboView.known(id)).map((id) => {
     const c = content.comboList.find((x) => x.id === id);
     const others = c.need.filter((set) => !set.includes(cardId)).map((set) => [...new Set(set.map((i) => content.cards[i]?.name))].join('か'));
     return `<span class="cmb">◎コンボ「${esc(c.name)}」：＋${others.map(esc).join('＋')}　${esc(comboEffText(content, id))}</span>`;
-  });
+  }));
 }

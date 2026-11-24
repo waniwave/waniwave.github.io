@@ -1,6 +1,6 @@
 // サービスワーカー：オフライン起動。BUILD ごとに先読みし直す（一覧は tools/release.mjs が書く）。
 // 新しい版が入っても勝手に切り替えない。宿の画面の「更新」で切り替える（SKIP_WAITING を受けたら入れ替わる）。
-const BUILD = '1.1.0';
+const BUILD = '1.3.0';
 const FILES = [
   './content/achievements.yaml',
   './content/affixes.yaml',
@@ -8,9 +8,11 @@ const FILES = [
   './content/balance/depth.yaml',
   './content/balance/economy.yaml',
   './content/balance/hands.yaml',
+  './content/balance/moods.yaml',
   './content/balance/rarity.yaml',
   './content/balance/tiers.yaml',
   './content/combos.yaml',
+  './content/decor.yaml',
   './content/enemies/core.yaml',
   './content/enemies/custom/anka.js',
   './content/enemies/custom/byousoku.js',
@@ -29,6 +31,7 @@ const FILES = [
   './content/enemies/custom/tier8.js',
   './content/enemies/custom/tsuchi_nashi.js',
   './content/enemies/custom/yakkan8.js',
+  './content/enemies/ghost.yaml',
   './content/enemies/layer1.yaml',
   './content/enemies/layer2.yaml',
   './content/enemies/layer3.yaml',
@@ -173,6 +176,8 @@ const FILES = [
   './content/sets/noren_soto/items.yaml',
   './content/sets/noren_soto/relics.yaml',
   './content/sets/noren_soto/set.yaml',
+  './content/sets/ofuzake/cards.yaml',
+  './content/sets/ofuzake/set.yaml',
   './content/sets/ryukogo/cards.yaml',
   './content/sets/ryukogo/custom/kougo.js',
   './content/sets/ryukogo/custom/nibai.js',
@@ -212,6 +217,7 @@ const FILES = [
   './engine/content.js',
   './engine/dive.js',
   './engine/format.js',
+  './engine/ghost.js',
   './engine/hand.js',
   './engine/hooks.js',
   './engine/meta.js',
@@ -224,6 +230,7 @@ const FILES = [
   './engine/vocab/expr.js',
   './engine/vocab/if.js',
   './engine/vocab/index.js',
+  './engine/vocab/mood.js',
   './engine/vocab/rule.js',
   './engine/vocab/show.js',
   './engine/vocab/when.js',
@@ -243,6 +250,8 @@ const FILES = [
   './ui/fx/particles.js',
   './ui/fx/queue.js',
   './ui/fx/shows.js',
+  './ui/fx/silly.js',
+  './ui/innart.js',
   './ui/items.js',
   './ui/labels.js',
   './ui/lessons.js',

@@ -11,14 +11,17 @@ import { diveScreen } from './screens/dive.js';
 import { zukanScreen } from './screens/zukan.js';
 import { fxLabScreen } from './screens/fxlab.js';
 import { diveBattle, finishBattle, keepBattle, saveDive, loadDive } from '../engine/dive.js';
-import { newInn, saveInn, loadInn, beginDive, beginDaily, beginShared, finishDive, starterIds } from '../engine/meta.js';
-import { innScreen, facilityScreen, stashScreen, prepScreen, resultScreen, settingsScreen, boardScreen } from './screens/inn.js';
+import { newInn, saveInn, loadInn, beginDive, beginDaily, beginShared, finishDive, starterIds, ownedSet, decorState, beginWeekly } from '../engine/meta.js';
+import { encodeGhost, decodeGhost, ghostPower, ghostBattle, finishGhost } from '../engine/ghost.js';
+import { knownComboIds } from '../engine/combo.js';
+import { comboView } from './labels.js';
+import { innScreen, facilityScreen, stashScreen, prepScreen, resultScreen, settingsScreen, boardScreen, decorScreen } from './screens/inn.js';
 import { readAll, write, exportText, importText } from './save.js';
 import { setFlashOptions } from './fx/flash.js';
 import { initParticles, setParticleScale } from './fx/particles.js';
 import { setShowOptions } from './fx/shows.js';
 import { setNumMode } from './num.js';
-import { unlockAudio, setAudioOptions, playBgm, stopBgm, startHeart, stopHeart } from './audio/audio.js';
+import { unlockAudio, setAudioOptions, playBgm, stopBgm, startHeart, stopHeart, setBgmMood } from './audio/audio.js';
 import { layerAt, layerNo } from '../engine/dive.js';
 import { loadContent, fetchIO } from '../engine/content.js';
 import { createCoach } from './coach.js';
@@ -60,7 +63,7 @@ function ambience(where, D = null) {
   app2.classList.toggle('deep2', no >= 3);
   if (where === 'landing') { stopBgm(); startHeart(); return; }
   stopHeart();
-  if (where === 'inn' || where === 'title') playBgm('宿', where === 'title' ? -5 : 0);
+  if (where === 'inn' || where === 'title') playBgm(where === 'inn' && H ? (decorState(base, H).perks.song ?? '宿') : '宿', where === 'title' ? -5 : 0);
   else if (where === 'boss') playBgm('層主', -(no - 1) * 2);
   else if (where === 'dive') playBgm(L?.id ?? 'layer1', -((D?.floor ?? 1) - 1));
   else if (where === 'title') stopBgm();
@@ -74,6 +77,7 @@ function show(screen) {
   app.prepend(screen.el);
   for (const id of ['side-l', 'side-r']) if (!screen.sides) document.getElementById(id).replaceChildren();
   screen.render?.();
+  if (screen.where !== 'battle' && screen.where !== 'ghost') setBgmMood(null);
   if (screen.where) ambience(screen.where, screen.dive ?? null);
 }
 
@@ -141,9 +145,48 @@ export function startBattleScreen(o) {
   return scr;
 }
 
+// ───────── ゴースト宿（掲示板）：相手のデッキと決まったターン数で勝負 ─────────
+function startGhost(code) {
+  const g = decodeGhost(base, code);
+  if (!g) { toast('読めないコード'); return; }
+  const deck = H.deck.map((u) => H.stash.find((x) => x.uid === u)).filter(Boolean);
+  if (deck.length < base.balance.hands.play.deckMin) { toast(`デッキが${base.balance.hands.play.deckMin}枚に足りない（蔵で組む）`); return; }
+  toast('相手の宿の論破値を数えています…');
+  setTimeout(() => {
+    const power = ghostPower(base, g);
+    const B = ghostBattle(base, g, deck, H.loadout.guest || Object.keys(base.content.guests)[0], power);
+    const env = openBattle(base, B);
+    startBattle(B, env);
+    const scr = battleScreen({
+      app, queue, settings, saveSettings, base, B, env,
+      onExit: () => innCtx.go.board(),
+      unitSeen: (u) => H.records.unitsSeen.includes(u),
+      markUnit: (u) => { H.records.unitsSeen.push(u); persist('inn'); },
+      onDone: (b) => {
+        const r = finishGhost(base, H, g, b);
+        persist('inn');
+        toast(r.won ? `「${g.name}」に勝った！${r.zeni ? `（宿銭＋${r.zeni}）` : ''}` : `「${g.name}」に負けた（${r.rec.tries}戦${r.rec.wins}勝）`);
+        innCtx.go.board();
+      },
+    });
+    scr.sides = true;
+    scr.where = 'ghost';
+    window.__taabuka.battle = { B, env, scr };
+    show(scr);
+  }, 60);
+}
+
 // ───────── セーブ ─────────
 let H = null;   // 宿
 let D = null;   // 潜行中
+// コンボは札を全部持ったことがあると分かる（宿の札＋いまの潜行のデッキ）
+comboView.known = (id) => {
+  if (!H || !base) return true;
+  const own = ownedSet(H);
+  for (const c of D?.deck || []) own.add(c.id);
+  return knownComboIds(base.content, own).has(id);
+};
+comboView.rumor = (id, cardId) => !!H?.rumors?.some((r) => r.combo === id && r.card === cardId);
 async function loadSaves() {
   const s = await readAll();
   try { H = s.inn ? loadInn(s.inn) : null; } catch (e) { toast(`宿のセーブが読めない：${e.message}`); H = null; }
@@ -168,6 +211,7 @@ function startDive(sudomari, special) {
   try {
     if (special?.daily) D = beginDaily(base, H, { date: special.daily });
     else if (special?.code) D = beginShared(base, H, { code: special.code });
+    else if (special?.weekly) D = beginWeekly(base, H, { week: special.weekly });
     else D = beginDive(base, H, { seed: Date.now().toString(36), sudomari, practice: !sudomari && coach.on() && H.records.dives === 0 });
   }
   catch (e) { if (e.userError) { toast(e.message); return; } throw e; }
@@ -231,7 +275,7 @@ function showDiveBattle() {
 
 // ───────── 宿 ─────────
 const innCtx = {
-  app, base, coach: null, rules: () => rules(base), settings, saveSettings, queue, applySettings, H: () => H, save: () => persist('inn'),
+  app, base, coach: null, rules: () => rules(base), settings, saveSettings, queue, applySettings, H: () => H, save: () => persist('inn'), refreshBgm: () => ambience('inn'),
   exportText: async () => { await saving; return exportText(saveInn(H), D ? saveDive(D) : null); },
   importText: async (t) => {
     const o = await importText(t);
@@ -246,7 +290,7 @@ const innCtx = {
     inn: () => goInn(), stash: () => show(stashScreen(innCtx)), facility: (id) => show(facilityScreen(innCtx, id)),
     prep: () => show(prepScreen(innCtx)), settings: () => show(settingsScreen(innCtx)),
     zukan: () => show(zukanScreen({ ...ctx, back: goInn })), dive: (s) => startDive(s), sudomari: () => startDive(true),
-    board: () => show(boardScreen(innCtx)), daily: (date) => startDive(false, { daily: date }), shared: (code) => startDive(false, { code }),
+    board: () => show(boardScreen(innCtx)), decor: () => show(decorScreen(innCtx)), daily: (date) => startDive(false, { daily: date }), shared: (code) => startDive(false, { code }), weekly: (week) => startDive(false, { weekly: week }), ghost: (code) => startGhost(code),
   },
 };
 function goInn() { if (!H) return home(); if (H.diving && D) return showDive(); const s2 = innScreen(innCtx); s2.where = 'inn'; show(s2); }

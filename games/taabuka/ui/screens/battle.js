@@ -21,6 +21,8 @@ import { unitOf } from '../../engine/format.js';
 const claimText = (e, v) => (e?.hideClaim ? '？？？' : format(v));
 import { playShow, playStage, playKetagoe, stageOf, rollNumber } from '../fx/shows.js';
 import { playSpell, playCombo } from '../fx/combo.js';
+import { playMood } from '../fx/silly.js';
+import { setBgmMood } from '../audio/audio.js';
 import { matchCombos } from '../../engine/combo.js';
 import { SE, buzz } from '../audio/audio.js';
 import { shards, embers } from '../fx/particles.js';
@@ -170,11 +172,14 @@ export function battleScreen(o) {
   // 説明欄：押した札・敵・席・番付の説明がここに出る。何も押していないときは宿泊客の仕組み
   function guestInfo() {
     const sealed = B.sealed.cats.length ? `<span class="warnt">封じ中：${B.sealed.cats.map((c) => `〈${esc(c)}〉あと${B.sealed.catTurns?.[c] ?? '?'}ターン`).join('・')}（その札は採点されず受けになる）</span><br>` : '';
-    if (!B.guest) return sealed + '<span class="q">札・敵・席・番付を押すと、ここに説明が出ます</span>';
+    const gh = B.ghost ? `<span class="warnt">ゴースト宿「${esc(B.ghost.name)}」との勝負：${B.ghost.turns}ターンのうちに論破（いま${B.turn}ターン目）</span><br>` : '';
+    const md = B.mood ? balance.moods?.[B.mood.id] : null;
+    const mood = md ? `<span class="moodt" style="color:${md.color}">場の状態「${esc(B.mood.id)}」あと${B.mood.turns}ターン：${esc(md.text ?? '')}</span><br>` : '';
+    if (!B.guest) return gh + mood + sealed + '<span class="q">札・敵・席・番付を押すと、ここに説明が出ます</span>';
     const g = content.guests[B.guestSwap || B.guest];
     const m = g?.mechanic ? content.vocab.get('mechanic', g.mechanic) : null;
     const relics = B.relics.map((r) => content.relics[r.id]).filter(Boolean);
-    return `${sealed}<b>${esc(g?.name ?? '')}</b>　${esc(guestStatus(B, env))}<br><span class="q">${esc(m?.text ?? '')}</span>${relics.length ? `<br><span class="q">置物：${relics.map((d) => `${esc(d.name)}（${kwLines(d).join(' ')}）`).join('、')}</span>` : ''}`;
+    return `${gh}${mood}${sealed}<b>${esc(g?.name ?? '')}</b>　${esc(guestStatus(B, env))}<br><span class="q">${esc(m?.text ?? '')}</span>${relics.length ? `<br><span class="q">置物：${relics.map((d) => `${esc(d.name)}（${kwLines(d).join(' ')}）`).join('、')}</span>` : ''}`;
   }
   function renderInfo() {
     const el = h('section.infobox', { html: guestInfo() });
@@ -211,6 +216,7 @@ export function battleScreen(o) {
     const r = rarOfCard(balance, c, content.cards[c.id]);
     const el = h(`button.card${c.ed ? '.ed' : ''}.r-${r}`, { type: 'button', dataset: { uid: c.uid }, style: { '--g': RAR_VAR[r] } });
     el.innerHTML = cardArt(c);
+    if (content.sets[content.cards[c.id]?.set]?.joke) el.classList.add('joke');
     el.append(
       h('span.tier', { text: tierLabel(tierOf(c, balance, B.banzuke)) }),
       h('span.rr', { text: RAR_SHORT[r] }),
@@ -578,6 +584,7 @@ export function battleScreen(o) {
         case 'hp': T.push({ ms: MS.note, run: () => { setHp(e.hp); queue.pop(`${e.add > 0 ? '+' : ''}${e.add}`, refs.hp, null, e.add < 0 ? 'dmg big' : 'heal'); if (e.add < 0) { root.classList.remove('hurt'); void root.offsetWidth; root.classList.add('hurt'); } } }); break;
         case 'useItem': T.push({ ms: MS.note * 1.5, run: () => queue.banner(e.name, 'small', 700) }); break;
         case 'note': T.push({ ms: MS.note, run: () => queue.pop(e.what, refs.calc, null, 'note') }); break;
+        case 'mood': { let ms = 0; T.push({ get ms() { return ms; }, run: () => { ms = playMood(X(), e.id, e.id ? balance.moods?.[e.id] : null); render(); } }); break; }
         case 'hindrance': T.push({ ms: MS.note * 2, run: () => queue.pop(`妨害：${e.what}`, refs.calc, null, 'note') }); break;
         case 'form': T.push({ ms: MS.banner * 1.4, run: () => {
           const f = foe(e.enemy); if (!f) return;
@@ -592,7 +599,7 @@ export function battleScreen(o) {
         case 'intent': T.push({ ms: MS.note, run: () => { const f = foe(e.enemy); if (f) queue.pop(`次は${e.act}`, f.el, null, 'note'); } }); break;
         case 'presence': T.push({ ms: MS.note, run: () => queue.pop(`気配+${e.add}`, refs.calc, null, 'note') }); break;
         case 'error': T.push({ ms: MS.note, run: () => { console.warn('[記録]', e.hook, e.message); queue.pop('（特注の不具合）', refs.calc, null, 'note'); } }); break;
-        case 'end': flushStage(); T.push({ ms: MS.banner, run: () => queue.banner(e.result === 'win' ? '勝ち' : e.result === 'lose' ? '未帰還' : '脱出', e.result === 'win' ? '' : 'big') }); break;
+        case 'end': flushStage(); T.push({ ms: MS.banner, run: () => (setBgmMood(null), queue.banner(e.result === 'win' ? '勝ち' : e.result === 'lose' ? '未帰還' : '脱出', e.result === 'win' ? '' : 'big') )}); break;
         default: break;
       }
     }
@@ -684,6 +691,8 @@ export function battleScreen(o) {
   }
 
   render();
+  root.dataset.mood = B.mood?.id ?? '';
+  setTimeout(() => setBgmMood(B.mood && !B.result ? balance.moods?.[B.mood.id]?.bgm : null), 50);
   if (B.result && o.onDone) setTimeout(showResult, 0);   // 終わったところで閉じて開き直したとき
   return { el: root, onKey, render, state: st, refs: () => refs };
 }

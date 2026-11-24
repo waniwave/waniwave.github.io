@@ -114,3 +114,11 @@
   rate: 0.6
   use: 換金用
   flavor: さらさらと、上へ落ちる。
+
+- id: sv_sokonoishi
+  name: 底の石
+  sell: 150
+  weight: 1
+  layers: [7, 7]
+  rate: 0.15
+  use: 内装（最高の段）。底（B17〜）から生きて帰ると、潜った深さに応じてもらえる

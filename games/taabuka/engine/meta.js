@@ -3,11 +3,12 @@
 // 宿のセーブ H は JSON にできる。画面は H を読んで、ここの関数で動かすだけ。乱数は H.seed と回数から子乱数で作る。
 // 持ち物の個体：{ uid, type: card|regular|relic|item|souvenir, id, enh?, ed?, seal?, origin, grow?, insured?, mod? }
 
+import { knownComboIds } from './combo.js';
 import { Rng } from './rng.js';
 import { rarOf, rarIndex, rollAffixes } from './rarity.js';
 import { Big, ZERO } from './big.js';
 import { depthMods } from './battle.js';
-import { createDive, sellValue, nameOf, defaultPool, warpFloors } from './dive.js';
+import { createDive, sellValue, nameOf, defaultPool, warpFloors, addCurse } from './dive.js';
 import { encodeShare, decodeShare, dailySeed, shareableSeed } from './share.js';
 
 export const SAVE_VERSION = 1;
@@ -322,17 +323,83 @@ export function buyDeck(base, H, cat, asDeck = true) {
   return got;
 }
 
-/** 帳場のコンボ帳：札を1枚でも見たことがあるコンボ。[{id, name, ids, price, ok, reason}] */
+// ───────── 宿の内装と格（宿銭の使い道。強さにはほぼ関わらない） ─────────
+/** 内装の今の状態：場所ごとの段・格の点・格の名前・便利（perk） */
+export function decorState(base, H) {
+  const DC = base.content.decor || { slots: [], ranks: [{ pts: 0, name: '宿' }] };
+  const lv = H.decor || {};
+  let pts = 0;
+  const perks = { startZeni: 0, maxHp: 0, rumor: 0, song: null };
+  const slots = DC.slots.map((s) => {
+    const n = Math.min(lv[s.id] ?? 0, s.levels.length - 1);
+    for (let i = 0; i <= n; i++) {
+      pts += s.levels[i].pts || 0;
+      const p = s.levels[i].perk || {};
+      if (p.song) perks.song = p.song;
+    }
+    const p = s.levels[n].perk || {};
+    for (const k of ['startZeni', 'maxHp', 'rumor']) perks[k] += p[k] || 0;
+    return { id: s.id, name: s.name, lv: n, cur: s.levels[n], next: s.levels[n + 1] ?? null };
+  });
+  const ranks = DC.ranks;
+  let ri = 0;
+  ranks.forEach((r, i) => { if (pts >= r.pts) ri = i; });
+  return { slots, pts, rank: ranks[ri].name, rankIx: ri, nextRank: ranks[ri + 1] ?? null, perks };
+}
+/** 内装の次の段を買う */
+export function buyDecor(base, H, slotId) {
+  const st = decorState(base, H).slots.find((s) => s.id === slotId);
+  check(st && st.next, 'これ以上は無い');
+  check(H.zeni >= st.next.cost, '宿銭が足りない');
+  const need = st.next.stones || 0;
+  const stones = H.stash.filter((x) => x.type === 'souvenir' && x.id === 'sv_sokonoishi');
+  check(stones.length >= need, `底の石が${need}つ要る（底＝B17〜から生きて帰るともらえる）`);
+  H.stash = H.stash.filter((x) => !stones.slice(0, need).includes(x));
+  H.zeni -= st.next.cost;
+  (H.decor ||= {})[slotId] = st.lv + 1;
+  return H;
+}
+
+// ───────── コンボの発見と噂 ─────────
+/** 持ったことのある札（コンボが分かるかどうかに使う） */
+export function ownedSet(H) { return new Set([...H.codex.owned, ...H.stash.filter((x) => x.type === 'card').map((x) => x.id)]); }
+/** 分かっているコンボ（札を全部持ったことがある） */
+export function knownCombos(base, H) { return knownComboIds(base.content, ownedSet(H)); }
+/**
+ * 噂を1つ増やす（潜行から帰るたび）。まだ分かっていないコンボの札を1枚だけ教える。
+ * 持っている札を含むコンボを優先（相方を探す楽しみ）。決まった順で選ぶ（乱数は宿のシードと回数）
+ */
+export function addRumor(base, H) {
+  const C = base.content;
+  const known = knownCombos(base, H);
+  H.rumors = (H.rumors || []).filter((r) => !known.has(r.combo));
+  const max = inn(base).rumors?.max ?? 8;
+  const have = ownedSet(H);
+  const cand = (C.comboList || []).filter((c) => !known.has(c.id) && !H.rumors.some((r) => r.combo === c.id));
+  if (!cand.length) return null;
+  const pref = cand.filter((c) => c.need.some((set) => set.some((id) => have.has(id))));
+  const list = pref.length ? pref : cand;
+  const rng = Rng.child(String(H.seed), 'rumor', H.records.dives);
+  const c = list[rng.int(0, list.length - 1)];
+  const set = c.need.find((s) => s.some((id) => have.has(id))) ?? c.need[0];
+  const card = set.find((id) => have.has(id)) ?? set[0];
+  const r = { combo: c.id, card, n: c.need.length };
+  H.rumors.push(r);
+  while (H.rumors.length > max) H.rumors.shift();
+  return r;
+}
+
+/** 帳場のコンボ帳：分かっているコンボ（札を全部持ったことがある）。[{id, name, ids, price, ok, reason}] */
 export function comboGoods(base, H) {
   const CB = inn(base).combos;
   const C = base.content;
   if ((H.facilities.chouba ?? 1) < CB.fromLevel) return [];
   const f = facility(base, H, 'chouba');
   const pool = new Set(poolOf(base, H, null).cards);
-  const known = new Set([...H.codex.seen, ...H.codex.owned]);
+  const known = knownCombos(base, H);
   const out = [];
   for (const cb of C.comboList || []) {
-    if (!cb.need.some((set) => set.some((id) => known.has(id)))) continue;
+    if (!known.has(cb.id)) continue;
     const ids = cb.need.map((set) => set.find((id) => pool.has(id) && f.shopGrades.includes(C.cards[id].grade) && !SPECIAL_ORIGIN.includes(C.cards[id].origin)) ?? null);
     const ok = ids.every(Boolean);
     const price = ok ? Math.round(ids.reduce((a, id) => a + (econ(base).price.card[C.cards[id].grade] ?? 0), 0) * CB.priceMul) : 0;
@@ -567,6 +634,10 @@ export function beginDive(base, H, o) {
     pool: poolOf(base, H, L.guest), carry: carryOf(base, H, 0), guestState: { ...(L.choose?.[L.guest] || {}) },
     ...(L.shibari ? { shibari: L.shibari } : {}), ...(L.warp ? { startFloor: L.warp } : {}),
   });
+  // 宿の内装の便利（暖簾＝始めの宿銭、湯＝体力の上限）
+  const pk = decorState(base, H).perks;
+  if (pk.maxHp) { D.maxHp += pk.maxHp; D.hp += pk.maxHp; }
+  if (pk.startZeni) D.zeni += pk.startZeni;
   D.innDive = H.records.dives + 1;
   // 稽古の潜行（最初の1回・女将の案内つき）：倒れても持ち込んだ物は蔵に戻る。懐の拾い物は失う
   if (o.practice && H.records.dives === 0) D.practice = true;
@@ -618,6 +689,34 @@ export function beginDaily(base, H, o) {
   });
   D.daily = o.date;
   H.dailyDone = o.date;
+  D.innDive = H.records.dives + 1;
+  H.records.dives += 1;
+  H.diving = true;
+  return D;
+}
+
+// ───────── 週替わりの挑戦：同じ週はみんな同じシード・宿泊客・借り物デッキ・呪い2つ。深さを競う（何度でも、最高記録） ─────────
+export function weeklyInfo(base, H, week) {
+  const C = base.content;
+  const seed = `weekly:${week}`;
+  const guest = Rng.child(seed, 'weekly', 0).pick(Object.keys(C.guests).sort());
+  const best = H.weekly?.key === week ? H.weekly.best : 0;
+  return { week, seed, guest, guestName: C.guests[guest]?.name, best, curses: inn(base).weekly?.curses ?? 2 };
+}
+export function beginWeekly(base, H, o) {
+  check(!H.overflow, '蔵があふれている。先に売る');
+  const info = weeklyInfo(base, H, o.week);
+  const C = base.content;
+  const pool = defaultPool(C, info.guest);
+  const deck = borrowedDeck(base, pool, Rng.child(info.seed, 'weekly', 1), info.seed);
+  const g = C.guests[info.guest];
+  const D = createDive(base, {
+    seed: info.seed, guest: info.guest, depth: 0, deck, relics: g?.relic ? [{ uid: `g_${g.relic}`, id: g.relic, guest: true }] : [],
+    pool, carry: carryOf(base, H, 0), sudomari: true,
+  });
+  const bL = Object.values(C.layers || {}).find((l) => l.curses?.length);
+  if (bL) for (let i = 0; i < info.curses; i++) addCurse(base, D, bL, -1 - i, 'weekly');
+  D.weekly = o.week;
   D.innDive = H.records.dives + 1;
   H.records.dives += 1;
   H.diving = true;
@@ -732,7 +831,7 @@ export function finishDive(base, H, D) {
     for (const b of D.stats.bosses) if (!R.bosses.includes(b)) R.bosses.push(b);
     // 深度：深度Nで B16（底の主）を倒して脱出すれば N＋1（仕様書 第6章）。宿泊客×深度の印も付く
     const core = Object.values(C.layers).find((L) => L.onlyBoss);
-    if (core && D.stats.bosses.includes(core.id) && !D.sudomari && !D.daily && !D.shared) {
+    if (core && D.stats.bosses.includes(core.id) && !D.sudomari && !D.daily && !D.shared && !D.weekly) {
       const next = Math.min(E.depthMax, D.depth + 1);
       if (next > H.unlocked.depth) { H.unlocked.depth = next; rep.depthUp = next; }
       R.depthExtract16 = Math.max(R.depthExtract16 ?? -1, D.depth);
@@ -781,7 +880,7 @@ export function finishDive(base, H, D) {
   if (D.result.outcome === 'escaped') {
     (R.guestExtracts ||= {})[D.guest] = (R.guestExtracts[D.guest] || 0) + 1;
     R.zeniTotal = (R.zeniTotal || 0) + Math.max(0, rep.zeni);
-    if (D.sudomari && !D.daily && !D.shared) R.sudomariExtracts = (R.sudomariExtracts || 0) + 1;
+    if (D.sudomari && !D.daily && !D.shared && !D.weekly) R.sudomariExtracts = (R.sudomariExtracts || 0) + 1;
     if (D.daily) R.daily = (R.daily || 0) + 1;
     // 縛り潜行の初回脱出：限定の札・常連客か宿銭
     if (D.shibari && !(R.shibari ||= []).includes(D.shibari)) {
@@ -819,6 +918,12 @@ export function finishDive(base, H, D) {
   rep.share = shareableSeed(D.seed) ? encodeShare(C, mine) : null;
   if (D.shared) rep.versus = { their: D.shared, mine };
   if (D.daily) rep.daily = D.daily;
+  if (D.weekly) {
+    if (H.weekly?.key !== D.weekly) H.weekly = { key: D.weekly, best: 0 };
+    rep.weeklyBest = D.stats.deepest > H.weekly.best;
+    H.weekly.best = Math.max(H.weekly.best, D.stats.deepest);
+    rep.weekly = { key: D.weekly, deepest: D.stats.deepest, best: H.weekly.best };
+  }
   if (D.shibari) rep.shibari = D.shibari;
   H.loadout.shibari = null;
   rep.gotValue = D.result.outcome === 'escaped' ? rep.zeni + [...D.pouch, ...D.charm].reduce((s, x) => s + sellValue(base, x), 0) : 0;
@@ -826,5 +931,14 @@ export function finishDive(base, H, D) {
   if (rep.record) R.bestHaul = rep.gotValue;
   H.diving = false;
   H.lastResult = rep;
+  // 底（さらに深く）から生きて帰ると底の石
+  const bL = (C.layers || {}).beyond ?? Object.values(C.layers || {}).find((l) => l.curses);
+  if (D.result.outcome === 'escaped' && bL && D.stats.deepest >= bL.floors[0]) {
+    const n = 1 + Math.floor((D.stats.deepest - bL.floors[0]) / (bL.curseEvery || 3));
+    for (let i = 0; i < n; i++) H.stash.push({ uid: uid(H, 's'), type: 'souvenir', id: 'sv_sokonoishi' });
+    rep.stones = n;
+  }
+  rep.rumor = addRumor(base, H);
+  for (let i = 0; i < decorState(base, H).perks.rumor; i++) addRumor(base, H);
   return rep;
 }

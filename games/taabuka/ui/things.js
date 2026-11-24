@@ -62,6 +62,7 @@ export function thingEl(base, x, opt = {}) {
   if (ORIGIN_MARK[x.origin]) kids.push(h('span.mark', { text: ORIGIN_MARK[x.origin] }));
   const color = x.type === 'card' ? RAR_VAR[rarOfCard(base.balance, x, def)] : GRADE_COLOR[def?.grade] ?? 'var(--line)';
   const el = h(`div.thing${opt.on ? '.took' : ''}${x.type === 'card' ? `.r-${rarOfCard(base.balance, x, def)}` : ''}`, { style: { '--g': color }, dataset: { uid: x.uid } }, kids);
+  if (x.type === 'card' && base.content.sets[def?.set]?.joke) { el.classList.add('joke'); el.append(h('span.jokemk', { text: 'おふざけ' })); }
   if (opt.onclick) { el.classList.add('tap'); el.addEventListener('click', opt.onclick); }
   tip(el, () => thingTip(base, x));
   return el;

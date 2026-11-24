@@ -27,7 +27,7 @@ export function layerAt(content, floor) {
   return layerList(content).find((L) => floor >= L.floors[0] && floor <= L.floors[1]) ?? null;
 }
 /** ワープできる階（2層め以降の各層の入口。底は除く） */
-export function warpFloors(content) { return layerList(content).slice(1).filter((L) => L.floors[1] > L.floors[0] && L.floors[1] < 9999).map((L) => L.floors[0]); }
+export function warpFloors(content) { return layerList(content).slice(1).filter((L) => L.floors[1] > L.floors[0]).map((L) => L.floors[0]); }
 /** 層の番号（1から） */
 export function layerNo(content, L) { return layerList(content).indexOf(L) + 1; }
 /** 層の最後の階か（層主戦がある） */
@@ -135,6 +135,19 @@ export function loadDive(s) { return JSON.parse(s, Big.revive); }
 
 // ───────────────────────── 階の生成 ─────────────────────────
 
+const parseRule = (r) => (typeof r === 'string' ? { name: r, params: {} } : (() => { const { 名前, ...params } = r; return { name: 名前, params }; })());
+/** 底の呪いを1つ足す（重ねられないものは1回まで）。週替わり挑戦の始めにも使う */
+export function addCurse(base, D, L, floor, salt = 'curse') {
+  const have = new Set((D.curses || []).map((c) => c.id));
+  const cand = L.curses.filter((c) => c.stack || !have.has(c.id));
+  if (!cand.length) return null;
+  const c = Rng.child(D.seed, salt, floor).pick(cand);
+  (D.curses ||= []).push({ id: c.id, name: c.name, text: c.text, floor });
+  D.heldRules = [...(D.heldRules || []), ...(c.rule || []).map(parseRule)];
+  log(D, { t: 'curse', id: c.id, name: c.name, text: c.text, floor });
+  return c;
+}
+
 function enterFloor(base, D, floor) {
   const { content } = base;
   const L = layerAt(content, floor);
@@ -147,6 +160,8 @@ function enterFloor(base, D, floor) {
   }
   D.floor = floor;
   D.row = 0;
+  // 底の呪い（層の curses）：curseEvery 階ごとに1つずつ積み重なる。全ての戦闘に掛かる
+  if (L.curses?.length && L.curseEvery && (floor - L.floors[0]) % L.curseEvery === 0 && !(D.curses || []).some((c) => c.floor === floor)) addCurse(base, D, L, floor);
   D.map = genFloor(base, D, floor);
   D.floorBanzuke = { ...D.banzuke };
   D.stats.deepest = Math.max(D.stats.deepest, floor);
@@ -260,9 +275,31 @@ function cardOk(base, D, def, floor) {
   return true;
 }
 
+/** おふざけ枠の確率：どの階でも極まれ。底（呪いの層）ほど、呪いが多いほど、週替わりで上がる（economy.joke） */
+export function jokeChance(base, D, floor = D.floor) {
+  const J = base.balance.economy.joke;
+  if (!J) return 0;
+  const L = layerAt(base.content, floor);
+  let p = J.base;
+  if (L?.curses?.length) p = J.abyss + J.perCurse * (D.curses?.length || 0);
+  if (D.weekly) p += J.weekly;
+  return Math.min(J.max, p);
+}
+
 /** レアリティを決めて札を1枚引く（個体のIDはまだ付けない）。刻印もここで付く */
 function rollCard(base, D, rng, floor, o = {}) {
   const { content, balance } = base;
+  // おふざけ枠（ふだんの乱数とは別の流れで引くので、ほかの出方は変わらない）
+  const jokes = content.jokeIds || [];
+  if (jokes.length && !o.noJoke) {
+    D.jokeN = (D.jokeN || 0) + 1;
+    const jr = Rng.child(D.seed, 'joke', D.jokeN);
+    if (jr.chance(jokeChance(base, D, floor))) {
+      const id = jr.pick(jokes);
+      const def = content.cards[id];
+      return { id, origin: 'orig', rar: floorRarity(balance, def) };
+    }
+  }
   const L = layerAt(content, floor);
   const no = L ? layerNo(content, L) : 99;
   const minR = o.minGrade ? balance.rarity.gradeFloor[o.minGrade] : o.minRar;

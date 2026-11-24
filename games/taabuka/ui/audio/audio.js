@@ -103,30 +103,42 @@ const SONGS = {
   layer1: { bpm: 96, wave: 'triangle', root: 196, scale: [0, 2, 3, 7, 8], mel: [0, -1, 0, 2, 3, -1, 2, -1, 0, 1, 2, 4, 3, -1, 2, -1], bass: [0, 0, -4, -2] },
   layer2: { bpm: 88, wave: 'sine', root: 174.6, scale: [0, 1, 5, 7, 8], mel: [4, -1, 3, -1, 2, 1, 0, -1, 2, -1, 3, 4, 2, -1, 1, -1], bass: [0, -2, 1, -4] },
   層主: { bpm: 132, wave: 'square', root: 146.8, scale: [0, 1, 3, 6, 7], mel: [0, 0, 3, 0, 4, 3, 1, 0, 0, 0, 3, 0, 4, 5, 4, 3], bass: [0, 0, 1, -1] },
+  '宿・三味線': { bpm: 92, wave: 'sawtooth', root: 220, scale: [0, 1, 5, 7, 8], mel: [0, 2, 3, 2, 4, 3, 2, -1, 0, 1, 2, 4, 5, 4, 2, -1], bass: [0, -3, -2, -5] },
+  '宿・囃子': { bpm: 120, wave: 'square', root: 261.6, scale: [0, 2, 5, 7, 9], mel: [0, 2, 4, 2, 5, 4, 2, 0, 4, 5, 6, 5, 4, 2, 4, -1], bass: [0, 0, -3, -2] },
   脱出: { bpm: 120, wave: 'triangle', root: 261.6, scale: [0, 2, 4, 7, 9], mel: [0, 2, 4, 5, 4, 2, 4, -1], bass: [0, -3] },
 };
 let bgm = null, pendingBgm = null;
 /** BGM を鳴らす（同じ曲なら続ける） */
+// 場の状態で曲が変わる（ノリノリ＝速く高く手拍子、しんみり＝遅く短調…）。null で元に戻る
+let moodB = null;
+export function setBgmMood(m) {
+  moodB = m || null;
+  if (moodB?.mute) { if (bgm) bgm.muted = true; } else if (bgm) bgm.muted = false;
+}
 export function playBgm(name, shift = 0) {
   if (!ac) { pendingBgm = { name, shift }; return; }
   if (bgm && bgm.name === name && bgm.shift === shift) return;
   stopBgm();
   const S = SONGS[name] ?? SONGS.layer1;
-  const step = 60 / S.bpm / 2;
+  const stepOf = () => 60 / (S.bpm * (moodB?.tempo ?? 1)) / 2;
   const at = (deg, oct = 0) => {
-    const n = S.scale.length;
+    const sc = moodB?.scale ?? S.scale;
+    const n = sc.length;
     const o = Math.floor(deg / n);
     const k = ((deg % n) + n) % n;
-    return S.root * Math.pow(2, (S.scale[k] + 12 * (o + oct) + shift) / 12);
+    return S.root * Math.pow(2, (sc[k] + 12 * (o + oct) + shift + (moodB?.shift ?? 0)) / 12);
   };
   bgm = { name, shift, i: 0, next: ac.currentTime + 0.1, timer: 0 };
   const me = bgm;
   const sched = () => {
     if (bgm !== me) return;
     while (me.next < ac.currentTime + 0.25) {
+      const step = stepOf();
       const m = S.mel[me.i % S.mel.length];
-      if (m >= 0) tone(at(m, 1), { type: S.wave, t: me.next - ac.currentTime, a: 0.01, d: step * 1.6, peak: 0.16, bus: bgmBus });
-      if (me.i % 4 === 0) tone(at(S.bass[(me.i / 4) % S.bass.length], -1), { type: 'sine', t: me.next - ac.currentTime, a: 0.02, d: step * 3.5, peak: 0.28, bus: bgmBus });
+      const mute = moodB?.mute;
+      if (m >= 0 && !mute) tone(at(m, 1), { type: moodB?.wave ?? S.wave, t: me.next - ac.currentTime, a: 0.01, d: step * 1.6, peak: 0.16, bus: bgmBus });
+      if (me.i % 4 === 0 && !mute) tone(at(S.bass[(me.i / 4) % S.bass.length], -1), { type: 'sine', t: me.next - ac.currentTime, a: 0.02, d: step * 3.5, peak: 0.28, bus: bgmBus });
+      if (moodB?.beat && !mute && me.i % 2 === 1) tone(me.i % 4 === 3 ? 1800 : 3200, { type: 'square', t: me.next - ac.currentTime, a: 0.001, d: 0.03, peak: 0.05, bus: bgmBus });
       me.next += step;
       me.i += 1;
     }

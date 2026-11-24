@@ -85,3 +85,12 @@ export function spellOf(content, cards, matched = []) {
   toks.forEach((k, i) => { s += (i > 0 && i === toks.length - 1 && k.combo ? 'の' : '') + k.t; });
   return `${s}！`;
 }
+
+/** コンボが「分かっている」か：その組み合わせの札をどれも（各枠1枚以上）持ったことがある */
+export function comboKnown(combo, owned) {
+  return combo.need.every((set) => set.some((id) => owned.has(id)));
+}
+/** 分かっているコンボのID */
+export function knownComboIds(content, owned) {
+  return new Set((content.comboList || []).filter((c) => comboKnown(c, owned)).map((c) => c.id));
+}

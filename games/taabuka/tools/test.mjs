@@ -1209,10 +1209,10 @@ group('段階7：先行版の中身');
   eq(Object.keys(C.guests).map((g) => bySet('cards', g).length).join('/'), Object.keys(C.guests).map(() => 25).join('/'), '宿泊客8人の専用札が各25枚');
   eq(bySet('cards', 'ryukogo').length, 30, '流行語30枚');
   eq(C.sets.ryukogo.unlock.boss, 'layer4', '流行語は第四層主を倒すと解放（本編）');
-  eq(Object.keys(C.enemies).length, 61, '敵61体（通常30・精鋭14・層主10・底の主・追跡者3・番人3）');
+  eq(Object.keys(C.enemies).length, 62, '敵62体（通常30・精鋭14・層主10・底の主・追跡者3・番人3・ゴースト1）');
   const items = Object.values(C.items);
   eq(`${items.filter((d) => d.kind === '議題').length}/${items.filter((d) => d.kind === '番付札').length}/${items.filter((d) => d.kind === '品').length}`, '13/12/20', 'お品書き：議題13・番付札12（欠番送りを含む）・品15＋暖簾の外側の小瓶5');
-  eq(Object.keys(C.souvenirs).length, 15, 'お土産15種（本編で3種追加）');
+  eq(Object.keys(C.souvenirs).length, 16, 'お土産16種（本編で3種追加・底の石）');
   // 常連客と置物を1人ずつ席・棚に置いて戦闘を2ターン：例外が出ない
   const bad = [];
   for (const d of [...Object.values(C.regulars), ...Object.values(C.relics)]) {

@@ -1,0 +1,7 @@
+id: ofuzake
+name: おふざけ
+unlock: { never: true }          # 普通の札の山には入らない。どの階でも極まれに「おふざけ枠」で出る（engine/dive.js rollCard、economy.joke）。底ほど出やすい
+joke: true
+color: "#ff6aa8"
+keywords: []
+intro: ばかばかしい札。場の状態を変えて、宿じゅうを巻き込む。めったに出ない。

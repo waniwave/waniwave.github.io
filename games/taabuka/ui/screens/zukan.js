@@ -1,6 +1,6 @@
 // 図鑑：札・常連客・置物・敵・実績・記録・印・キーワード（タブ）。名前を押すと説明。見たことのない物は影だけ
 import { h, tip, esc } from '../dom.js';
-import { cardTip, enemyTip, kwLines, catGlyph, catColor, GRADE_COLOR, tierLabel, comboEffText } from '../labels.js';
+import { cardTip, enemyTip, kwLines, catGlyph, catColor, GRADE_COLOR, tierLabel, comboEffText, comboView } from '../labels.js';
 import { thingFx } from '../things.js';
 import { makeEnemy, makeBattleCard } from '../../engine/battle.js';
 import { num as format } from '../num.js';
@@ -39,11 +39,14 @@ export function zukanScreen(ctx) {
     },
     コンボ: () => {
       const list = C.comboList || [];
-      const k = list.filter((cb) => cb.need.some((set) => set.some(known))).length;
+      const k = list.filter((cb) => comboView.known(cb.id)).length;
       count.textContent = `${k}／${list.length}`;
       return list.map((cb) => {
-        if (!cb.need.some((set) => set.some(known))) return h('div.zrow.shadow', {}, [h('b', { text: '？？？' }), h('span.q', { text: `札${cb.need.length}枚のコンボ` })]);
-        const names = cb.need.map((set) => { const n = [...new Set(set.map((i) => C.cards[i]?.name))]; return set.some(known) ? n.join('か') : '？'; });
+        if (!comboView.known(cb.id)) {
+          const r = (H?.rumors || []).find((x) => x.combo === cb.id);
+          return h('div.zrow.shadow', {}, [h('b', { text: '？？？' }), h('span.q', { text: r ? `噂：「${C.cards[r.card]?.name}」に相方がいるらしい（札${cb.need.length}枚）` : `札${cb.need.length}枚のコンボ。札を全部持つと分かる` })]);
+        }
+        const names = cb.need.map((set) => [...new Set(set.map((i) => C.cards[i]?.name))].join('か'));
         const el = h('div.zrow', { style: { '--g': cb.color || 'var(--acc)' } }, [h('b', { text: cb.name }), h('span.q', { text: comboEffText(C, cb.id) }), h('span.zfx', { text: names.join('＋') })]);
         tip(el, () => `<b>${esc(cb.name)}</b>　<span class="q">${esc(comboEffText(C, cb.id))}</span><br>${names.map(esc).join('＋')}${cb.text ? `<br><span class="fl">${esc(cb.text)}</span>` : ''}`);
         return el;

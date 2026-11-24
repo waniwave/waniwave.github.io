@@ -36,7 +36,7 @@ export function diveScreen(o) {
   function render() {
     const L = layerAt(content, D.floor);
     root.style.setProperty('--lbg', L?.palette?.bg ?? 'var(--paper)');
-    root.replaceChildren(renderTop(), renderPresence(), h('main.dv', {}, [renderBody()]), renderFoot());
+    root.replaceChildren(renderTop(), renderPresence(), renderCurses(), h('main.dv', {}, [renderBody()]), renderFoot());
     o.onRender?.(D);
     if (D.phase === 'reward' && !revealed.has(D.reward)) reveal();
   }
@@ -96,6 +96,14 @@ export function diveScreen(o) {
     const now = [...PRESENCE_MARKS].reverse().find(([n]) => v >= n);
     const el = h('section.presence', {}, [h('span.pl', {}, ['気配 ', h('b', { text: v })]), h('div.pbar', {}, [fill, ...marks]), h('span.pn', { text: now ? now[1] : '' })]);
     tip(el, () => `<b>気配 ${v}</b>${now ? `　<span class="q">${esc(now[1])}</span>` : ''}<br>${PRESENCE_MARKS.map(([n, name, t]) => `${n}「${name}」：${t}`).join('<br>')}<br><span class="q">部屋に入る＋1、寄り道＋2、戦闘の7ターン目から毎ターン＋1、湯で−3。層が変わると0</span>`);
+    return el;
+  }
+
+  // 底の呪い（積み重なる。全ての戦闘に掛かる）・週替わり挑戦の印
+  function renderCurses() {
+    if (!D.curses?.length && !D.weekly) return null;
+    const el = h('section.curses', {}, [h('b', { text: D.weekly ? `週替わり ${D.weekly}　` : '底の呪い ' }), (D.curses || []).map((c) => c.name).join('・')]);
+    tip(el, () => `<b>${D.weekly ? '週替わりの挑戦' : '底の呪い'}</b><br>${(D.curses || []).map((c) => `${esc(c.name)}：${esc(c.text ?? '')}`).join('<br>')}<br><span class="q">底（B17〜）では3階ごとに呪いが1つ積み重なる。全ての戦闘に掛かる。生きて帰ると底の石</span>`);
     return el;
   }
 

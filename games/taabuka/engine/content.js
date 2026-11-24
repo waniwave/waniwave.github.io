@@ -15,7 +15,7 @@ import {
   createBattle, openBattle, startBattle, play, discard, endTurn, guestAction, useItem, makeBattleCard, attachCard, findOwner,
 } from './battle.js';
 
-export const BALANCE_FILES = ['tiers', 'hands', 'curve', 'economy', 'depth', 'rarity'];
+export const BALANCE_FILES = ['tiers', 'hands', 'curve', 'economy', 'depth', 'rarity', 'moods'];
 
 const REQUIRED = {
   tiers: ['categories', 'ring', 'tiers', 'banzukeStart', 'banzukeSteps'],
@@ -230,6 +230,7 @@ export async function loadContent(io) {
     if (f === 'facilities.yaml') content.facilities = list;
     if (f === 'achievements.yaml') content.achievements = list;
     if (f === 'shibari.yaml') content.shibari = list;
+    if (f === 'decor.yaml') content.decor = list;
     if (f === 'combos.yaml') { content.combos = list.combos || []; content.comboShortsRaw = list.shorts || {}; }
     if (f === 'affixes.yaml') for (const d of list) putDef(content, 'affixes', d, `content/${f}`, add);
   }
@@ -237,6 +238,8 @@ export async function loadContent(io) {
   validateContent(content, add);
   compileContent(content, add);
   compileCombos(content, add);
+  // おふざけ札（joke: true のセット）。普通の札の山には入らず「おふざけ枠」で出る
+  content.jokeIds = Object.values(content.cards).filter((d) => content.sets[d.set]?.joke).map((d) => d.id).sort();
   return { content, issues };
 }
 
@@ -638,7 +641,8 @@ export function validateContent(content, add) {
   }
   for (const d of Object.values(content.layers)) {
     withCtx(d, (ctx) => {
-      unknownKeys(d, ['id', 'name', 'floors', 'line', 'palette', 'doors', 'groups', 'elites', 'bosses', 'warden', 'stalker', 'quirk', 'mix', 'onlyBoss', 'bossEvery', 'noName'], add);
+      unknownKeys(d, ['id', 'name', 'floors', 'line', 'palette', 'doors', 'groups', 'elites', 'bosses', 'warden', 'stalker', 'quirk', 'mix', 'onlyBoss', 'bossEvery', 'noName', 'curseEvery', 'curses'], add);
+      for (const c of d.curses || []) if (!c?.id || !c?.name || !Array.isArray(c.rule)) add('error', '形', d.id, '底の呪い（curses）には id・name・rule（配列）が要る');
       req(d, add, { name: 'string' });
       if (!Array.isArray(d.floors) || d.floors.length !== 2 || !d.floors.every(Number.isInteger) || d.floors[0] > d.floors[1]) add('error', '形', d.id, 'floors は [最初の階, 最後の階]');
       if (!d.mix && !d.onlyBoss && (!Array.isArray(d.groups) || !d.groups.length)) add('error', '形', d.id, 'groups（戦いの敵の組み合わせ）が1つ以上要る（mix・onlyBoss の層は不要）');

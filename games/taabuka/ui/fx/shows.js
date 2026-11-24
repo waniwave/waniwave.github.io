@@ -1,3 +1,4 @@
+import { SILLY } from './silly.js';
 import { fitText } from '../dom.js';
 // 組み込みの演出部品（仕様書 第9章 語彙 show の全て）と、演出の段階・桁越え・数字の回転。
 // どれも見た目と音だけで、計算には触れない。設定の「演出の強さ」「画面揺れ」「点滅の軽減」に従う。
@@ -169,6 +170,7 @@ export function playShow(name, arg, X) {
   if (!f || X.queue.skipping) return 0;
   try { return f(X, arg) ?? 0; } catch (e) { console.error(e); return 0; }
 }
+Object.assign(SHOWS, SILLY);
 export const SHOW_NAMES = Object.keys(SHOWS);
 
 // ───────────────────────── 判子・段階・桁越え ─────────────────────────
