@@ -303,6 +303,19 @@ for (const [n, want, withCmp] of [[4, 1], [5, 1], [6, 2], [7, 2], [8, 3], [4, 2,
       log.chains.push(res.chain); log.merges += res.merges.length; log.pulses += res.pulses; log.weakpoint ||= res.weakpoint;
     }
     ok(tutorialDone(step, log), `チュートリアル ${step.id} が達成できる`);
+    ok(step.title && step.text && step.hint, `チュートリアル ${step.id} に title / text / hint がある`);
+  }
+  // 練習中の時間停止と、敵を動かさない設定
+  {
+    const tut = reg.all('tutorial')[0], c = new Combat(reg, makeRng(4), { mode: tut.mode, floor: tut.floor, enemy: tut.enemy, protectHp: true });
+    applyTutorialStep(reg, c, tut, tut.steps[0]);
+    c.beginFire(); const t0 = c.time; c.tick(3, false);
+    ok(c.timeHold && c.time === t0, '時間が止まる手順では発火時間が減らない');
+    c.endFire(); const s0 = c.sync; c.enemy.timer = 1; c.enemyPhase();
+    ok(c.sync === s0 && c.phase === 'think', '敵が動かない手順では攻撃されずに次のターンへ');
+    const st = tut.steps.find(x => x.time); applyTutorialStep(reg, c, tut, st);
+    c.beginFire(); const t1 = c.time; c.tick(1, false);
+    ok(!c.timeHold && c.time < t1, '時間が動く手順では発火時間が減る');
   }
 }
 

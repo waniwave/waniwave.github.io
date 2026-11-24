@@ -49,9 +49,7 @@ button:disabled { opacity: .35; cursor: default; }
 /* ---- 戦闘画面：仕様書 12 の高さ配分 ---- */
 .battle { position: absolute; inset: 0; }
 .battle.boss { --bg: #0B0204; --panel: #1A0609; --line: #5C1522; --pulse: #FF2A4B; --text: #F2D5D9; --dim: #9A5A64; background: var(--bg); }
-.bt { display: grid; grid-template-rows: 44px 120px 1fr 60px; height: 100%; background: var(--bg); }
-.bt.neg { filter: invert(1) grayscale(1); }
-.bt.chroma { filter: drop-shadow(3px 0 0 #ff004c99) drop-shadow(-3px 0 0 #00e5ff99); }
+.bt { display: grid; grid-template-rows: 44px 120px 1fr 60px; height: 100%; position: relative; background: var(--bg); }
 .bt.hurt .enemy::after { content: ''; position: absolute; inset: 0; background: #ff2a4b33; pointer-events: none; }
 .hud { display: flex; align-items: center; gap: 9px; padding: 0 10px; border-bottom: 1px solid var(--line);
   background: var(--panel); font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; }
@@ -69,7 +67,7 @@ button:disabled { opacity: .35; cursor: default; }
   background: radial-gradient(circle at 10px 0, var(--alert) 3px, transparent 4px) 0 0 / 37px 9px,
               radial-gradient(circle at 24px 0, var(--alert) 2px, transparent 3px) 0 0 / 53px 9px; opacity: .8; }
 .bf-noise { position: absolute; left: 6px; right: 6px; top: 2px; font-size: 12px; color: #ffb3bf; opacity: .4;
-  white-space: nowrap; overflow: hidden; filter: blur(.4px); animation: beat 1.3s infinite; }
+  white-space: nowrap; overflow: hidden; animation: beat 1.3s steps(2) infinite; }
 .en-top { display: flex; gap: 10px; align-items: center; min-height: 0; }
 .en-sil { --ec: #ff2a4b; width: 56px; height: 56px; flex: none; border: 1px solid var(--line);
   background: radial-gradient(circle at 50% 45%, var(--ec) 0, color-mix(in srgb, var(--ec) 40%, transparent) 30%, transparent 62%), var(--panel);
@@ -82,7 +80,7 @@ button:disabled { opacity: .35; cursor: default; }
 .shape-crawler { clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); }
 .shape-lattice { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 .shape-core { border-radius: 50%; box-shadow: 0 0 22px var(--ec); }
-@keyframes breathe { 50% { transform: scale(1.06); filter: brightness(1.25); } }
+@keyframes breathe { 50% { transform: scale(1.06); } }
 .en-info { flex: 1; min-width: 0; }
 .en-name { font-size: 13px; letter-spacing: .04em; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .en-hp { position: relative; height: 16px; border: 1px solid var(--line); background: #000; }
@@ -95,10 +93,10 @@ button:disabled { opacity: .35; cursor: default; }
 .f-main b { color: var(--text); font-size: 14px; }
 .f-memo { flex: none; max-width: 60%; overflow: hidden; text-overflow: ellipsis; color: #ffcf6b; }
 .timer { position: relative; height: 14px; align-self: center; border: 1px solid var(--line); background: #000; }
-.timer i { position: absolute; inset: 0 auto 0 0; background: var(--pulse); box-shadow: 0 0 8px var(--pulse); }
+.timer i { position: absolute; inset: 0; transform-origin: 0 50%; background: var(--pulse); will-change: transform; }
 .timer span { position: absolute; right: 4px; top: -1px; font-size: 12px; text-shadow: 0 0 3px #000; }
-.timer.low i { background: var(--alert); box-shadow: 0 0 10px var(--alert); animation: beat .5s infinite; }
-.timer.frozen i { background: #d8f6ff; box-shadow: 0 0 10px #d8f6ff; }
+.timer.low i { background: var(--alert); animation: beat .3s steps(2) infinite; }
+.timer.frozen i { background: #d8f6ff; }
 @keyframes beat { 50% { opacity: .45; } }
 .pop { position: absolute; left: 50%; top: 22px; z-index: 4; transform: translateX(-50%); font-size: 18px; font-weight: 700; white-space: nowrap;
   color: #fff; text-shadow: 0 0 8px var(--pulse); pointer-events: none; animation: pop 1s ease-out forwards; }
@@ -108,9 +106,13 @@ button:disabled { opacity: .35; cursor: default; }
   100% { opacity: 0; transform: translate(-50%, -16px) scale(1); } }
 
 .board { position: relative; min-height: 0; }
+.board .scan { position: absolute; left: 0; right: 0; top: 0; height: 26px; pointer-events: none; z-index: 1;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--pulse) 14%, transparent) 92%, color-mix(in srgb, var(--pulse) 45%, transparent));
+  animation: scan 3.2s linear infinite; will-change: transform; }
+@keyframes scan { from { transform: translateY(-30px); } to { transform: translateY(100cqh); } }
+.board { container-type: size; }
+.board canvas.fg { z-index: 0; }
 .board canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
-.board.crit canvas { filter: invert(1) grayscale(1); }
-.board.crit-soft canvas { filter: grayscale(1) brightness(.75); }
 .evalbox { position: absolute; left: 10px; right: 10px; top: 8px; z-index: 3; display: none; padding: 8px 10px;
   background: #000d; border: 1px solid var(--line); pointer-events: none; }
 .evalbox.show { display: block; animation: fadein .15s; }
@@ -245,10 +247,25 @@ div.mode .row { margin-top: 6px; } div.mode .go { border-color: var(--pulse); }
 .toasts { position: absolute; left: 10px; right: 10px; top: 50px; z-index: 60; display: flex; flex-direction: column; gap: 4px; pointer-events: none; }
 .toast { padding: 8px 10px; background: #000e; border: 1px solid var(--pulse); font-size: 12px; line-height: 1.5; animation: fadein .2s; }
 /* 戦闘：チュートリアルと背骨の点 */
-.tut { position: absolute; left: 8px; right: 8px; bottom: 6px; z-index: 4; display: none; padding: 8px 10px; background: #001418ee; border: 1px solid var(--pulse); font-size: 12px; }
-.tut.show { display: block; } .tut b { color: var(--pulse); font-size: 12px; } .tut p { margin: 4px 0 0; line-height: 1.55; font-size: 13px; }
-.tut button { position: absolute; right: 6px; top: 4px; padding: 2px 8px; font-size: 12px; }
-.tut.compact { opacity: .55; pointer-events: none; } .tut.compact p { display: none; }
+/* チュートリアル：盤面を隠さない帯（敵の下に1行差し込む）と、手順の最初に出す説明カード */
+.tutbar { display: none; }
+.bt.tutmode { grid-template-rows: 44px 120px 40px 1fr 60px; }
+.bt.tutmode .tutbar { display: flex; align-items: center; gap: 8px; padding: 0 6px 0 10px; background: #00161a; border-top: 1px solid var(--pulse); border-bottom: 1px solid var(--pulse); font-size: 12px; overflow: hidden; }
+.tutbar b { flex: none; color: var(--pulse); letter-spacing: .04em; }
+.tutbar span { flex: 1; min-width: 0; color: #fff; line-height: 1.3; }
+.tutbar button { flex: none; padding: 3px 8px; font-size: 11px; color: var(--dim); }
+.tutbar.nudge { animation: nudge .3s steps(3); } .tutbar.nudge span { color: #ffd0d8; }
+@keyframes nudge { 33% { transform: translateX(-6px); } 66% { transform: translateX(6px); } }
+.tutcard { position: absolute; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; padding: 16px; background: #000b; }
+.tutcard.show { display: flex; }
+.tc-in { width: 100%; max-width: 360px; padding: 14px 14px 12px; background: #021013; border: 1px solid var(--pulse); border-left-width: 4px; animation: tcin .18s steps(3); }
+@keyframes tcin { from { opacity: 0; transform: translateY(10px); } }
+.tc-in small { display: block; color: var(--pulse); font-size: 11px; letter-spacing: .16em; }
+.tc-in em { display: block; margin: 8px 0 0; font-style: normal; font-size: 13px; line-height: 1.5; }
+.tc-in em:empty { display: none; } .tc-in em.ok { color: #B8F227; } .tc-in em.ng { color: #ffb3bf; }
+.tc-in h3 { margin: 8px 0 6px; font-size: 18px; color: #fff; letter-spacing: .06em; }
+.tc-in p { margin: 0; font-size: 14px; line-height: 1.7; white-space: pre-line; }
+.tc-in button { display: block; width: 100%; margin-top: 12px; padding: 10px; font-size: 15px; border-color: var(--pulse); color: #fff; }
 .spinebar { flex: none; width: 8px; display: flex; flex-direction: column; justify-content: center; gap: 3px; }
 .spinebar i { display: block; width: 6px; height: 6px; border-radius: 50%; background: #3a5056; }
 .spinebar i.lit { background: #ffc83d; box-shadow: 0 0 6px #ffc83d; }
@@ -315,10 +332,10 @@ div.mode .row { margin-top: 6px; } div.mode .go { border-color: var(--pulse); }
 .hitnum small { display: block; font-size: 15px; color: #e8c8ff; text-shadow: 0 0 6px #000; }
 .hitnum.show { animation: hitpop 1.2s ease-out forwards; }
 @keyframes hitpop { 0% { opacity: 0; transform: scale(1.6); } 12% { opacity: 1; transform: scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
-.bt.hurt { box-shadow: inset 0 0 70px 10px #ff2a4bcc; }
+.bt.hurt::before { content: ''; position: absolute; inset: 0; z-index: 19; pointer-events: none; border: 6px solid #ff2a4bcc; animation: beat .15s steps(2) 4; }
 .bt.hurt .hud { background: #3a0610; }
 /* 発火時間：なぞっている間（スロー） */
-.timer.slow i { background: #8f7bff; box-shadow: 0 0 12px #8f7bff; }
+.timer.slow i { background: #8f7bff; }
 .timer.slow span { color: #d9d0ff; }
 /* タイトルのロゴ */
 .title h1 { animation: logoGlitch 4s infinite; }
@@ -336,7 +353,7 @@ div.mode .row { margin-top: 6px; } div.mode .go { border-color: var(--pulse); }
 @keyframes hitin { 0% { opacity: 0; transform: scale(1.6); } 100% { opacity: 1; transform: scale(1); } }
 /* なぞり中のスローモーション：盤面をわずかに青紫に沈める */
 .board.slowmo::before { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
-  background: radial-gradient(ellipse at 50% 50%, transparent 55%, #2a1a6633 100%); box-shadow: inset 0 0 40px #8f7bff44; }
+  border: 2px solid #8f7bff88; border-width: 2px 6px; background: #2a1a6618; }
 /* 文章ログ（タップで次へ） */
 .logcard { position: absolute; inset: 0; z-index: 55; display: flex; align-items: flex-end; background: #0006; }
 .lc-box { width: 100%; margin: 0 8px 76px; padding: 10px 12px; background: #031012f2; border: 1px solid var(--pulse); box-shadow: 0 0 18px #3be8ff44; animation: fadein .2s; }

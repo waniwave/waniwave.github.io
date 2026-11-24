@@ -4,7 +4,7 @@
 
 ## 更新するとき（必ず）
 
-1. `index.html` の **BUILD 番号**を上げる。`index.html` の中の `?v=7` を、すべて新しい番号（例：`?v=8`）に置き換える（import map の各行・`style.css`・`main.js` の行。冒頭のコメントの番号も）。
+1. `index.html` の **BUILD 番号**を上げる。`index.html` の中の `?v=8` を、すべて新しい番号（例：`?v=9`）に置き換える（import map の各行・`style.css`・`main.js` の行。冒頭のコメントの番号も）。
    - ブラウザやスマホのキャッシュで古いファイルが混ざるのを防ぐため。パック（`content/*.js`）は `registry.js` が同じ番号を付けて読み込むので、`index.html` に書き足す必要はない。
 2. `node tools/check.mjs` を実行し、エラーが 0 件であることを確かめる。
 3. GitHub Pages にはフォルダごと置く（空の `.nojekyll`、`manifest.webmanifest`、`sw.js`、`icons/` も一緒に）。
@@ -73,7 +73,9 @@ rules: {
   backflow: { perTurn: 8, perHit: 10, reliefCount: 8, relief: 15, max: 100 },
   juice: { smallChain: 6, midChain: 10, small: 3, mid: 5, big: 10, hitstop: 50 },
   evalAnim: { stepMs: 260 },   // 計算演出の1行の間隔（最後の結果はタップで次へ）
-  audio: { bpm: 128, bossBpm: 138, lpLow: 400, lpHigh: 4500, lpFullNodes: 30 },
+  audio: { bpm: 92, bossBpm: 100, lpLow: 120, lpHigh: 9000, lpQ: 9, hpHigh: 900, hpFullNodes: 10, lpFullNodes: 30 },
+  // lpLow/lpHigh：BGMのローパスの閉じ〜全開(Hz)。lpQ：共鳴の強さ（大きいほどギュンと鳴る）。lpFullNodes：全開になる消去数
+  // hpHigh：なぞり中に低音を抜くハイパスの上限(Hz。0で無効)。hpFullNodes：何個なぞると上限か。指を離すと一気に戻る
   themeBoss: { bg: '#0B0204', panel: '#1A0609', line: '#5C1522', pulse: '#FF2A4B', ... },
   theme: { bg: '#060C0E', panel: '#0E1A1D', line: '#233D42', alert: '#FF2A4B',
            pulse: '#3BE8FF', text: '#CFE3E6', dim: '#6F8A8F' },
@@ -377,14 +379,18 @@ story: [
 tutorial: [{ id: 'tut_main', mode: 'rank_d', floor: 1, enemy: 'e_patrol_d',
   legend: { M: 'MARROW', V: 'VENOM', S: 'SYNAPSE' },   // board の文字とノードの対応
   steps: [
-    { id: 'tut_1',
+    { id: 'tut_1', title: '主脊髄＝2倍',   // 説明カードと帯に出る見出し
       board: ['.....', '.....', '.....', '.M.M.', '.....', '.....', '.....'],   // 上の行から 5文字×7行。小文字は脈動節付き、. は自動
       specials: [[2, 3, 'WEAKPOINT']],   // [列, 行, 特殊ノード]（省略可）
-      gauge: 100, crit: true,             // 臨界ゲージを満たす／臨界ボタンを強調（省略可）
-      path: [[1, 3], [2, 3], [3, 3]],     // 照準ブラケットで囲むノード
-      demo: [[[1, 3], [2, 3], [3, 3]]],   // 検査用：この順に連結すると until を満たすこと（check.mjs が確かめる）
-      until: ['spineChain'],              // chain / spineChain / multi / merge / pulse / crit / weakpoint
-      text: '…' },
+      gauge: 100, crit: true,             // 臨界ゲージを満たす／臨界ボタンを押すまで盤面に触れない（省略可）
+      demo: [[[1, 3], [2, 3], [3, 3]]],   // なぞる見本。光る照準と点線で順番を示し、この中のノードだけなぞれる（check.mjs が達成を確かめる）
+      until: ['spineChain'],              // chain / spineChain / multi / merge / pulse / crit / weakpoint。満たすと自動で発火終了
+      time: false,                        // true：時間が動く（既定は止まる。目標を満たしても時間切れまで続く）
+      free: false,                        // true：見本以外もなぞれる（光る照準も出さない）
+      enemy: false, enemyTimer: 1,        // enemy:true で敵が動く（既定は動かない）。enemyTimer：攻撃までのターン数
+      text: '…',                          // 手順の最初に出す説明カード（\n で改行。OK で閉じる）
+      hint: '…',                          // 盤面の上の帯に出す短いヒント（失敗したときもカードに出す）
+      done: '…' },                        // 達成したとき、次のカードの頭に出す一言
   ] }],
 ```
 - `type: 'noise'` … 逆流汚染 50% 以上のとき、侵食ラインににじむ「他人の記憶」の文字（`text` のみ）

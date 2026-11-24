@@ -5,6 +5,128 @@ import { BigNum, fmt } from '../util.js';
 const esc = t => String(t ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const num = x => { const n = Number(x); return Number.isInteger(n) ? fmt(n) : String(+n.toFixed(2)); };
 
+// ---- 共通の描画部品（盤面・カード画像で使う） ----
+export const gfx = {
+  hex(g, x, y, rad) { g.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i; g.lineTo(x + rad * Math.cos(a), y + rad * Math.sin(a)); } g.closePath(); },
+  pill(g, x, y, w, h, r) { g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, r) : g.rect(x, y, w, h); g.fill(); },
+  symbol(g, kind, x, y, k, col) {
+    g.fillStyle = col; g.strokeStyle = col; g.lineWidth = Math.max(1.5, k * 0.16); g.lineJoin = 'round';
+    g.beginPath();
+    if (kind === 'bone') { g.moveTo(x, y - k); g.lineTo(x + k * 0.62, y); g.lineTo(x, y + k); g.lineTo(x - k * 0.62, y); g.closePath(); g.fill(); }
+    else if (kind === 'drop') {
+      g.moveTo(x, y - k); g.bezierCurveTo(x + k * 0.95, y + 0.05 * k, x + k * 0.7, y + k * 0.9, x, y + k * 0.9);
+      g.bezierCurveTo(x - k * 0.7, y + k * 0.9, x - k * 0.95, y + 0.05 * k, x, y - k); g.fill();
+    } else if (kind === 'bolt') {
+      g.moveTo(x + k * 0.3, y - k); g.lineTo(x - k * 0.5, y + k * 0.12); g.lineTo(x - k * 0.02, y + k * 0.12);
+      g.lineTo(x - k * 0.3, y + k); g.lineTo(x + k * 0.5, y - k * 0.16); g.lineTo(x + k * 0.04, y - k * 0.16); g.closePath(); g.fill();
+    } else if (kind === 'pulse') {
+      g.moveTo(x - k, y); g.lineTo(x - k * 0.4, y); g.lineTo(x - k * 0.2, y - k * 0.6);
+      g.lineTo(x + k * 0.1, y + k * 0.6); g.lineTo(x + k * 0.3, y); g.lineTo(x + k, y); g.stroke();
+    }
+  },
+  bracket(g, x, y, k, l) {
+    g.beginPath();
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { g.moveTo(x + sx * k, y + sy * k - sy * l); g.lineTo(x + sx * k, y + sy * k); g.lineTo(x + sx * k - sx * l, y + sy * k); }
+    g.stroke();
+  },
+  // ノード1個の本体（画像キャッシュに焼く）。state: n=通常 / l=届く / p=なぞり中。look/label：圧縮段階の見た目と名前
+  cell(g, x, y, s, { panel, necro, state, col, sym, look, label }) {
+    gfx.hex(g, x, y, s * 0.9); g.fillStyle = panel; g.fill();
+    if (necro) {
+      g.fillStyle = '#16191a'; g.fill(); g.strokeStyle = '#4a4f50'; g.lineWidth = 1.5; g.stroke();
+      g.strokeStyle = '#5a5f60'; g.beginPath();
+      g.moveTo(x - s * 0.4, y - s * 0.3); g.lineTo(x - s * 0.05, y + s * 0.05); g.lineTo(x + s * 0.15, y - s * 0.2);
+      g.moveTo(x - s * 0.05, y + s * 0.05); g.lineTo(x + s * 0.1, y + s * 0.45); g.stroke(); return;
+    }
+    const inPath = state === 'p', lit = state === 'l';
+    g.globalAlpha = inPath ? 0.6 : lit ? 0.42 : 0.24; g.fillStyle = col; g.fill(); g.globalAlpha = 1;
+    g.strokeStyle = col; g.lineWidth = inPath ? 3 : 1.5; g.stroke();
+    if (inPath || lit) { g.globalAlpha = inPath ? 0.45 : 0.22; g.lineWidth = inPath ? 7 : 5; g.stroke(); g.globalAlpha = 1; }
+    if (look === 'ring') { gfx.hex(g, x, y, s * 0.68); g.lineWidth = 2; g.stroke(); }
+    else if (look === 'organ') {
+      g.beginPath();
+      for (let i = 0; i <= 24; i++) { const a = Math.PI * 2 * i / 24, w = s * 0.56 * (1 + 0.09 * Math.sin(a * 3)); g.lineTo(x + w * Math.cos(a), y + w * Math.sin(a)); }
+      g.globalAlpha = 0.55; g.fill(); g.globalAlpha = 1; g.lineWidth = 2; g.stroke();
+    }
+    gfx.symbol(g, sym, x, y, s * (label ? 0.3 : 0.4), look === 'organ' ? '#000' : col);
+    if (label) { g.fillStyle = col; g.font = `600 ${Math.max(12, s * 0.3)}px monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, x, y + s * 0.62); }
+  },
+  poly(g, x, y, s, col, a0) {
+    g.strokeStyle = col; g.lineWidth = 2; g.beginPath();
+    for (let i = 0; i < 6; i++) { const a = a0 + Math.PI / 3 * i; g.lineTo(x + s * 0.62 * Math.cos(a), y + s * 0.62 * Math.sin(a)); }
+    g.closePath(); g.stroke(); g.beginPath();
+    for (let i = 0; i < 3; i++) { const a = -a0 + Math.PI * 2 / 3 * i; g.lineTo(x + s * 0.6 * Math.cos(a), y + s * 0.6 * Math.sin(a)); }
+    g.closePath(); g.stroke();
+  },
+  // 特殊ノードの上乗せ（露出神経の照準・時限・残骸・網）
+  special(g, look, x, y, s, alert, count) {
+    if (look === 'bracket') { g.strokeStyle = alert; g.lineWidth = 2.5; gfx.bracket(g, x, y, s * 0.78, s * 0.28); }
+    else if (look === 'countdown') {
+      const bx = x + s * 0.5, by = y - s * 0.5, br = s * 0.28;
+      g.beginPath(); g.arc(bx, by, br, 0, Math.PI * 2); g.fillStyle = alert; g.fill();
+      g.fillStyle = '#fff'; g.font = `700 ${Math.max(12, br * 1.3)}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(count), bx, by + 1);
+    } else if (look === 'wreck') {
+      gfx.hex(g, x, y, s * 0.62); g.fillStyle = '#050505'; g.fill(); g.strokeStyle = '#d8d0c0'; g.lineWidth = 1.5; g.stroke();
+      g.fillStyle = '#d8d0c0'; g.font = `700 ${Math.max(12, s * 0.28)}px monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('#', x, y);
+    } else if (look === 'web') {
+      gfx.hex(g, x, y, s * 0.9); g.fillStyle = '#000a'; g.fill();
+      g.strokeStyle = '#9aa5a7'; g.lineWidth = 1.2; g.beginPath();
+      for (let i = 0; i < 3; i++) { const a = Math.PI / 3 * i + 0.3; g.moveTo(x - s * 0.8 * Math.cos(a), y - s * 0.8 * Math.sin(a)); g.lineTo(x + s * 0.8 * Math.cos(a), y + s * 0.8 * Math.sin(a)); }
+      g.stroke();
+    }
+  },
+  // 主脊髄の枠（光彩は一度だけ焼く）。yOf(r)：行の中心の y
+  spineCol(g, x, rows, yOf, s, h, { panel, line, glow, wild }) {
+    g.shadowColor = glow; g.shadowBlur = wild ? 14 : 6;
+    for (let r = 0; r < rows; r++) { gfx.hex(g, x, yOf(r), s * 1.06); g.fillStyle = panel; g.fill(); g.strokeStyle = wild ? '#ffffffaa' : line; g.lineWidth = 3; g.stroke(); }
+    g.shadowBlur = 0; g.fillStyle = line;
+    for (let r = 0; r < rows - 1; r++) {
+      const y = yOf(r) + h / 2;
+      gfx.pill(g, x - s * 1.25, y - s * 0.07, s * 0.35, s * 0.14, s * 0.07); gfx.pill(g, x + s * 0.9, y - s * 0.07, s * 0.35, s * 0.14, s * 0.07);
+    }
+  },
+  // 画素を白黒に（invert:true で反転も）。描画済みの画像を一度だけ変換する用途
+  tone(g, w, h, invert) {
+    const im = g.getImageData(0, 0, w, h), d = im.data;
+    for (let i = 0; i < d.length; i += 4) { const y = d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11; d[i] = d[i + 1] = d[i + 2] = invert ? 255 - y : y * 0.75; }
+    g.putImageData(im, 0, 0);
+  },
+};
+// #rgb / #rrggbb(aa) の彩度を k 倍にする（1 でそのまま）
+export function desaturate(hex, k) {
+  if (k >= 1 || typeof hex !== 'string' || hex[0] !== '#') return hex;
+  let h = hex.slice(1); if (h.length <= 4) h = [...h].map(x => x + x).join('');
+  const n = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)), y = n[0] * 0.3 + n[1] * 0.59 + n[2] * 0.11;
+  return '#' + n.map(v => Math.round(y + (v - y) * k).toString(16).padStart(2, '0')).join('') + h.slice(6);
+}
+// 戦闘のデバッグ欄（タイトルのロゴを10回タップで有効）
+export function debugPanel(box, { reg, cb, settings, seed, specials, onChange, canReset }) {
+  const R = reg.rules, board = cb.board, E = cb.enemy;
+  box.innerHTML = '';
+  const add = (label, fn) => { const b = document.createElement('button'); b.textContent = label; b.onclick = () => { fn(b); onChange(); }; box.appendChild(b); return b; };
+  const head = t => { const h = document.createElement('small'); h.textContent = t; box.appendChild(h); };
+  head('盤面');
+  for (const d of specials) add('+ ' + d.name, () => board.placeSpecial(d.id));
+  add('盤面リセット', () => { if (canReset()) board.fill(); });
+  head('状態');
+  add('臨界ゲージ満タン', () => { cb.gauge = R.spineBreak.max; });
+  add('敵HP → 1', () => { E.hp = BigNum.from(1); });
+  add('SYNC 回復', () => { cb.sync = cb.syncMax; });
+  add('SYNC −40', () => { cb.sync = Math.max(1, cb.sync - 40); });
+  add('逆流 +30', () => { cb.backflowOn = true; cb.backflow = Math.min(99, cb.backflow + 30); });
+  add('アンプル補充', () => { const all = reg.all('ampoules').map(a => a.id); cb.ampoules = cb.ampoules.map((_, i) => all[(cb.turn * 2 + i) % all.length]); });
+  const fl = () => '点滅軽減 ' + (settings.reduceFlash ? 'ON' : 'OFF');
+  add(fl(), b => { settings.reduceFlash = !settings.reduceFlash; b.textContent = fl(); });
+  head('変異因子');
+  add('すべて外す', () => { cb.mutagens = []; });
+  for (const m of reg.all('mutagens')) add(`+ ${m.name}`, () => {
+    if (cb.mutagens.some(x => x.id === m.id)) return;
+    if (cb.mutagens.length >= R.combat.mutagenSlots) cb.mutagens.shift();
+    cb.mutagens.push(m);
+  });
+  head('seed ' + (seed ?? '-'));
+}
+
 export function createScreens(root, game, reg, deps = {}) {
   const A = deps.audio;
   const R = reg.rules;

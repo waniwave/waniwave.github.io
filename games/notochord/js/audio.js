@@ -5,11 +5,12 @@ import { makeRng } from './util.js';
 const noiseRng = makeRng(0xA0D10);   // 音の素材用（ゲームの乱数とは別の系列）
 
 export function createAudio(cfg = {}) {
-  let ctx = null, comp, bgmBus, sfxBus, lp, noise, verb, verbSend, delay, delaySend;
+  let ctx = null, comp, bgmBus, sfxBus, lp, hp, noise, verb, verbSend, delay, delaySend;
   let timer = null, step = 0, bar = 0, nextTime = 0, bpm = cfg.bpm ?? 92, half = false, playing = false, boss = false;
   let pad = null;
   const vol = { bgm: cfg.bgm ?? 0.6, sfx: cfg.sfx ?? 0.8 };
-  const LP_LOW = cfg.lpLow ?? 300, LP_HIGH = cfg.lpHigh ?? 3500;
+  const LP_LOW = cfg.lpLow ?? 300, LP_HIGH = cfg.lpHigh ?? 3500, LP_Q = cfg.lpQ ?? 2;
+  const HP_LOW = 20, HP_HIGH = cfg.hpHigh ?? 0;   // なぞっている間だけ低音を削る（0なら使わない）
 
   function ensure() {
     if (ctx) return true;
@@ -32,8 +33,10 @@ export function createAudio(cfg = {}) {
     delay.connect(dlp); dlp.connect(fb); fb.connect(delay); dlp.connect(verbSend); dlp.connect(comp);
     delaySend = ctx.createGain(); delaySend.gain.value = 1; delaySend.connect(delay);
     // BGM（発火中に開くローパスを通す）と効果音
-    lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = LP_LOW; lp.Q.value = 2; lp.connect(comp);
-    bgmBus = ctx.createGain(); bgmBus.connect(lp);
+    // BGM → ハイパス（なぞり中に上がる）→ 共鳴の強いローパス（なぞるほど開く）
+    lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = LP_LOW; lp.Q.value = LP_Q; lp.connect(comp);
+    hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = HP_LOW; hp.Q.value = 6; hp.connect(lp);
+    bgmBus = ctx.createGain(); bgmBus.connect(hp);
     sfxBus = ctx.createGain(); sfxBus.connect(comp);
     applyVolume(); setDelayTime();
     return true;
@@ -146,12 +149,29 @@ export function createAudio(cfg = {}) {
     setTempo(b) { bpm = b; boss = b > (cfg.bpm ?? 92); setDelayTime(); if (pad) pad.oscs[4].og.gain.value = boss ? 0.35 : 0; },
     setHalf(v) { half = !!v; },
     // 0〜1：そのターンに消したノード数に応じてローパスを開く
-    setOpen(x) { if (!ctx) return; const f = LP_LOW * (LP_HIGH / LP_LOW) ** Math.max(0, Math.min(1, x)); lp.frequency.setTargetAtTime(f, now(), 0.12); },
+    setOpen(x) { if (!ctx) return; const f = LP_LOW * (LP_HIGH / LP_LOW) ** Math.max(0, Math.min(1, x)); lp.frequency.setTargetAtTime(f, now(), 0.04); },
+    // 0〜1：なぞっている間の緊張。ハイパスで低音を抜いていき、指を離すと drop() で一気に戻す
+    setTension(x) { if (!ctx || !HP_HIGH) return; const f = HP_LOW * (HP_HIGH / HP_LOW) ** Math.max(0, Math.min(1, x)); hp.frequency.setTargetAtTime(f, now(), 0.05); },
+    drop() {
+      if (!ctx) return; const t = now();
+      if (HP_HIGH) { hp.frequency.cancelScheduledValues(t); hp.frequency.setValueAtTime(hp.frequency.value, t); hp.frequency.exponentialRampToValueAtTime(HP_LOW, t + 0.03); }
+      // ローパスを一瞬だけ全開→元へ（共鳴の「ギュン」）
+      const f0 = lp.frequency.value; lp.frequency.cancelScheduledValues(t); lp.frequency.setValueAtTime(f0, t);
+      lp.frequency.exponentialRampToValueAtTime(LP_HIGH * 2.2, t + 0.05); lp.frequency.setTargetAtTime(f0, t + 0.06, 0.09);
+    },
     setVolume(kind, v) { vol[kind] = v; applyVolume(); },
     get volume() { return { ...vol }; },
 
     // ---- 効果音 ----
-    trace(n) { if (!ctx) return; const t = now(), f = 220 * 2 ** (Math.min(n, 24) / 12); osc('sine', f, f * 0.96, t, 0.08, 0.3, sfxBus, 0.002, [[delaySend, 0.15]]); burst(t, 0.025, 0.1, sfxBus, 'bandpass', f * 4, 6); },
+    trace(n) {
+      if (!ctx) return; const t = now(), f = 220 * 2 ** (Math.min(n, 24) / 12);
+      osc('sine', f, f * 0.96, t, 0.08, 0.3, sfxBus, 0.002, [[delaySend, 0.15]]);
+      // 共鳴の強いフィルターを一瞬で掃く「ジッ」という音
+      const o = ctx.createOscillator(), bp = ctx.createBiquadFilter(), g = ctx.createGain();
+      o.type = 'sawtooth'; o.frequency.value = f / 2; bp.type = 'bandpass'; bp.Q.value = 18;
+      bp.frequency.setValueAtTime(f * 2, t); bp.frequency.exponentialRampToValueAtTime(f * 14, t + 0.07);
+      env(g, t, 0.002, 0.22, 0.09); o.connect(bp); bp.connect(g); g.connect(sfxBus); o.start(t); o.stop(t + 0.1);
+    },
     chain(len) {
       if (!ctx) return; const t = now();
       for (const [k, f] of [[1, 1567], [0.6, 2349], [0.45, 3520], [0.3, 4699]]) osc('sine', f, f * 0.97, t + noiseRng.next() * 0.012, 0.22 + len * 0.012, 0.16 * k, sfxBus, 0.002, [[verbSend, 0.6]]);

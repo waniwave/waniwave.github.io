@@ -31,7 +31,7 @@ export default {
     // 演出の段階（13.1）。shake は px、hitstop は ms
     juice: { smallChain: 6, midChain: 10, small: 3, mid: 5, big: 10, hitstop: 50 },
     evalAnim: { stepMs: 260 },   // 計算演出の1行の間隔。最後の結果はタップするまで止まる
-    audio: { bpm: 92, bossBpm: 100, lpLow: 300, lpHigh: 3500, lpFullNodes: 30 },   // ダークで重い BGM（段階4の調整）
+    audio: { bpm: 92, bossBpm: 100, lpLow: 120, lpHigh: 9000, lpQ: 9, hpHigh: 900, hpFullNodes: 10, lpFullNodes: 30 },   // ダークで重い BGM（段階4の調整）
     // 潜行の進行（4章・8.5・10章）
     run: { diveHeal: 15, residue: 0.3, finalBonus: 1.5, overkill: 2, overkillBonus: 0.2, rewardSyn: 0.5, ampouleDrop: 0.2,
            mutagenChoices: 3, strainWeight: 3 },
@@ -54,6 +54,26 @@ export default {
     career: { levels: [0, 4, 10, 20, 35, 55, 80, 110, 150, 200, 260], fireTime: 0.1, syncMax: 1, finalMul: 2,
               preserveMin: 3, choices: [[3, 2], [6, 3], [9, 4]], tierByLevel: [[3, 1], [6, 2], [9, 3]], tierUpChance: 0.3 },
     protocol: { base: 1, max: 5, flagPrefix: 'protocol_' },
+    // 戦闘画面の［?］で開く説明（HTML）
+    help: { html: [
+      '<b>ダメージのしくみ</b>',
+      '<p class="hb-f">ダメージ ＝ <span class="c-m">基礎値</span> × <span class="c-v">倍率</span> × ボーナス</p>',
+      '<ul>',
+      '<li><i class="c-m">◆ 白骨</i>：<b>基礎値</b>（ダメージの元）。1個で +10。</li>',
+      '<li><i class="c-v">● 神経毒</i>：<b>倍率</b>（掛け算）。1個で 倍率+1（基礎値も +2）。</li>',
+      '<li><i class="c-s">⚡ シナプス</i>：<b>外殻</b>（敵の攻撃を先に受ける盾）と<b>臨界ゲージ</b>。基礎値 +5。</li>',
+      '<li>中央の列（主脊髄）を通ったノードは <b>2倍</b>。</li>',
+      '<li>1ターンに何回も繋げられる。回数が多いほど <b>連結ボーナス</b>（2回で×1.1、3回で×1.2…）。</li>',
+      '</ul>',
+      '<p class="hb-k">コツ：<b>白骨と神経毒を「同じターン」に両方消す。</b>1本の中で色を混ぜる必要はない。消す順番も関係ない（ターンの最後にまとめて計算）。</p>',
+      '<p class="hb-e">例：白骨5個（基礎50）と神経毒4個（基礎8・倍率+4）を1ターンで消す →（50＋8）×（1＋4）× 1.1 ＝ <b>319</b>。白骨9個だけなら 90。</p>',
+      '<ul>',
+      '<li>最初のノードに触れるまで時間は止まっている。じっくり考えてよい。</li>',
+      '<li>指を置いている間は時間が<b>ゆっくり</b>進む。時間切れでも、なぞっている途中の連結は指を離すまで有効。</li>',
+      '<li><i class="c-a">⌜ 赤い照準</i>（露出神経）を含めて消すと、敵の次の攻撃が止まる。</li>',
+      '<li>臨界ゲージが満ちたら右下の［脊髄臨界］→ 次のターンのダメージ <b>×3</b>、時間の減りが半分。</li>',
+      '</ul>',
+    ].join('') },
     themeBoss: { bg: '#0B0204', panel: '#1A0609', line: '#5C1522', pulse: '#FF2A4B', text: '#F2D5D9', dim: '#9A5A64' },
     theme: {
       bg: '#060C0E', panel: '#0E1A1D', line: '#233D42',

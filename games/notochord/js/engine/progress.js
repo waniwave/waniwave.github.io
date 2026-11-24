@@ -22,9 +22,13 @@ export function newSave() {
 
 // ---- チュートリアル（UI と検査で共用） ----
 // step.board の文字を legend でノードに置き換えて盤面に置く。'.' は同じ色が隣り合わない並びで埋める
+// 手順の決まり：time:true で時間が動く（既定は止まる）、enemy:true で敵が動く（既定は動かない）、enemyTimer で攻撃までのターン数
 export function applyTutorialStep(reg, cb, tut, step) {
   const colors = reg.all('nodes').filter(n => n.kind === 'color').map(n => n.id);
   const b = cb.board, legend = tut.legend || {};
+  cb.timeHold = !step.time; cb.enemyHold = !step.enemy;
+  if (step.enemyTimer != null) cb.enemy.timer = step.enemyTimer;
+  cb.sync = Math.max(cb.sync, 60);   // 練習中に倒れないように
   for (let r = 0; r < b.rows; r++) for (let c = 0; c < b.cols; c++) {
     const ch = step.board[r]?.[c] ?? '.', x = b.at(c, r);
     const q = c, ra = r - (c - (c & 1)) / 2, k = ((q - ra) % colors.length + colors.length) % colors.length;

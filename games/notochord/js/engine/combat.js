@@ -60,7 +60,8 @@ export class Combat {
     Object.assign(this, { turn: 0, phase: 'think', chains: [], crit: false, reserved: false, echo: false, lastCrit: false,
       rewindUsed: false, snapPrev: null, snapCur: null, freeze: 0, time: 0, bestDamage: B(0), maxChain: 0,
       fired: false, turnMerges: 0, bombs: 0, wreckTaken: false, lastStandUsed: !!o.lastStandUsed,
-      protectHp: !!o.protectHp, lastCommitTime: 0, hitCount: 0 });
+      protectHp: !!o.protectHp, lastCommitTime: 0, hitCount: 0,
+      timeHold: false, enemyHold: false });   // 時間を止める／敵を動かさない（チュートリアル用）
     this.events = [];
     if (o.restore) { this.load(o.restore); return; }
     if (o.wreck) { const w = Object.values(this.nodes).find(n => n.look === 'wreck'); if (w) this.board.placeSpecial(w.id); }
@@ -103,7 +104,7 @@ export class Combat {
   }
   // tracing：指でなぞっている最中。なぞっている間は時間の進みが traceSlow 倍に遅くなる
   tick(dt, tracing = false) {
-    if (this.phase !== 'fire') return false;
+    if (this.phase !== 'fire' || this.timeHold) return false;
     if (this.freeze > 0) { this.freeze -= dt; if (this.freeze >= 0) return false; dt = -this.freeze; this.freeze = 0; }
     this.time -= dt * this.timeScale * (tracing ? this.R.fire.traceSlow ?? 1 : 1);
     if (this.time <= 0 && !this.graceUsed) {   // 猶予：0秒になった後も少しだけ続けられる
@@ -318,6 +319,7 @@ export class Combat {
     const ev = [], e = this.enemy, BF = this.R.backflow;
     const bm = (this.mode.backflowMul ?? 1) * (1 + this.sumStat('backflowRate') / 100);
     this.hitNow = false;
+    if (this.enemyHold) { this.startTurn(); return ev; }
     for (const v of this.board.tickSpecials()) {
       const d = this.nodes[v.id];
       if (d?.syncDamage) this.hitSync(d.syncDamage, ev, 'virus', { c: v.c, r: v.r });
