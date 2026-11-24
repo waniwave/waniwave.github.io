@@ -16,7 +16,7 @@ export function neighbors(c, r, cols, rows) {
 export const key = (c, r) => c * 16 + r;
 
 export class Board {
-  constructor(reg, rng) {
+  constructor(reg, rng, mods = {}) {
     const B = reg.rules.board;
     Object.assign(this, {
       cols: B.cols, rows: B.rows, spineCol: B.spineCol, minChain: B.minChain,
@@ -29,6 +29,14 @@ export class Board {
     this.pulseDef = nodes.find(n => n.kind === 'overlay') || null;
     this.cmpDefs = nodes.filter(n => n.kind === 'cmp').sort((a, b) => a.tier - b.tier);
     this.specialDefs = Object.fromEntries(nodes.filter(n => n.kind === 'special').map(n => [n.id, n]));
+    this.pulseChance = mods.pulseChance ?? this.pulseDef?.chance ?? 0;
+    this.blastBonus = mods.blastBonus ?? 0;
+    if (mods.mergeChainLimit != null) this.mergeChainLimit = mods.mergeChainLimit;
+    this.minChain = Math.max(2, this.minChain + (mods.minChainAdd ?? 0));
+    this.mergeTierAdd = mods.mergeTierAdd ?? 0;
+    // 主脊髄の列（spineExtra で右に列が増える）
+    this.spineCols = [this.spineCol];
+    for (let i = 1; i <= (mods.spineExtra ?? 0) && this.spineCol + i < this.cols; i++) this.spineCols.push(this.spineCol + i);
     this.rng = rng;
     this.uid = 1;
     this.spineWild = false;   // 脊髄臨界中：主脊髄の全ノードを全色扱い
@@ -50,7 +58,7 @@ export class Board {
   newCell(c, r) {
     return {
       id: this.uid++, color: this.spawnColor(c, r), cmp: 0,
-      pulse: this.pulseDef ? this.rng.chance(this.pulseDef.chance) : false,
+      pulse: this.pulseDef ? this.rng.chance(this.pulseChance) : false,
       special: null, count: 0, fell: false,
     };
   }
@@ -64,7 +72,8 @@ export class Board {
   *cells() { for (let c = 0; c < this.cols; c++) for (let r = 0; r < this.rows; r++) yield { c, r, cell: this.grid[c][r] }; }
   nb(c, r) { return neighbors(c, r, this.cols, this.rows); }
   isAdjacent(a, b) { return this.nb(a.c, a.r).some(([c, r]) => c === b.c && r === b.r); }
-  isWild(c) { return this.spineWild && c === this.spineCol; }
+  isSpine(c) { return this.spineCols.includes(c); }
+  isWild(c) { return this.spineWild && this.isSpine(c); }
   chainable(c, r) {
     const x = this.at(c, r);
     if (!x || x.color == null) return false;
@@ -121,7 +130,7 @@ export class Board {
   // ---- 連結の成立 → 消去 → 解除・浄化 → 落下・補充 → 圧縮進化 ----
   snap(c, r) {
     const x = this.at(c, r);
-    return { c, r, id: x.id, color: x.color, cmp: x.cmp, pulse: x.pulse, special: x.special, count: x.count, spine: c === this.spineCol };
+    return { c, r, id: x.id, color: x.color, cmp: x.cmp, pulse: x.pulse, special: x.special, count: x.count, spine: this.isSpine(c) };
   }
   // なぞりから連結の記録を作る（盤面は変えない。予想ダメージにも使う）
   buildChain(path) {
@@ -130,7 +139,7 @@ export class Board {
     for (const p of path) { chain.cells.push(this.snap(p.c, p.r)); removed.set(key(p.c, p.r), p); }
     // 巻き込み（BOMB など blast を持つ CMP）
     for (const x of chain.cells) {
-      const blast = x.cmp ? this.cmpDefs[x.cmp - 1]?.blast : 0;
+      const blast = x.cmp && this.cmpDefs[x.cmp - 1]?.blast ? this.cmpDefs[x.cmp - 1].blast + this.blastBonus : 0;
       if (!blast) continue;
       for (const [c, r] of this.ring(x.c, x.r, blast)) {
         if (removed.has(key(c, r)) || !this.at(c, r)) continue;
@@ -156,7 +165,7 @@ export class Board {
   releaseAround(points) {
     const out = [];
     for (const p of points) {
-      const range = p.c === this.spineCol ? this.shockRange : 1;
+      const range = this.isSpine(p.c) ? this.shockRange : 1;
       for (const [c, r] of this.ring(p.c, p.r, range)) {
         const x = this.at(c, r);
         if (!x?.special) continue;
@@ -221,7 +230,7 @@ export class Board {
   applyMerge(g) {
     const cells = g.map(p => ({ ...p, x: this.at(p.c, p.r) }));
     const hasCmp = cells.some(p => p.x.cmp > 0);
-    const tier = Math.min(this.cmpDefs.length, this.tierForSize(g.length) + (hasCmp ? 1 : 0));
+    const tier = Math.min(this.cmpDefs.length, this.tierForSize(g.length) + (hasCmp ? 1 : 0) + this.mergeTierAdd);
     const px = p => ({ x: 1.5 * p.c, y: Math.sqrt(3) * (p.r + (p.c % 2 ? 0.5 : 0)) });
     const cx = cells.reduce((t, p) => t + px(p).x, 0) / cells.length;
     const cy = cells.reduce((t, p) => t + px(p).y, 0) / cells.length;

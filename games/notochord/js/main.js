@@ -1,13 +1,14 @@
 // main.js — 起動、画面の切り替え、保存と読み込み
-// 段階2：タイトル → 試験戦闘 → 結果。本格的な画面（培養槽など）は段階3で screens.js に作る。
 import { loadPacks } from './engine/registry.js';
-import { makeRng, hashSeed, fmt } from './util.js';
+import { Game, SAVE_KEY } from './engine/progress.js';
+import { makeRng, hashSeed } from './util.js';
 import { createBattle } from './ui/battle.js';
+import { createScreens } from './ui/screens.js';
 import { createAudio } from './audio.js';
 
 const app = document.getElementById('app');
-const settings = { reduceFlash: false, bgm: 0.6, sfx: 0.8 };
-let reg, rng, seed, audio, battle = null;
+let reg, rng, seed, audio, game, ui, battle = null;
+let debug = false;   // タイトルのロゴを10回叩くと有効（そのセッションだけ）
 
 function showErrors(errors) {
   const box = document.createElement('div');
@@ -18,56 +19,130 @@ function showErrors(errors) {
   app.appendChild(box);
 }
 
-function clear() { battle?.destroy(); battle = null; app.innerHTML = ''; }
+// ---- 保存 ----
+function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(game.toJSON())); } catch (e) { console.warn('保存できない', e); } }
+function load() { try { const t = localStorage.getItem(SAVE_KEY); return t ? JSON.parse(t) : null; } catch { return null; } }
+function applySettings() {
+  const st = game.s.settings;
+  audio.setVolume('bgm', st.bgm); audio.setVolume('sfx', st.sfx);
+}
+function clearBattle() { battle?.destroy(); battle = null; }
+// ストーリーの通知を出してから次へ
+function flush(next) { const q = game.takeQueue(); save(); if (q.length) ui.story(q, next); else next?.(); }
 
+// ---- 画面の流れ ----
 function title() {
-  clear(); audio.stopBgm();
-  const d = document.createElement('div');
-  d.className = 'title';
-  d.innerHTML = `
-    <div class="t-wire"></div>
-    <h1>N O T O C H O R D</h1>
-    <p class="t-spec">ACTIVE SPECIMEN: DIVER #01</p>
-    <button class="t-main" data-mode="rank_d" data-floor="1">[ 試験戦闘 // RANK D 1F ]</button>
-    <div class="t-dbg"><small>DEBUG：</small></div>`;
-  const dbg = d.querySelector('.t-dbg');
-  for (const m of reg.all('modes').sort((a, b) => a.order - b.order)) for (const f of m.bossFloors ?? []) {
-    const b = document.createElement('button'); b.textContent = `${m.name.replace('RANK ', '')}-${f}`;
-    b.dataset.mode = m.id; b.dataset.floor = f; dbg.appendChild(b);
+  clearBattle(); audio.stopBgm();
+  ui.title(() => {
+    audio.unlock();
+    if (!game.s.prologue) return prologue();
+    resume();
+  }, { on: debug, unlock: () => { debug = true; }, fight: testBattle, h: H });
+}
+function prologue() {
+  const out = game.emit('GAME_START', {}); game.takeQueue();
+  game.s.prologue = true; save();
+  ui.textSeq(out.texts, () => resume());
+}
+// セーブの状態から、続きの画面へ
+function resume() {
+  clearBattle();
+  if (!game.diver) return thaw();
+  const run = game.run;
+  if (!run) return hubScreen('contract');
+  const next = { route: routeScreen, battle: battleScreen, reward: rewardScreen, choice: choiceScreen, final: finalScreen }[run.phase];
+  if (next) next(); else hubScreen('spine');
+}
+function thaw() {
+  clearBattle(); audio.stopBgm();
+  ui.thaw(() => {
+    save();
+    flush(() => {
+      // 初回はそのままチュートリアル付きの RANK D へ
+      if (!game.s.tutorial.done && game.s.records.runs === 0) return startRun(game.tutorialData()?.mode ?? 'rank_d');
+      hubScreen('spine');
+    });
+  });
+}
+const H = {
+  save, applySettings,
+  startRun: (id, f) => startRun(id, f),
+  preserve: i => { game.preserve(i); save(); flush(() => ui.result(game.s.lastResult, () => thaw())); },
+  practice: () => practice(),
+  wipe: () => { localStorage.removeItem(SAVE_KEY); location.reload(); },
+};
+function hubScreen(tab) { clearBattle(); audio.stopBgm(); ui.hub(tab, H); }
+function startRun(id, start = 1) {
+  if (!game.startRun(id, start)) { ui.toast('潜行を開始できない'); return; }
+  save(); flush(routeScreen);
+}
+function routeScreen() {
+  const run = game.run;
+  const go = i => { game.chooseRoute(i); save(); flush(battleScreen); };
+  if (run.routes.length === 1 && (run.routes[0].boss || run.routes[0].tutorial)) {
+    if (run.routes[0].boss) ui.toast('一本道：中枢監査体の反応');
+    return go(0);
   }
-  d.addEventListener('click', e => {
-    const b = e.target.closest('button[data-mode]'); if (!b) return;
-    audio.unlock(); fight(b.dataset.mode, Number(b.dataset.floor));
-  });
-  app.appendChild(d);
+  ui.routes(run, go);
 }
-
-function fight(mode, floor) {
-  clear();
+function battleScreen() {
+  clearBattle(); app.innerHTML = '';
+  const run = game.run;
+  const cb = game.makeCombat();
+  const tut = run.route?.tutorial && !game.s.tutorial.done ? game.tutorialData() : null;
+  const m = game.mode(), pol = game.pollutionLabels(m, run.floor);
+  if (pol.length && m.pollution && (run.floor - 1) % m.pollution.every === 0 && !run.battle) ui.toast(pol.at(-1), 3600);
   battle = createBattle(app, reg, rng, {
-    mode, floor, seed, settings, audio,
-    mutagens: [], ampoules: ['amp_cold', 'amp_burn'],
-    onEnd: r => result(r, mode, floor),
+    combat: cb, seed, audio, settings: game.s.settings, optic: game.s.optic, debug,
+    saturation: game.saturation(m, run.floor), pollution: pol,
+    tutorial: tut ? { tut, onDone: () => { game.completeTutorial(); save(); ui.toast('チュートリアル完了。ここから先は自分の判断で潜れ。', 3200); } } : null,
+    onSave: c => { game.saveBattle(c); save(); },
+    onTurn: (c, ev) => { game.recordTurn(c, ev); save(); const q = game.takeQueue(); if (q.length) ui.story(q); },
+    onEnd: () => {
+      const r = game.finishBattle(cb);
+      save();
+      setTimeout(() => {
+        clearBattle();
+        if (r?.type === 'lost') return lostSequence(r);
+        flush(() => resume());
+      }, 300);
+    },
   });
-  globalThis.__notochord = battle;   // デバッグ用（段階4で外す）
+  if (debug) globalThis.__notochord = battle;
 }
-
-function result(r, mode, floor) {
-  audio.stopBgm();
-  const d = document.createElement('div');
-  d.className = 'result ' + (r.won ? 'won' : 'lost');
-  const cause = { sync: '神経定着率 0%', backflow: '逆流汚染 100%' }[r.cause] ?? '';
-  d.innerHTML = `
-    <h2>${r.won ? 'TARGET DOWN' : 'SPECIMEN LOST'}</h2>
-    <p class="r-sub"></p>
-    <dl><dt>ターン</dt><dd>${r.turns}</dd><dt>1ターン最大</dt><dd>${fmt(r.best)}</dd><dt>最大連結</dt><dd>${r.maxChain}</dd></dl>
-    <div class="r-btns"><button data-a="again">もう一度</button><button data-a="title">タイトルへ</button></div>`;
-  d.querySelector('.r-sub').textContent = r.won ? `${r.enemy.name} を撃破` : cause;
-  d.addEventListener('click', e => {
-    const a = e.target.closest('button')?.dataset.a;
-    if (a === 'again') fight(mode, floor); else if (a === 'title') title();
+// 試験戦闘（デバッグ）：記録に残らない
+function testBattle(mode, floor) {
+  clearBattle(); app.innerHTML = '';
+  battle = createBattle(app, reg, rng, { mode, floor, seed, audio, settings: game.s.settings, optic: 3, debug: true,
+    ampoules: ['amp_cold', 'amp_burn'], onEnd: () => setTimeout(title, 900) });
+  globalThis.__notochord = battle;
+}
+function rewardScreen() { ui.reward(game.run, ch => { game.takeReward(ch); save(); resume(); }); }
+function choiceScreen() {
+  ui.choice(game.run, act => {
+    if (act === 'dive') { game.dive(); save(); flush(routeScreen); }
+    else { const r = game.extract(); save(); flush(() => ui.result(r, () => hubScreen('vault'))); }
   });
-  app.appendChild(d);
+}
+function finalScreen() { const r = game.extract(); save(); flush(() => ui.result(r, () => hubScreen('contract'))); }
+function lostSequence(r) {
+  audio.stopBgm();
+  const q = game.takeQueue();
+  const lines = q.flatMap(x => x.lines).filter(l => l.speaker === 'CEREBRUM');
+  const text = [...lines, { speaker: 'CEREBRUM', text: `……新規検体 #${game.s.specimen} を培養槽から解凍。前任者の残留神経素（${Math.round(r.rate * 100)}%）と控え義体を引き継ぎ、潜行を再開せよ。` }];
+  const frags = q.filter(x => x.fragments.length).map(x => ({ ...x, lines: [] }));
+  ui.textSeq(text, () => ui.result(r, () => (frags.length ? ui.story(frags, thaw) : thaw())), 'lost');
+}
+// チュートリアル再実行：記録に残らない練習戦闘
+function practice() {
+  clearBattle(); app.innerHTML = '';
+  const tut = game.tutorialData(); if (!tut) return;
+  battle = createBattle(app, reg, rng, {
+    mode: tut.mode, floor: tut.floor, enemy: tut.enemy, seed, audio, settings: game.s.settings, optic: game.s.optic, debug,
+    tutorial: { tut, onDone: () => { ui.toast('チュートリアル完了', 2000); setTimeout(() => hubScreen('records'), 1800); } },
+    onEnd: () => setTimeout(() => hubScreen('records'), 400),
+  });
+  battle.combat.protectHp = true;
 }
 
 async function boot() {
@@ -76,11 +151,13 @@ async function boot() {
   seed = q.has('seed') ? hashSeed(q.get('seed')) : (Date.now() >>> 0);
   rng = makeRng(seed);
   for (const [k, v] of Object.entries(reg.rules.theme || {})) document.documentElement.style.setProperty('--' + k, v);
-  audio = createAudio({ ...reg.rules.audio, bgm: settings.bgm, sfx: settings.sfx });
+  game = new Game(reg, rng, q.has('fresh') ? null : load());
+  audio = createAudio({ ...reg.rules.audio, bgm: game.s.settings.bgm, sfx: game.s.settings.sfx });
   document.addEventListener('pointerdown', () => audio.unlock(), { once: true });
+  ui = createScreens(app, game, reg, { audio });
   app.innerHTML = '';
-  if (reg.all('modes').length) title();
   if (reg.errors.length) showErrors(reg.errors);
+  if (reg.all('modes').length) title();
 }
 
 boot().catch(e => { app.innerHTML = ''; showErrors([String(e?.stack || e)]); });

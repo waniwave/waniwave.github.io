@@ -22,7 +22,8 @@ export const KINDS = {
   strains: { required: ['id', 'name'] },
   rarities: { required: ['id', 'name', 'group'] },
   enemies: { required: ['id', 'name', 'atk', 'interval'], refs: { 'gimmicks.place': 'nodes' } },
-  vertebrae: { required: ['id', 'name', 'region', 'strain'], fx: true, refs: { strain: 'strains', rarity: 'rarities' } },
+  vertebrae: { required: ['id', 'name', 'region', 'strain', 'base', 'effect'], fx: true, refs: { strain: 'strains' },
+    check(v, err) { if (!['CERVICAL', 'THORACIC', 'LUMBAR', 'SACRAL'].includes(v.region)) err(`region "${v.region}" が不明`); } },
   mutagens: { required: ['id', 'name', 'strain', 'rarity', 'effect'], fx: true, refs: { strain: 'strains', rarity: 'rarities' } },
   ampoules: {
     required: ['id', 'name', 'use', 'target'],
@@ -31,13 +32,31 @@ export const KINDS = {
       if (!['none', 'row', 'color', 'color2'].includes(a.target)) err(`target "${a.target}" が不明`);
     },
   },
-  affixes: { required: ['id'], fx: true },
-  routes: { required: ['id', 'name'] },
-  lineages: { required: ['id', 'name'], fx: true },
-  traits: { required: ['id', 'name'], fx: true },
-  modes: { required: ['id', 'name', 'hpBase', 'hpGrowth', 'pool'], refs: { pool: 'enemies', bosses: 'enemies' } },
-  story: { required: ['id', 'type'] },
-  tutorial: { required: ['id'] },
+  affixes: { required: ['id', 'name', 'base', 'effect'], fx: true },
+  routes: { required: ['id', 'name', 'kind'], refs: { enemy: 'enemies', 'extraGimmicks.place': 'nodes' },
+    check(r, err) { if (!['normal', 'elite', 'vault'].includes(r.kind)) err(`kind "${r.kind}" が不明`); } },
+  lineages: { required: ['id', 'name'], fx: true, refs: { strain: 'strains', startAmpoules: 'ampoules' } },
+  traits: { required: ['id', 'name', 'values'], fx: true, refs: { strains: 'strains' },
+    check(t, err) { if (!Array.isArray(t.values) || t.values.length !== 3) err('values は段階 I/II/III の3つ'); if (!t.effect && !t.strainMemory) err('effect が必要'); } },
+  modes: { required: ['id', 'name', 'hpBase', 'hpGrowth', 'pool'], refs: { pool: 'enemies', bosses: 'enemies', bossPool: 'enemies' },
+    check(m, err) {
+      for (const st of m.pollution?.stages || []) { if (!st.label) err('汚染段階には label が必要'); checkFx(st.effect, err); }
+      if (m.pollution && !(m.pollution.every > 0)) err('pollution.every は 1 以上');
+      for (const row of m.depthTable || []) if (typeof row.from !== 'number') err('depthTable の各行には from（層）が必要');
+    } },
+  story: { required: ['id', 'type'],
+    check(s, err) {
+ if (!['fragment', 'line', 'trigger', 'text', 'noise', 'lastword'].includes(s.type)) err(`type "${s.type}" が不明`);
+      if (!['noise', 'lastword'].includes(s.type) && !EVENTS.includes(s.when?.event)) err(`when.event "${s.when?.event}" が不明`);
+      if (s.type === 'line' && !s.speaker) err('台詞には speaker が必要');
+    } },
+  tutorial: { required: ['id', 'mode', 'steps'], refs: { mode: 'modes', enemy: 'enemies', 'steps.specials': null },
+    check(t, err) {
+      for (const st of t.steps || []) {
+        if (!Array.isArray(st.board) || st.board.length !== 7 || st.board.some(r => !/^[MVSmvs.]{5}$/.test(r))) err(`${st.id}: board は 5文字×7行`);
+        for (const u of st.until || []) if (!['chain', 'spineChain', 'multi', 'merge', 'pulse', 'crit', 'weakpoint'].includes(u)) err(`${st.id}: until "${u}" が不明`);
+      }
+    } },
 };
 
 // rules（基本ルールの数値）は全パックを順に上書き合成する。以下は必須
@@ -102,6 +121,7 @@ export function createRegistry(packs) {
   for (const [kind, spec] of Object.entries(KINDS)) {
     if (!spec.refs) continue;
     for (const item of tables[kind].values()) for (const [path, target] of Object.entries(spec.refs)) {
+      if (!target) continue;
       for (const id of refValues(item, path)) if (!tables[target].has(id)) errors.push(`${item.pack}.${kind} ${item.id}: ${path} の "${id}" が ${target} に存在しない`);
     }
   }
@@ -135,7 +155,8 @@ export async function loadPacks() {
 // fx.xxx(...) は { fx: 'xxx', args: [...] } という記述を返す。数値の '$' はレアリティ倍率を掛けた値に置き換わる。
 export const FX_OPS = new Set();
 const STRUCT = new Set(['when', 'perChain', 'perNode', 'perColorKind']);
-const COND = new Set(['chainsAtLeast', 'lenAtLeast', 'colorIs', 'onSpine', 'hasCMP', 'syncBelow', 'backflowAbove', 'colorChanged', 'critActive']);
+const COND = new Set(['chainsAtLeast', 'lenAtLeast', 'colorIs', 'onSpine', 'hasCMP', 'syncBelow', 'backflowAbove', 'colorChanged', 'critActive',
+  'not', 'myelinAbove', 'hitLastTurn']);
 const op = name => { FX_OPS.add(name); return (...args) => ({ fx: name, args }); };
 export const fx = {
   // 組み立て
@@ -147,12 +168,28 @@ export const fx = {
   chainsAtLeast: op('chainsAtLeast'), lenAtLeast: op('lenAtLeast'), colorIs: op('colorIs'),
   onSpine: op('onSpine'), hasCMP: op('hasCMP'), syncBelow: op('syncBelow'), backflowAbove: op('backflowAbove'),
   colorChanged: op('colorChanged'), critActive: op('critActive'),
+  not: op('not'), myelinAbove: op('myelinAbove'), hitLastTurn: op('hitLastTurn'),
   // 値の変化
   addBase: op('addBase'), baseMul: op('baseMul'), addMult: op('addMult'), mulMult: op('mulMult'),
   metaMul: op('metaMul'), retrigger: op('retrigger'), myelinToBase: op('myelinToBase'), addMyelin: op('addMyelin'),
   // 時間・ゲージなど（ターン開始時に読む）
   addFireTime: op('addFireTime'), addPulseTime: op('addPulseTime'), addChainBonus: op('addChainBonus'),
   addGauge: op('addGauge'), spineEcho: op('spineEcho'),
+  // 戦闘ルールの変更（系統共鳴・義体・株で使う）
+  fallTime: op('fallTime'), timePerChain: op('timePerChain'), critSlow: op('critSlow'), critMulAdd: op('critMulAdd'),
+  spineMulAdd: op('spineMulAdd'), alwaysWild: op('alwaysWild'), longBonusShift: op('longBonusShift'), noLongBonus: op('noLongBonus'),
+  chainBonusPow: op('chainBonusPow'), multPerMerge: op('multPerMerge'), myelinGainMul: op('myelinGainMul'), myelinToMult: op('myelinToMult'),
+  retriggerPlus: op('retriggerPlus'), lastStand: op('lastStand'), syncScale: op('syncScale'), gaugePerMerge: op('gaugePerMerge'),
+  pulseChance: op('pulseChance'), pulseChanceMul: op('pulseChanceMul'), mergeLimit: op('mergeLimit'), bombRange: op('bombRange'),
+  // ルールそのものを曲げる効果（LOT-Ω など）
+  graceTime: op('graceTime'), spineExtra: op('spineExtra'), minChainAdd: op('minChainAdd'), mergeTierAdd: op('mergeTierAdd'),
+  critRefund: op('critRefund'), weakpointCut: op('weakpointCut'),
+  // 敵側の悪条件（深淵の汚染段階など）
+  telegraphShift: op('telegraphShift'), necrosisPerTurn: op('necrosisPerTurn'), gimmickBoost: op('gimmickBoost'),
+  // 潜行・経済（progress.js が読む）
+  ampouleSlots: op('ampouleSlots'), residueRate: op('residueRate'), synGain: op('synGain'), synPerBomb: op('synPerBomb'),
+  floorHeal: op('floorHeal'), floorMyelin: op('floorMyelin'), startGauge: op('startGauge'), syncMax: op('syncMax'),
+  myelinCarry: op('myelinCarry'), rewardChoices: op('rewardChoices'), careerMul: op('careerMul'), backflowRate: op('backflowRate'),
   // 部品で書けない効果：fx.hook('ON_FIRE_END', (ctx, src) => {...})
   hook: op('hook'),
 };
@@ -196,6 +233,9 @@ export function testCond(c, sc) {
     case 'backflowAbove': return sc.backflow >= a[0];
     case 'colorChanged': return !!sc.chain && sc.chain.prevColor != null && sc.chain.prevColor !== sc.chain.color;
     case 'critActive': return !!sc.crit;
+    case 'not': return !testCond(a[0], sc);
+    case 'myelinAbove': return (sc.myelin ?? 0) >= a[0];
+    case 'hitLastTurn': return !!sc.hitLast;
     default: return false;
   }
 }
@@ -248,7 +288,7 @@ export const HOOKS = [
 // ---- イベントと条件判定 ----
 export const EVENTS = [
   'GAME_START', 'THAW', 'RUN_START', 'ROUTE_ENTER', 'FLOOR_CLEAR', 'EXTRACT',
-  'LOST', 'PRESERVE', 'MODE_CLEAR', 'DEPTH_REACHED', 'RECORD',
+  'LOST', 'PRESERVE', 'MODE_CLEAR', 'DEPTH_REACHED', 'RECORD', 'BROKER',
 ];
 
 export function createEvents() {
@@ -271,6 +311,48 @@ export function matchWhen(when, ctx, rng) {
   if (when.flag && !ctx.flags?.has(when.flag)) return false;
   if (when.notFlag && ctx.flags?.has(when.notFlag)) return false;
   if (when.fragment && !ctx.fragments?.has(when.fragment)) return false;
+  for (const [k, v] of Object.entries(when.min || {})) if (!(ctx[k] >= v)) return false;
+  for (const [k, v] of Object.entries(when.max || {})) if (!(ctx[k] <= v)) return false;
+  for (const [k, v] of Object.entries(when.is || {})) if (ctx[k] !== v) return false;
   if (when.chance != null && !(rng && rng.next() < when.chance)) return false;
   return true;
+}
+
+// ---- 開放条件 ----
+// データに unlock: 'フラグ名'（または配列）があれば、そのフラグがすべて立つまで出さない
+export function isUnlocked(item, flags) {
+  if (!item?.unlock) return true;
+  return [].concat(item.unlock).every(f => flags.has(f));
+}
+
+// ---- ストーリー ----
+// mem: { flags:Set, fragments:Set, seen:Set }。条件に合う断片ログ・台詞・trigger を処理して返す
+// 台詞は話者ごとに1つだけ選ぶ。断片ログ・trigger・once の台詞は一度きり
+export function runStory(reg, event, ctx, mem, rng) {
+  const out = { fragments: [], lines: [], unlocked: [], texts: [] };
+  const fill = t => String(t ?? '').replace(/#\{(\w+)\}/g, (_, k) => ctx[k] ?? '');
+  const c = { ...ctx, event, flags: mem.flags, fragments: mem.fragments };
+  const lines = new Map();
+  for (const s of reg.all('story')) {
+    if (s.when?.event !== event) continue;
+    if (s.type === 'fragment' && mem.fragments.has(s.id)) continue;
+    if ((s.type === 'trigger' || s.once) && mem.seen.has(s.id)) continue;
+    if (!isUnlocked(s, mem.flags) || !matchWhen(s.when, c, rng)) continue;
+    if (s.type === 'line') { if (!lines.has(s.speaker)) lines.set(s.speaker, []); lines.get(s.speaker).push(s); continue; }
+    if (s.type === 'fragment') { mem.fragments.add(s.id); out.fragments.push({ ...s, text: fill(s.text) }); }
+    else if (s.type === 'trigger' || s.once) mem.seen.add(s.id);
+    else if (s.type === 'text') out.texts.push({ ...s, text: fill(s.text) });
+    applyThen(s.then, mem, out);
+  }
+  for (const list of lines.values()) {
+    const s = rng ? rng.pick(list) : list[0];
+    if (s.once) mem.seen.add(s.id);
+    out.lines.push({ ...s, text: fill(s.text) });
+    applyThen(s.then, mem, out);
+  }
+  return out;
+}
+function applyThen(then, mem, out) {
+  if (!then) return;
+  for (const f of [].concat(then.setFlag ?? [], then.unlock ?? [])) if (!mem.flags.has(f)) { mem.flags.add(f); out.unlocked.push(f); }
 }

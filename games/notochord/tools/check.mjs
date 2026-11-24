@@ -2,6 +2,7 @@
 import { loadPacks } from '../js/engine/registry.js';
 import { Board, neighbors, key } from '../js/engine/board.js';
 import { Combat, enemyHp } from '../js/engine/combat.js';
+import { Game, applyTutorialStep, tutorialDone } from '../js/engine/progress.js';
 import { fx, collectEffects } from '../js/engine/registry.js';
 import { makeRng, BigNum, fmt } from '../js/util.js';
 
@@ -28,6 +29,19 @@ ok(BigNum.from(98).mul(5).mul(1.2).eq(588), 'BigNum 98×5×1.2=588');
 ok(new BigNum(1, 400).mul(new BigNum(3, 400)).e === 800, 'BigNum 1.8e308 超え');
 ok(new BigNum(5, 20).add(new BigNum(5, 20)).eq(new BigNum(1, 21)), 'BigNum add');
 ok(BigNum.from(10).sub(25).lt(0), 'BigNum sub/cmp');
+// 1e308 を超える数（深淵）
+{
+  const big = new BigNum(1.5, 400), big2 = new BigNum(2, 400);
+  ok(big.add(big2).eq(new BigNum(3.5, 400)), 'BigNum 1e308 超えの加算');
+  ok(big.mul(big2).eq(new BigNum(3, 800)), 'BigNum 1e308 超えの乗算');
+  ok(big2.gt(big) && big.lt(big2) && !big.gt(new BigNum(1, 401)), 'BigNum 1e308 超えの比較');
+  ok(new BigNum(1, 309).gt(Number.MAX_VALUE) && BigNum.from(Number.MAX_VALUE).lt(new BigNum(1, 309)), 'BigNum と JavaScript の最大値の比較');
+  ok(fmt(new BigNum(1.5, 400)) === '1.50e400', 'BigNum 1e308 超えの表示: ' + fmt(new BigNum(1.5, 400)));
+  ok(fmt(new BigNum(9.999, 999)) === 'e1.0e3', '桁上がりで二重指数表記: ' + fmt(new BigNum(9.999, 999)));
+  ok(new BigNum(1, 400).add(new BigNum(1, 380)).eq(new BigNum(1, 400)), 'BigNum 桁が離れた加算は大きい方');
+  ok(BigNum.from(1.35).pow(3000).e === 391, 'BigNum のべき乗（1.35^3000）');
+  ok(new BigNum(5, 500).sub(new BigNum(5, 500)).isZero(), 'BigNum 1e308 超えの引き算で0');
+}
 { const a = makeRng(42), b = makeRng(42); ok([...Array(20)].every(() => a.next() === b.next()), '乱数の再現性'); }
 
 // ---- 3. 隣接 ----
@@ -155,8 +169,8 @@ for (const [n, want, withCmp] of [[4, 1], [5, 1], [6, 2], [7, 2], [8, 3], [4, 2,
   ok(em.length === 1 && em[0].v === 3.5, "'1+$' がレアリティ倍率で置き換わる");
   // 敵HP（仕様書7.2）
   const hp = (m, f) => { const mode = reg.get('modes', m); return enemyHp(mode, f, { hpMul: 1 }, mode.bossFloors.includes(f)).toNumber(); };
-  ok(Math.round(hp('rank_d', 3)) === 9600, 'RANK D 第3層ボス HP 9,600');
-  ok(Math.abs(hp('rank_a', 10) / 2.06e8 - 1) < 0.01, 'RANK A 中枢神経核 HP 2.1e8');
+  const mD = reg.get('modes', 'rank_d');
+  ok(Math.abs(hp('rank_d', 3) / (mD.hpBase * mD.hpGrowth ** 2 * mD.bossMul) - 1) < 1e-9, '敵HP ＝ 基準値 × 伸び^(階層−1) × ボス倍率（仕様書7.2の式）');
   // 露出神経で攻撃キャンセル、攻撃は髄鞘外殻が先に受ける
   const c3 = new Combat(reg, makeRng(5), { mode: 'rank_d', floor: 1, enemy: 'e_patrol_d' });
   c3.myelin = 5; c3.enemy.timer = 1; c3.beginFire(); c3.endFire(); c3.enemyPhase();
@@ -185,6 +199,167 @@ for (const [n, want, withCmp] of [[4, 1], [5, 1], [6, 2], [7, 2], [8, 3], [4, 2,
     let threw = null; try { cc.evaluate([mk('MARROW', 10, 2), mk('VENOM', 8), mk('SYNAPSE', 3)]); cc.fireTime(); } catch (e) { threw = e; }
     ok(!threw, `変異因子 ${m.name} の評価でエラー ${threw?.message ?? ''}`);
   }
+}
+
+// ---- 6. 潜行・成長・保存 ----
+{
+  // 簡易ボット：1ターンに最長の連結を2本
+  const longest = b => {
+    let best = null, steps = 0;
+    const dfs = p => { if (++steps > 400) return; if (!best || p.length > best.length) best = p.slice(); const l = p.at(-1);
+      for (const [c, r] of b.nb(l.c, l.r)) if (b.canExtend(p, c, r) === 'add') { p.push({ c, r }); dfs(p); p.pop(); } };
+    for (const x of b.cells()) { if (b.chainable(x.c, x.r)) dfs([{ c: x.c, r: x.r }]); if (steps > 400) break; }
+    return best?.length >= b.minChain ? best : null;
+  };
+  const fightTurn = (g, cb) => {
+    cb.beginFire(); g.saveBattle(cb);
+    for (let k = 0; k < 2; k++) { const p = longest(cb.board); if (p) cb.commit(p); }
+    const r = cb.endFire(); g.recordTurn(cb, r.ev);
+    if (!r.won) { cb.enemyPhase(); if (cb.phase === 'think') g.saveBattle(cb); }
+  };
+  const rng = makeRng(77);
+  const g = new Game(reg, rng);
+  ok(g.thaw('lin_standard'), '解凍できる');
+  ok(!g.thaw('lin_capsule'), '開放前の株は選べない');
+  ok(g.startRun('rank_d') && g.run.phase === 'route', '潜行を開始できる');
+  ok(!g.startRun('rank_c'), '開放前のモードは選べない');
+  ok(g.run.tutorial && g.run.routes.length === 1 && g.run.routes[0].tutorial, '初回の第1層はチュートリアル');
+  g.chooseRoute(0);
+  let cb = g.makeCombat();
+  fightTurn(g, cb);
+  // セーブ → 読み込みで状態が同じ
+  const j1 = JSON.stringify(g.toJSON());
+  const g2 = new Game(reg, makeRng(1), JSON.parse(j1));
+  ok(JSON.stringify(g2.toJSON()) === j1, 'セーブ→読み込みで状態が同じ');
+  const cb2 = g2.makeCombat();
+  ok(cb2.turn === cb.turn && cb2.enemy.hp.eq(cb.enemy.hp) && cb2.sync === cb.sync && JSON.stringify(cb2.board.toJSON()) === JSON.stringify(cb.board.toJSON()), '戦闘の途中から再開できる');
+  // 見つからない id は無視
+  const bad = JSON.parse(j1);
+  bad.vault.push({ uid: 999, tid: 'v_no_such', rarity: 'STANDARD', affixes: [] });
+  bad.run.mutagens.push('m_no_such'); bad.ampoules.push('amp_no_such'); bad.protocol.push(42);
+  let g3 = null; try { g3 = new Game(reg, makeRng(1), bad); } catch (e) { ok(false, '不明な id で読み込みが失敗: ' + e.message); }
+  ok(g3 && !g3.s.vault.some(i => i.uid === 999) && !g3.run.mutagens.includes('m_no_such') && !g3.s.ampoules.includes('amp_no_such'), '見つからない id は捨てる');
+  // 最後まで遊ぶ（チュートリアルの HP 保護は外す）
+  cb.protectHp = false;
+  let guard = 0, result = null;
+  while (!result && guard++ < 400) {
+    const run = g.run;
+    if (run.phase === 'route') { g.chooseRoute(0); cb = g.makeCombat(); if (run.tutorial) cb.protectHp = false; }
+    else if (run.phase === 'battle') {
+      fightTurn(g, cb);
+      if (['won', 'lost', 'closed'].includes(cb.phase)) { const r = g.finishBattle(cb); if (r?.type === 'lost') result = r; }
+    } else if (run.phase === 'reward') g.takeReward(run.reward.mutagens.length ? { type: 'mutagen', id: run.reward.mutagens[0], replace: 0 } : { type: 'syn' });
+    else if (run.phase === 'final') result = g.extract();
+    else if (run.phase === 'choice') { if (run.sync < 40) result = g.extract(); else g.dive(); }
+  }
+  ok(!!result, `潜行が結果まで進む（${result?.type}）`);
+  if (result?.type === 'extract' && result.final) ok(g.has('mode:rank_c') && g.socketCount('THORACIC') === 1, 'RANK D 完遂で RANK C と胸椎が開く');
+  // 義体：装着・系統共鳴・副次変異・売却
+  const g4 = new Game(reg, makeRng(5)); g4.thaw('lin_vanguard');
+  g4.mem.flags.add('socket:THORACIC'); g4.mem.flags.add('socket:LUMBAR'); g4.mem.flags.add('socket:SACRAL');
+  const regs = ['CERVICAL', 'THORACIC', 'LUMBAR'];
+  for (const region of regs) { const it = g4.rollVertebra({ REFINED: 100 }, { strain: 'SPINE', region }); g4.s.vault.push(it); ok(g4.equip(it.uid, region, 0), `${region} に装着`); ok(it.affixes.length === 1, 'REFINED は副次変異1つ'); }
+  ok(g4.resonance().counts.SPINE === 4, '前衛株で脊髄系統が +1（3個で4）');
+  ok(g4.sources().some(s => s.id === 'r:SPINE:4') && !g4.sources().some(s => s.id === 'r:SPINE:6'), '系統共鳴4が開き、6は開かない');
+  const c6 = new Combat(reg, makeRng(1), { mode: 'rank_d', floor: 1, sources: g4.sources() });
+  const mk = (color, n, sp = 0) => ({ color, cells: Array.from({ length: n }, (_, i) => ({ color, spine: i < sp, cmp: 0 })), blasted: [], specials: [] });
+  ok(c6.evaluate([mk('SYNAPSE', 3, 3)]).base.toNumber() > 3 * 2 * 3, '共鳴4で主脊髄の倍率が上がる');
+  const free = g4.rollVertebra({ STANDARD: 100 }); g4.s.vault.push(free);
+  const syn0 = g4.s.syn; ok(g4.sell(free.uid) && g4.s.syn > syn0, '倉庫の義体を売れる');
+  // 熟練度と保存処置
+  g4.s.diver.points = 40;
+  ok(g4.careerLevel() >= 4 && g4.canPreserve(), '熟練 Lv.3 以上で保存処置できる');
+  const opts = g4.preserveOptions();
+  ok(opts.length === 2, `Lv.4 の候補は2つ（実際 ${opts.length}）`);
+  const sp = g4.preserve(0);
+  ok(sp && !g4.s.diver && g4.s.specimen === 2 && g4.s.protocol.length === 1 && g4.storedItems().length === 3, '保存処置で引退し、義体は倉庫へ、形質は培養プロトコルへ');
+  // 全義体・副次変異・株・形質が評価できる
+  for (const t of reg.all('vertebrae')) for (const rid of ['STANDARD', 'FORBIDDEN']) {
+    let err = null; try { const c = new Combat(reg, makeRng(2), { mode: 'rank_d', floor: 1, sources: [{ id: t.id, name: t.name, effect: t.effect, scale: t.base * reg.get('rarities', rid).mul }] });
+      c.evaluate([mk('MARROW', 10, 2), mk('VENOM', 8), mk('SYNAPSE', 3)]); c.beginFire(); c.endFire(); c.enemyPhase(); } catch (e) { err = e; }
+    ok(!err, `義体 ${t.name} の評価でエラー ${err?.message ?? ''}`);
+  }
+  for (const kind of ['affixes', 'lineages', 'traits']) for (const t of reg.all(kind)) {
+    if (!t.effect) continue;
+    let err = null; try { const c = new Combat(reg, makeRng(2), { mode: 'rank_b', floor: 4, sources: [{ id: t.id, name: t.name, effect: t.effect, scale: t.base ?? t.values?.[2] ?? 1 }] });
+      c.evaluate([mk('MARROW', 10, 2), mk('VENOM', 8)]); } catch (e) { err = e; }
+    ok(!err, `${kind} ${t.name} の評価でエラー ${err?.message ?? ''}`);
+  }
+  for (const st of reg.all('strains')) for (const tier of st.resonance || []) {
+    let err = null; try { const c = new Combat(reg, makeRng(2), { mode: 'rank_b', floor: 4, sources: [{ id: 'x', name: 'x', effect: tier.effect, scale: tier.base ?? 1 }] });
+      c.sync = 20; c.evaluate([mk('MARROW', 10, 2), mk('VENOM', 8)]); c.beginFire(); c.endFire(); c.enemyPhase(); } catch (e) { err = e; }
+    ok(!err, `系統共鳴 ${st.name}${tier.at} でエラー ${err?.message ?? ''}`);
+  }
+  // チュートリアルの各手順が、検査用のルートで達成できる
+  for (const tut of reg.all('tutorial')) for (const step of tut.steps) {
+    const c = new Combat(reg, makeRng(3), { mode: tut.mode, floor: tut.floor, enemy: tut.enemy, protectHp: true });
+    applyTutorialStep(reg, c, tut, step);
+    if (step.crit) c.toggleReserve();
+    c.beginFire();
+    const log = { chains: [], merges: 0, pulses: 0, crit: c.crit, weakpoint: false };
+    for (const p of step.demo) {
+      const res = c.commit(p.map(([cc, rr]) => ({ c: cc, r: rr })));
+      if (!res) break;
+      log.chains.push(res.chain); log.merges += res.merges.length; log.pulses += res.pulses; log.weakpoint ||= res.weakpoint;
+    }
+    ok(tutorialDone(step, log), `チュートリアル ${step.id} が達成できる`);
+  }
+}
+
+// ---- 7. 深淵 ----
+{
+  const ab = reg.get('modes', 'abyss');
+  ok(ab && ab.unlock === 'mode:abyss', '深淵潜行のモードがある');
+  const g = new Game(reg, makeRng(11)); g.thaw('lin_standard');
+  ok(!g.startRun('abyss'), 'RANK A 完遂前は深淵に入れない');
+  g.emit('MODE_CLEAR', { mode: 'rank_a' });
+  ok(g.has('mode:abyss') && g.has('abyss_open') && g.protocolSlots() === 2, 'RANK A 完遂で深淵と培養プロトコル2枠目が開く');
+  ok(JSON.stringify(g.startDepths('abyss')) === '[1]', '最初は1層からのみ');
+  g.s.records.deepest.abyss = 47;
+  ok(JSON.stringify(g.startDepths('abyss')) === '[1,10,20]', '最深47層なら 10・20層から始められる（半分まで）');
+  ok(g.startRun('abyss', 20) && g.run.floor === 20, '20層から開始できる');
+  ok(g.run.routes.length === 3 || g.run.routes[0].boss, '深淵の分岐は3本');
+  g.chooseRoute(0);
+  let cb = g.makeCombat();
+  ok(cb.backflowOn, '深淵は全階層で逆流汚染');
+  const m = g.mode();
+  ok(g.pollutionStage(m, 20) === 1 && g.pollutionStage(m, 21) === 2 && g.pollutionStage(m, 61) === 6, '汚染段階は10層ごと');
+  ok(g.pollutionSources(m, 61).length === 6 && g.pollutionSources(m, 61)[5].name.includes(m.pollution.stages[0].label), '6段目からは同じ順でもう一度重なる');
+  const c41 = new Combat(reg, makeRng(1), { mode: 'abyss', floor: 41, enemy: 'e_abyss_eye', sources: g.pollutionSources(m, 41) });
+  ok(Math.abs(c41.fireTime() - (reg.rules.fire.time - 0.3)) < 1e-9 && c41.enemy.interval === 1, '汚染段階：発火時間 −0.3s・攻撃予告が早まる');
+  c41.beginFire(); c41.endFire(); const evs = c41.enemyPhase();
+  ok(evs.some(e => e.type === 'place' && e.id === 'NECROSIS'), '汚染段階：毎ターン壊死が混ざる');
+  ok([5, 10, 15].every(f => new Combat(reg, makeRng(f), { mode: 'abyss', floor: f }).isBoss) && !new Combat(reg, makeRng(2), { mode: 'abyss', floor: 7 }).isBoss, '5層ごとにボス');
+  const hp = f => new Combat(reg, makeRng(1), { mode: 'abyss', floor: f, enemy: 'e_abyss_eye' }).enemy.hpMax;
+  ok(Math.abs(hp(12).div(hp(11)).toNumber() - 1.35) < 1e-9 && Math.abs(hp(10).div(hp(9)).toNumber() - 1.35 * 1.5) < 1e-9, '深淵の敵HPは 1.35^(層−1)、ボスは ×1.5');
+  ok(hp(3000).e > 308, '深い層の敵HPは 1e308 を超えても扱える');
+  ok(g.saturation(m, 1) === 1 && g.saturation(m, 100) < 0.5, '深いほど彩度が落ちる');
+  // 深度で変わる抽選
+  ok(g.modeAt(m, 120).vertebraRarity.LOT_OMEGA > 0 && !g.modeAt(m, 10).vertebraRarity.LOT_OMEGA, '100層以降で LOT-Ω が出る');
+  let lot = null; for (let i = 0; i < 50 && !lot; i++) { const it = g.rollVertebra({ LOT_OMEGA: 100 }); if (g.tmpl(it).rarityOnly === 'LOT_OMEGA') lot = it; }
+  ok(lot && reg.get('vertebrae', lot.tid).owner, 'LOT-Ω は前世代検体の遺物から出る');
+  let leak = false; for (let i = 0; i < 200; i++) if (g.tmpl(g.rollVertebra({ FORBIDDEN: 100 })).rarityOnly) leak = true;
+  ok(!leak, 'LOT-Ω 専用の義体は他のレアリティで出ない');
+  // LOT-Ω の固有効果
+  const src = id => { const t = reg.get('vertebrae', id); return [{ id, name: t.name, effect: t.effect, scale: t.base * 6, kind: 'vertebra' }]; };
+  const c2 = new Combat(reg, makeRng(3), { mode: 'abyss', floor: 1, sources: src('v_omega_0533') });
+  ok(c2.board.spineCols.length === 2 && c2.board.snap(3, 0).spine, '二重脊柱：主脊髄が2列');
+  const c3 = new Combat(reg, makeRng(3), { mode: 'abyss', floor: 1, sources: src('v_omega_0031') });
+  ok(c3.board.minChain === 2, '短絡髄節：2個で連結');
+  const c4 = new Combat(reg, makeRng(3), { mode: 'abyss', floor: 1, sources: src('v_omega_0412') });
+  c4.beginFire(); c4.tick(10);
+  ok(c4.phase === 'fire' && c4.time > 0 && c4.tick(1), '残響する椎骨：0秒の後に猶予');
+  const c5 = new Combat(reg, makeRng(3), { mode: 'abyss', floor: 1, sources: src('v_omega_0188') });
+  c5.gauge = 100; c5.toggleReserve(); c5.beginFire(); c5.endFire();
+  ok(c5.gauge >= 50, '炉心の残り火：臨界後にゲージが残る');
+  // 補助ソケット・培養プロトコル
+  g.emit('DEPTH_REACHED', { mode: 'abyss', floor: 50 });
+  ok(g.socketCount('CERVICAL') === 2 && g.protocolSlots() === 3, '50層で頸椎の補助ソケット、30層以上でプロトコル3枠');
+  for (const f of [100, 150, 200]) g.emit('DEPTH_REACHED', { mode: 'abyss', floor: f });
+  ok(g.mem.flags.has('socket2:SACRAL') && g.protocolSlots() === 5, '200層で補助ソケットが4つ、プロトコル5枠');
+  // 深淵のセーブ→読み込み
+  const j = JSON.stringify(g.toJSON());
+  ok(JSON.stringify(new Game(reg, makeRng(1), JSON.parse(j)).toJSON()) === j, '深淵の潜行中もセーブ→読み込みで同じ');
 }
 
 console.log(`[self-test] ${pass} 件成功 / ${fail} 件失敗`);

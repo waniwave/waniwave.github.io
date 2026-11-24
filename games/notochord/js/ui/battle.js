@@ -3,11 +3,14 @@
 import { BigNum, fmt, clamp } from '../util.js';
 import { Combat } from '../engine/combat.js';
 import { key } from '../engine/board.js';
+import { applyTutorialStep, tutorialDone } from '../engine/progress.js';
 
 const SQ3 = Math.sqrt(3);
 const fmtN = x => { const n = Number(x); return Number.isInteger(n) ? fmt(n) : (Math.abs(n) >= 1e6 ? fmt(n) : String(+n.toFixed(2))); };
 
-// opts: { mode, floor, enemy, mutagens, ampoules, settings, audio, seed, onEnd(result) }
+// opts: { combat（作成済みの戦闘）| mode, floor, enemy, mutagens, ampoules, settings, audio, seed, optic,
+//         tutorial: { tut, onDone() }, onSave(cb), onTurn(cb, ev), onEnd(result),
+//         debug（デバッグパネルを出す）, saturation（0〜1。深いほど下げる）, pollution（汚染段階の表示用ラベル） }
 export function createBattle(root, reg, rng, opts = {}) {
   const R = reg.rules, A = opts.audio, settings = opts.settings || {};
   const nodes = Object.fromEntries(reg.all('nodes').map(n => [n.id, n]));
@@ -18,12 +21,14 @@ export function createBattle(root, reg, rng, opts = {}) {
   const rarities = Object.fromEntries(reg.all('rarities').map(s => [s.id, s]));
   const noise = reg.all('story').filter(s => s.type === 'noise').map(s => s.text);
 
-  const cb = new Combat(reg, rng, { mode: opts.mode, floor: opts.floor, enemy: opts.enemy, mutagens: opts.mutagens, ampoules: opts.ampoules });
+  const cb = opts.combat ?? new Combat(reg, rng, { mode: opts.mode, floor: opts.floor, enemy: opts.enemy, mutagens: opts.mutagens, ampoules: opts.ampoules });
+  const optic = opts.optic ?? 1;
   const board = cb.board, E = cb.enemy, edef = E.def;
   const T = cb.isBoss ? { ...R.theme, ...R.themeBoss } : R.theme;
 
   const wrap = document.createElement('div');
   wrap.className = 'battle' + (cb.isBoss ? ' boss' : '');
+  if (opts.saturation != null && opts.saturation < 1) wrap.style.filter = `saturate(${opts.saturation.toFixed(2)})`;
   wrap.innerHTML = `
   <div class="bt">
     <header class="hud">
@@ -37,11 +42,12 @@ export function createBattle(root, reg, rng, opts = {}) {
       <div class="formula"><span class="f-main"></span><span class="f-memo"></span></div>
       <div class="timer"><i></i><span></span></div>
     </section>
-    <section class="board"><canvas></canvas><div class="evalbox"><div class="ev-lines"></div><div class="ev-total"></div></div><div class="hint"></div></section>
-    <footer class="dock"><div class="muts"></div><div class="amps"></div><div class="chipbox"></div><button class="act"></button></footer>
+    <section class="board"><canvas></canvas><div class="evalbox"><div class="ev-lines"></div><div class="ev-total"></div></div><div class="hint"></div>
+      <div class="tut"><b></b><p></p><button>スキップ</button></div></section>
+    <footer class="dock"><div class="spinebar"></div><div class="muts"></div><div class="amps"></div><div class="chipbox"></div><button class="act"></button></footer>
   </div>
   <div class="tip"></div>
-  <button class="dbg-toggle">DBG</button><div class="dbg"></div>`;
+  ${opts.debug ? '<button class="dbg-toggle">DBG</button><div class="dbg"></div>' : ''}`;
   root.appendChild(wrap);
   const $ = s => wrap.querySelector(s);
   const el = {
@@ -50,13 +56,16 @@ export function createBattle(root, reg, rng, opts = {}) {
     hpBar: $('.en-hp i'), hpTxt: $('.en-hp span'), intent: $('.en-intent'), fMain: $('.f-main'), fMemo: $('.f-memo'),
     timer: $('.timer'), timeBar: $('.timer i'), timeTxt: $('.timer span'),
     boardBox: $('.board'), canvas: $('canvas'), evalbox: $('.evalbox'), evLines: $('.ev-lines'), evTotal: $('.ev-total'), hint: $('.hint'),
-    muts: $('.muts'), amps: $('.amps'), chipbox: $('.chipbox'), act: $('.act'), tip: $('.tip'), dbgBtn: $('.dbg-toggle'), dbg: $('.dbg'),
+    muts: $('.muts'), spinebar: $('.spinebar'), tut: $('.tut'), amps: $('.amps'), chipbox: $('.chipbox'), act: $('.act'), tip: $('.tip'), dbgBtn: $('.dbg-toggle'), dbg: $('.dbg'),
   };
   const ctx = el.canvas.getContext('2d');
   const st = {
     path: null, reach: null, ptr: null, lockUntil: 0, anim: null, fx: [], L: null, last: 0, raf: 0, dead: false,
     evalAnim: null, busy: false, pick: null, lit: new Set(), preview: null, shake: null, hitstopUntil: 0, removed: 0,
+    suggest: null, tutStep: -1, tutLog: null,
   };
+  const T_ = opts.tutorial;   // チュートリアル
+  const vertSources = cb.extra.filter(x => x.kind === 'vertebra');
 
   // ---- レイアウト（仕様書 12：s = min((W-16)/8, H/13.0)） ----
   function layout() {
@@ -116,6 +125,8 @@ export function createBattle(root, reg, rng, opts = {}) {
   // ---- 神経発火 ----
   function startFire() {
     cb.beginFire();
+    opts.onSave?.(cb);
+    if (st.tutLog) st.tutLog.crit = cb.crit;
     st.removed = 0; A?.setOpen(0);
     if (cb.crit) { A?.crit(); A?.setHalf(true); juice('mid'); }
     renderAll();
@@ -130,7 +141,7 @@ export function createBattle(root, reg, rng, opts = {}) {
         if (!o) from.set(x.id, r - fresh); else if (o.c === c) from.set(x.id, o.r);
       }
     }
-    const dur = R.fire.fallTime * 1000;
+    const dur = cb.fallTime() * 1000;
     st.anim = { t0: performance.now(), dur, from };
     st.lockUntil = performance.now() + dur;
   }
@@ -141,6 +152,8 @@ export function createBattle(root, reg, rng, opts = {}) {
     const res = cb.commit(path);
     if (!res) { updatePreview(); return; }
     const ch = res.chain;
+    if (st.tutLog) { const l = st.tutLog; l.chains.push(ch); l.merges += res.merges.length; l.pulses += res.pulses; l.weakpoint ||= res.weakpoint; }
+    if (res.wreck) popup('残骸を回収', 'big');
     for (const x of [...ch.cells, ...ch.blasted]) burst(x.c, x.r, colorOf(x.color), 1);
     for (const m of res.merges) burst(m.c, m.r, colorOf(m.color), 1.8);
     animateFrom(old);
@@ -159,6 +172,8 @@ export function createBattle(root, reg, rng, opts = {}) {
     if (st.path) commitPath();
     st.hpShown = E.hp;                       // 計算演出が終わるまで HP バーは減らさない
     const res = cb.endFire(); if (!res) return;
+    opts.onTurn?.(cb, res.ev);
+    tutorialAfterFire();
     st.lit.clear(); A?.setHalf(false);
     st.evalAnim = { ev: res.ev, won: res.won, i: 0, next: performance.now(), done: false };
     el.evLines.innerHTML = ''; el.evTotal.textContent = '';
@@ -212,7 +227,7 @@ export function createBattle(root, reg, rng, opts = {}) {
     if (st.dead) return;
     const ea = st.evalAnim; st.evalAnim = null;
     el.evalbox.classList.remove('show'); el.evTotal.classList.remove('final');
-    if (ea.won) { A?.win(); popup(edef.boss ? 'CORE DOWN' : 'DOWN', 'big'); setTimeout(() => end({ won: true }), 900); return; }
+    if (ea.won) { A?.win(); popup(edef.passive ? 'DECRYPTED' : edef.boss ? 'CORE DOWN' : 'DOWN', 'big'); setTimeout(() => end({ won: true }), 900); return; }
     st.busy = true;
     const old = positions();
     const events = cb.enemyPhase();
@@ -225,6 +240,8 @@ export function createBattle(root, reg, rng, opts = {}) {
       st.busy = false;
       const lost = events.find(e => e.type === 'lost');
       if (lost) { A?.lose(); juice('big'); setTimeout(() => end({ won: false, cause: lost.cause }), 900); }
+      else if (cb.phase === 'closed') { popup('金庫 閉鎖', 'big'); setTimeout(() => end({ won: false, closed: true }), 900); }
+      else { tutorialTurnStart(); opts.onSave?.(cb); updatePreview(); }
       renderAll(); return;
     }
     const e = events[i]; let wait = 120;
@@ -234,6 +251,7 @@ export function createBattle(root, reg, rng, opts = {}) {
     else if (e.type === 'place') { burst(e.c, e.r, T.alert, 1.3); wait = 90; }
     else if (e.type === 'telegraph') { A?.alarm(); wait = 150; }
     else if (e.type === 'shuffle') { popup('盤面 再配列', ''); juice('mid'); wait = 500; }
+    else if (e.type === 'lastStand') { popup('踏みとどまった', 'big'); juice('big'); wait = 600; }
     renderAll();
     setTimeout(() => playEvents(events, i + 1), wait);
   }
@@ -295,6 +313,7 @@ export function createBattle(root, reg, rng, opts = {}) {
     const now = st.preview?.active ?? new Set();
     for (const id of now) if (!st.lit.has(id)) A?.tick();
     st.lit = cb.phase === 'fire' ? now : new Set();
+    st.suggest = optic >= 2 && st.path ? suggestRoute(st.path) : null;
     renderFormula(); renderDock();
   }
   function renderFormula() {
@@ -324,7 +343,7 @@ export function createBattle(root, reg, rng, opts = {}) {
     el.my.textContent = fmtN(cb.myelin);
     el.bfHud.style.display = cb.backflowOn ? '' : 'none';
     el.bfTxt.textContent = Math.round(cb.backflow) + '%';
-    el.stage.textContent = `${cb.mode.name} ${cb.floor}F${cb.isBoss ? ' ★' : ''}`;
+    el.stage.textContent = `${cb.mode.name} ${cb.floor}F${cb.isBoss ? ' ★' : ''}${opts.pollution?.length ? ' 汚' + opts.pollution.length : ''}`;
     el.name.textContent = edef.name;
     const hp = st.hpShown ?? E.hp;
     const ratio = clamp(hp.div(E.hpMax).toNumber(), 0, 1);
@@ -333,7 +352,8 @@ export function createBattle(root, reg, rng, opts = {}) {
     el.sil.className = `en-sil shape-${edef.look?.shape ?? 'eye'}${E.stunned ? ' stunned' : ''}`;
     el.sil.style.setProperty('--ec', edef.look?.color ?? T.alert);
     el.intent.classList.toggle('stun', E.stunned);
-    el.intent.textContent = E.stunned ? `STUNNED — 次の攻撃はキャンセル` : `あと${E.timer}ターン：${edef.lines?.tele ?? '攻撃'}  SYNC −${edef.atk}%`;
+    el.intent.textContent = cb.passive ? `${edef.lines?.tele ?? '閉鎖まで'} 残り${Math.max(0, cb.turnLimit - cb.turn + 1)}ターン`
+      : E.stunned ? `STUNNED — 次の攻撃はキャンセル` : `あと${E.timer}ターン：${edef.lines?.tele ?? '攻撃'}  SYNC −${edef.atk}%`;
     // 逆流汚染：敵エリアの上から垂れ下がり、100% で盤面の上端に達する
     el.bf.style.display = cb.backflowOn ? '' : 'none';
     el.bf.style.height = clamp(cb.backflow, 0, 100) + '%';
@@ -354,6 +374,9 @@ export function createBattle(root, reg, rng, opts = {}) {
     el.tip.classList.add('show');
   }
   function renderDock() {
+    // 装着中の椎骨義体（点）。条件を満たすと光る
+    el.spinebar.innerHTML = '';
+    for (const v of vertSources) { const d = document.createElement('i'); if (st.lit.has(v.id)) d.className = 'lit'; el.spinebar.appendChild(d); }
     // 変異因子
     el.muts.innerHTML = '';
     for (let i = 0; i < R.combat.mutagenSlots; i++) {
@@ -396,6 +419,7 @@ export function createBattle(root, reg, rng, opts = {}) {
     else if (cb.phase === 'think' && !st.busy) {
       a.disabled = !cb.canCrit; a.textContent = cb.reserved ? '臨界 予約' : cb.canCrit ? '脊髄臨界' : `臨界 ${Math.floor(cb.gauge)}%`;
       if (cb.canCrit) a.classList.add(cb.reserved ? 'reserved' : 'ready');
+      if (T_ && st.tutStep >= 0 && T_.tut.steps[st.tutStep].crit && !cb.reserved) a.classList.add('tut-target');
     } else { a.disabled = true; a.textContent = '—'; }
   }
   function renderTimer() {
@@ -411,6 +435,66 @@ export function createBattle(root, reg, rng, opts = {}) {
     el.hint.classList.toggle('show', !!p);
   }
   function renderAll() { renderHud(); renderDock(); renderFormula(); renderTimer(); renderHint(); }
+
+  // ---- 視神経予測網（8.4）：Lv2 は先4手、Lv3 は脈動節・露出神経を優先した最長ルート ----
+  function suggestRoute(path) {
+    let best = null, bestScore = -1, steps = 0;
+    const score = p => p.length + (optic >= 3 ? p.reduce((t, q) => { const x = board.at(q.c, q.r); return t + (x?.pulse ? 3 : 0) + (x?.special && nodes[x.special]?.look === 'bracket' ? 4 : 0); }, 0) : 0);
+    const dfs = p => {
+      if (++steps > 900) return;
+      const sc = score(p); if (sc > bestScore) { bestScore = sc; best = p.slice(); }
+      const l = p[p.length - 1];
+      for (const [c, r] of board.nb(l.c, l.r)) if (board.canExtend(p, c, r) === 'add') { p.push({ c, r }); dfs(p); p.pop(); }
+    };
+    dfs(path.slice());
+    if (!best || best.length <= path.length) return null;
+    return best.slice(path.length - 1, optic >= 3 ? undefined : path.length + 4);
+  }
+  function drawSuggest() {
+    const s = st.suggest; if (!s || s.length < 2) return;
+    ctx.save(); ctx.setLineDash([6, 6]); ctx.strokeStyle = '#ffffffaa'; ctx.lineWidth = 2;
+    ctx.beginPath(); for (const p of s) ctx.lineTo(cx(p.c), cy(p.c, p.r)); ctx.stroke(); ctx.restore();
+  }
+
+  // ---- チュートリアル ----
+  function tutorialTurnStart() {
+    if (!T_ || st.tutStep < 0) return;
+    const step = T_.tut.steps[st.tutStep];
+    applyTutorialStep(reg, cb, T_.tut, step);
+    st.tutLog = { chains: [], merges: 0, pulses: 0, crit: false, weakpoint: false };
+    renderTut();
+  }
+  function tutorialAfterFire() {
+    if (!T_ || st.tutStep < 0 || !st.tutLog) return;
+    const step = T_.tut.steps[st.tutStep];
+    if (tutorialDone(step, st.tutLog)) {
+      st.tutStep++;
+      if (st.tutStep >= T_.tut.steps.length) finishTutorial();
+    }
+    st.tutLog = null; renderTut();
+  }
+  function finishTutorial() { st.tutStep = -1; cb.protectHp = false; renderTut(); T_?.onDone?.(); }
+  function renderTut() {
+    const on = T_ && st.tutStep >= 0;
+    el.tut.classList.toggle('show', !!on);
+    if (!on) return;
+    const step = T_.tut.steps[st.tutStep];
+    el.tut.querySelector('b').textContent = `CEREBRUM // 手順 ${st.tutStep + 1}/${T_.tut.steps.length}`;
+    el.tut.querySelector('p').textContent = step.text;
+    el.tut.classList.toggle('compact', cb.phase === 'fire');
+  }
+  el.tut.querySelector('button').addEventListener('click', () => finishTutorial());
+  function drawTutorial(now) {
+    if (!T_ || st.tutStep < 0 || cb.phase !== 'think') return;
+    const step = T_.tut.steps[st.tutStep], k = st.L.s * 0.85, l = st.L.s * 0.3;
+    ctx.save(); ctx.strokeStyle = T.pulse; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.6 + 0.4 * Math.sin(now / 180);
+    for (const [c, r] of step.path || []) {
+      const x = cx(c), y = cy(c, r); ctx.beginPath();
+      for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { ctx.moveTo(x + sx * k, y + sy * k - sy * l); ctx.lineTo(x + sx * k, y + sy * k); ctx.lineTo(x + sx * k - sx * l, y + sy * k); }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 
   // ---- 描画（Canvas） ----
   const colorOf = id => nodes[id]?.color ?? '#777';
@@ -436,8 +520,9 @@ export function createBattle(root, reg, rng, opts = {}) {
     }
   }
   function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); ctx.fill(); }
-  function drawSpine(now) {
-    const { s, h } = st.L, c = board.spineCol, x = cx(c);
+  function drawSpine(now) { for (const c of board.spineCols) drawSpineCol(now, c); }
+  function drawSpineCol(now, c) {
+    const { s, h } = st.L, x = cx(c);
     const top = cy(c, 0) - h / 2, bot = cy(c, board.rows - 1) + h / 2;
     const g = board.spineWild ? 1 : cb.gauge / R.spineBreak.max;
     ctx.fillStyle = '#000'; ctx.fillRect(x - s * 0.18, top, s * 0.36, bot - top);
@@ -519,6 +604,10 @@ export function createBattle(root, reg, rng, opts = {}) {
       ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fillStyle = T.alert; ctx.fill();
       ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.max(12, br * 1.3)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(String(cell.count), bx, by + 1);
+    } else if (sp?.look === 'wreck') {
+      hexPath(x, y, s * 0.62); ctx.fillStyle = '#050505'; ctx.fill(); ctx.strokeStyle = '#d8d0c0'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = '#d8d0c0'; ctx.font = `700 ${Math.max(12, s * 0.28)}px monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('#', x, y);
     } else if (sp?.look === 'web') {
       hexPath(x, y, s * 0.9); ctx.fillStyle = '#000a'; ctx.fill();
       ctx.strokeStyle = '#9aa5a7'; ctx.lineWidth = 1.2; ctx.beginPath();
@@ -564,7 +653,7 @@ export function createBattle(root, reg, rng, opts = {}) {
       if (a && a.from.has(cell.id)) { const f = a.from.get(cell.id); rr = f + (r - f) * t * t; }
       drawCell(c, r, cx(c), cy(c, rr), cell, now);
     }
-    drawPick(); drawPath(); drawFx(now);
+    drawPick(); drawSuggest(); drawPath(); drawTutorial(now); drawFx(now);
   }
 
   // ---- ループ ----
@@ -612,9 +701,13 @@ export function createBattle(root, reg, rng, opts = {}) {
     });
     head('seed ' + (opts.seed ?? '-'));
   }
-  el.dbgBtn.addEventListener('click', () => el.dbg.classList.toggle('open'));
-  buildDebug();
+  if (opts.debug) { el.dbgBtn.addEventListener('click', () => el.dbg.classList.toggle('open')); buildDebug(); }
 
+  if (T_) { st.tutStep = 0; tutorialTurnStart(); }
+  if (cb.wasFired) {   // 発火中に閉じた場合：そのターンは連結なしで終わる（再読み込みでやり直せない）
+    cb.wasFired = false;
+    setTimeout(() => { popup('再接続：中断された発火', ''); cb.beginFire(); endFire(); }, 400);
+  }
   A?.playBgm(cb.isBoss ? R.audio?.bossBpm : R.audio?.bpm);
   A?.setTempo(cb.isBoss ? R.audio?.bossBpm : R.audio?.bpm);
   updatePreview(); renderAll();
