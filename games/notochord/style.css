@@ -328,3 +328,26 @@ div.mode .row { margin-top: 6px; } div.mode .go { border-color: var(--pulse); }
 .enemy { grid-template-columns: minmax(0, 1fr); }
 .en-top, .formula, .timer { min-width: 0; }
 .hitnum { padding: 10px 0; background: linear-gradient(90deg, transparent, #0b0204e6 15%, #0b0204e6 85%, transparent); }
+/* タップで次へ */
+.tapnext { position: absolute; left: 50%; bottom: 10px; z-index: 7; transform: translateX(-50%); display: none; padding: 6px 14px;
+  font-size: 13px; color: #fff; background: #000c; border: 1px solid var(--pulse); box-shadow: 0 0 12px #3be8ff55; animation: beat 1s infinite; pointer-events: none; }
+.tapnext.show { display: block; }
+.hitnum.show { animation: hitin .25s ease-out forwards; }
+@keyframes hitin { 0% { opacity: 0; transform: scale(1.6); } 100% { opacity: 1; transform: scale(1); } }
+/* なぞり中のスローモーション：盤面をわずかに青紫に沈める */
+.board.slowmo::before { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, transparent 55%, #2a1a6633 100%); box-shadow: inset 0 0 40px #8f7bff44; }
+/* 文章ログ（タップで次へ） */
+.logcard { position: absolute; inset: 0; z-index: 55; display: flex; align-items: flex-end; background: #0006; }
+.lc-box { width: 100%; margin: 0 8px 76px; padding: 10px 12px; background: #031012f2; border: 1px solid var(--pulse); box-shadow: 0 0 18px #3be8ff44; animation: fadein .2s; }
+.lc-box small { display: block; color: var(--pulse); font-size: 12px; letter-spacing: .12em; }
+.lc-box p { margin: 4px 0 6px; font-size: 14px; line-height: 1.65; }
+.lc-box em { display: block; text-align: right; font-style: normal; font-size: 12px; color: var(--dim); animation: beat 1.2s infinite; }
+/* ホーム画面に追加 */
+.t-install { position: relative; padding: 10px 16px; font-size: 13px; border-color: #B8F227; color: #dff7a0; box-shadow: 0 0 12px #b8f22744; }
+.howto { padding-left: 20px; line-height: 1.9; font-size: 14px; }
+/* ホーム画面から起動したとき：iPhone の下端のバーと重ならないように */
+@media (display-mode: standalone) {
+  .battle, .scr { bottom: env(safe-area-inset-bottom); }
+  #app { background: #000; }
+}

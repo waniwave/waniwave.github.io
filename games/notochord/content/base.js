@@ -30,7 +30,7 @@ export default {
     backflow: { perTurn: 8, perHit: 10, reliefCount: 8, relief: 15, max: 100 },
     // 演出の段階（13.1）。shake は px、hitstop は ms
     juice: { smallChain: 6, midChain: 10, small: 3, mid: 5, big: 10, hitstop: 50 },
-    evalAnim: { stepMs: 170, holdMs: 650 },
+    evalAnim: { stepMs: 260 },   // 計算演出の1行の間隔。最後の結果はタップするまで止まる
     audio: { bpm: 92, bossBpm: 100, lpLow: 300, lpHigh: 3500, lpFullNodes: 30 },   // ダークで重い BGM（段階4の調整）
     // 潜行の進行（4章・8.5・10章）
     run: { diveHeal: 15, residue: 0.3, finalBonus: 1.5, overkill: 2, overkillBonus: 0.2, rewardSyn: 0.5, ampouleDrop: 0.2,

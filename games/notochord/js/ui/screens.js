@@ -61,10 +61,12 @@ export function createScreens(root, game, reg, deps = {}) {
       ${recordsHtml()}
       <button class="t-main">[ 神経接続 // JACK-IN ]</button>
       <button class="t-set">設定</button>
+      ${deps.install?.available() ? '<button class="t-install">⤓ ホーム画面に追加</button>' : ''}
       <div class="t-dbg" ${dbg.on ? '' : 'hidden'}><small>DEBUG：</small><button data-mode="rank_d" data-floor="1">試験戦闘</button>
         ${game.modes().flatMap(m => (m.bossFloors ?? (m.bossEvery ? [m.bossEvery, m.bossEvery * 10] : [])).map(f => `<button data-mode="${m.id}" data-floor="${f}">${esc(m.name.replace('RANK ', ''))}-${f}</button>`)).join('')}</div>`);
     on(d, '.t-main', () => onStart());
     on(d, '.t-set', () => settings(dbg.h));
+    on(d, '.t-install', () => deps.install.run());
     let taps = 0;
     d.querySelector('.logo').addEventListener('click', () => { if (++taps >= 10 && !dbg.on) { dbg.unlock?.(); d.querySelector('.t-dbg').hidden = false; toast('DEBUG MODE'); } });
     on(d, '.t-dbg button[data-mode]', n => dbg.fight?.(n.dataset.mode, Number(n.dataset.floor)));
@@ -249,7 +251,9 @@ export function createScreens(root, game, reg, deps = {}) {
       <label class="slider">効果音 <input type="range" min="0" max="1" step="0.05" value="${st.sfx}" data-k="sfx"><output>${Math.round(st.sfx * 100)}%</output></label>
       <div class="row"><button class="flash">強い点滅・ネガ反転を弱める：${st.reduceFlash ? 'ON' : 'OFF'}</button></div>
       <div class="row"><button class="s-tut">チュートリアルを再実行</button></div>
+      ${deps.install?.available() ? '<div class="row"><button class="inst">ホーム画面に追加</button></div>' : ''}
       <div class="row"><button class="wipe">セーブを初期化</button></div>`, m => {
+      on(m, '.inst', () => deps.install.run());
       m.querySelectorAll('input[type=range]').forEach(inp => inp.addEventListener('input', () => {
         st[inp.dataset.k] = Number(inp.value); inp.nextElementSibling.textContent = Math.round(inp.value * 100) + '%'; h?.applySettings(); h?.save();
       }));
@@ -470,12 +474,26 @@ export function createScreens(root, game, reg, deps = {}) {
     const next = () => {
       const it = items.shift();
       if (!it) { done?.(); return; }
-      if (it.kind === 'line') { toast(`${it.l.speaker ?? 'CEREBRUM'}：${it.l.text}`, 3200); next(); }
-      else if (it.kind === 'toast') { toast(it.t, 2600); next(); }
+      if (it.kind === 'line') logCard(it.l.speaker ?? 'CEREBRUM', it.l.text, next);
+      else if (it.kind === 'toast') logCard('SYSTEM', it.t, next);
       else if (it.kind === 'frag') modal(`<small class="fr-k">断片ログを取得</small><b>${esc(it.f.title)}</b><p class="fragtext">${esc(it.f.text)}</p><button class="wide ok">閉じる</button>`, m => on(m, '.ok', () => { closeModal(); next(); }));
       else modal(`<small class="fr-k">前任者の残留ログ</small><p class="residue">${esc(residueText(it.x))}</p><button class="wide ok">閉じる</button>`, m => on(m, '.ok', () => { closeModal(); next(); }));
     };
     next();
+  }
+
+  // ---- 文章ログ：タップするまで消えない ----
+  function logCard(speaker, text, next) {
+    const m = document.createElement('div'); m.className = 'logcard';
+    m.innerHTML = `<div class="lc-box"><small></small><p></p><em>▼ タップで次へ</em></div>`;
+    m.querySelector('small').textContent = speaker; m.querySelector('p').textContent = text;
+    document.getElementById('app').appendChild(m);
+    const t0 = performance.now();
+    m.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation();
+      if (performance.now() - t0 < 250) return;
+      A?.tick?.(); m.remove(); next?.();
+    });
   }
 
   // ---- 共通：モーダルとトースト ----
@@ -496,5 +514,5 @@ export function createScreens(root, game, reg, deps = {}) {
     setTimeout(() => t.remove(), ms);
   }
 
-  return { title, textSeq, thaw, hub, routes, reward, choice, result, story, modal, closeModal, toast, settings, drawCard };
+  return { title, textSeq, thaw, hub, routes, reward, choice, result, story, modal, closeModal, toast, settings, drawCard, logCard };
 }

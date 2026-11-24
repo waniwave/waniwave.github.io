@@ -4,10 +4,12 @@
 
 ## 更新するとき（必ず）
 
-1. `index.html` の **BUILD 番号**を上げる。`index.html` の中の `?v=6` を、すべて新しい番号（例：`?v=7`）に置き換える（import map の各行・`style.css`・`main.js` の行。冒頭のコメントの番号も）。
+1. `index.html` の **BUILD 番号**を上げる。`index.html` の中の `?v=7` を、すべて新しい番号（例：`?v=8`）に置き換える（import map の各行・`style.css`・`main.js` の行。冒頭のコメントの番号も）。
    - ブラウザやスマホのキャッシュで古いファイルが混ざるのを防ぐため。パック（`content/*.js`）は `registry.js` が同じ番号を付けて読み込むので、`index.html` に書き足す必要はない。
 2. `node tools/check.mjs` を実行し、エラーが 0 件であることを確かめる。
-3. GitHub Pages にはフォルダごと置く（空の `.nojekyll` も一緒に）。
+3. GitHub Pages にはフォルダごと置く（空の `.nojekyll`、`manifest.webmanifest`、`sw.js`、`icons/` も一緒に）。
+   - `sw.js`（ホーム画面から起動したときの Service Worker）は BUILD 番号を自動で読むので、書き換え不要。BUILD を上げれば次の起動で新しい版に入れ替わる。
+   - 新しいパックを足しても `sw.js` の書き換えは不要（一度読み込んだファイルは自動で保存される）。
 
 ## パックの足し方（3行で）
 
@@ -70,7 +72,7 @@ rules: {
   spineBreak: { max: 100, mul: 3, timeScale: 0.5 },
   backflow: { perTurn: 8, perHit: 10, reliefCount: 8, relief: 15, max: 100 },
   juice: { smallChain: 6, midChain: 10, small: 3, mid: 5, big: 10, hitstop: 50 },
-  evalAnim: { stepMs: 170, holdMs: 650 },
+  evalAnim: { stepMs: 260 },   // 計算演出の1行の間隔（最後の結果はタップで次へ）
   audio: { bpm: 128, bossBpm: 138, lpLow: 400, lpHigh: 4500, lpFullNodes: 30 },
   themeBoss: { bg: '#0B0204', panel: '#1A0609', line: '#5C1522', pulse: '#FF2A4B', ... },
   theme: { bg: '#060C0E', panel: '#0E1A1D', line: '#233D42', alert: '#FF2A4B',

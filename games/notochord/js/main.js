@@ -7,6 +7,30 @@ import { createScreens } from './ui/screens.js';
 import { createAudio } from './audio.js';
 
 const app = document.getElementById('app');
+const BUILDQ = (() => { try { return new URL(import.meta.url).search; } catch { return ''; } })();
+
+// ---- ホーム画面に追加（PWA） ----
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
+window.addEventListener('appinstalled', () => { installEvt = null; });
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const isMobile = () => isIOS() || /Android/i.test(navigator.userAgent) || matchMedia('(pointer: coarse)').matches;
+const install = {
+  // ホーム画面から起動していないスマホ（またはブラウザがインストールを提案してきたとき）だけボタンを出す
+  available: () => !isStandalone() && (isMobile() || !!installEvt),
+  async run() {
+    if (installEvt) { installEvt.prompt(); try { await installEvt.userChoice; } catch {} installEvt = null; return; }
+    const ios = isIOS();
+    ui.modal(`<b>ホーム画面に追加</b>
+      ${ios ? `<ol class="howto"><li>Safari でこのページを開く</li><li>画面下の <b>共有ボタン</b>（□に↑）を押す</li><li><b>「ホーム画面に追加」</b>を選び、「追加」を押す</li></ol>`
+            : `<ol class="howto"><li>Chrome でこのページを開く</li><li>右上の <b>メニュー（⋮）</b>を押す</li><li><b>「ホーム画面に追加」</b>または<b>「アプリをインストール」</b>を選ぶ</li></ol>`}
+      <p class="note">ホーム画面のアイコンから起動すると、アドレスバーのない全画面で遊べます。セーブはそのまま引き継がれます。</p>`);
+  },
+};
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js' + BUILDQ).catch(() => {}));
+}
 let reg, rng, seed, audio, game, ui, battle = null;
 let debug = false;   // タイトルのロゴを10回叩くと有効（そのセッションだけ）
 
@@ -154,7 +178,7 @@ async function boot() {
   game = new Game(reg, rng, q.has('fresh') ? null : load());
   audio = createAudio({ ...reg.rules.audio, bgm: game.s.settings.bgm, sfx: game.s.settings.sfx });
   document.addEventListener('pointerdown', () => audio.unlock(), { once: true });
-  ui = createScreens(app, game, reg, { audio });
+  ui = createScreens(app, game, reg, { audio, install });
   app.innerHTML = '';
   if (reg.errors.length) showErrors(reg.errors);
   if (reg.all('modes').length) title();
