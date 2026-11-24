@@ -368,3 +368,15 @@ div.mode .row { margin-top: 6px; } div.mode .go { border-color: var(--pulse); }
   .battle, .scr { bottom: env(safe-area-inset-bottom); }
   #app { background: #000; }
 }
+/* 画面の案内：対象だけをくり抜いて光らせ、説明カードを上下の空いている側に出す */
+.gq { flex: none; width: 26px; height: 26px; padding: 0; margin-left: 6px; border-radius: 50%; border-color: var(--pulse); color: var(--pulse); font-size: 13px; align-self: center; }
+.gd { position: fixed; inset: 0; z-index: 90; color: #e6f3f5; font-family: inherit; }
+.gd-spot { position: fixed; border: 2px solid var(--pulse); box-shadow: 0 0 0 200vmax #000c; pointer-events: none; transition: left .12s steps(3), top .12s steps(3), width .12s steps(3), height .12s steps(3); }
+.gd-spot[hidden] { display: block; left: 50%; top: 50%; width: 0; height: 0; border: 0; }
+.gd-card { position: fixed; left: 12px; right: 12px; bottom: 16px; max-width: 420px; margin: 0 auto; padding: 12px 14px; background: #021013; border: 1px solid var(--pulse); border-left-width: 4px; animation: tcin .18s steps(3); }
+.gd-card.top { top: 16px; bottom: auto; }
+.gd-card small { color: var(--pulse); font-size: 11px; letter-spacing: .14em; }
+.gd-card p { margin: 6px 0 10px; font-size: 14px; line-height: 1.7; }
+.gd-card .row { display: flex; gap: 8px; } .gd-card .row button { flex: 1; padding: 9px; }
+.gd-card .gd-next { border-color: var(--pulse); color: #fff; }
+.note.gain { color: #B8F227; }

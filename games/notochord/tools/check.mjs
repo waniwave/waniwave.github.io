@@ -241,9 +241,12 @@ for (const [n, want, withCmp] of [[4, 1], [5, 1], [6, 2], [7, 2], [8, 3], [4, 2,
   ok(g3 && !g3.s.vault.some(i => i.uid === 999) && !g3.run.mutagens.includes('m_no_such') && !g3.s.ampoules.includes('amp_no_such'), '見つからない id は捨てる');
   // 最後まで遊ぶ（チュートリアルの HP 保護は外す）
   cb.protectHp = false;
-  let guard = 0, result = null;
+  let guard = 0, result = null, sawFinal = false, flowOk = true;
   while (!result && guard++ < 400) {
     const run = g.run;
+    if (run.phase === 'final' && run.reward?.mutagens?.length) flowOk = false;
+    if (run.phase === 'reward' && !run.reward.dived) flowOk = false;
+    if (run.phase === 'final') sawFinal = true;
     if (run.phase === 'route') { g.chooseRoute(0); cb = g.makeCombat(); if (run.tutorial) cb.protectHp = false; }
     else if (run.phase === 'battle') {
       fightTurn(g, cb);
@@ -253,6 +256,18 @@ for (const [n, want, withCmp] of [[4, 1], [5, 1], [6, 2], [7, 2], [8, 3], [4, 2,
     else if (run.phase === 'choice') { if (run.sync < 40) result = g.extract(); else g.dive(); }
   }
   ok(!!result, `潜行が結果まで進む（${result?.type}）`);
+  ok(flowOk, '変異因子は深部潜行を決めた後にだけ選び、最終階層では出ない');
+  if (sawFinal) ok(true, '最終階層まで到達');
+  // 深部潜行 → 変異因子 → 次の階層
+  {
+    const g5 = new Game(reg, makeRng(9)); g5.thaw('lin_vanguard'); g5.completeTutorial(); g5.startRun('rank_d', 1); g5.chooseRoute(0);
+    const c5 = g5.makeCombat(); c5.enemy.hp = c5.enemy.hp.mul(0); c5.phase = 'won';
+    g5.finishBattle(c5);
+    ok(g5.run.phase === 'choice' && g5.run.reward.mutagens.length > 0, '突破後はまず抜去か潜行の選択');
+    g5.dive(); ok(g5.run.phase === 'reward', '潜ると決めたら変異因子を選ぶ');
+    const f = g5.run.floor; g5.takeReward({ type: 'mutagen', id: g5.run.reward.mutagens[0] });
+    ok(g5.run.phase === 'route' && g5.run.floor === f + 1 && g5.run.mutagens.length === 1, '選んだら次の階層へ');
+  }
   if (result?.type === 'extract' && result.final) ok(g.has('mode:rank_c') && g.socketCount('THORACIC') === 1, 'RANK D 完遂で RANK C と胸椎が開く');
   // 義体：装着・系統共鳴・副次変異・売却
   const g4 = new Game(reg, makeRng(5)); g4.thaw('lin_vanguard');

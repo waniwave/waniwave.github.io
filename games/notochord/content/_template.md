@@ -4,7 +4,7 @@
 
 ## 更新するとき（必ず）
 
-1. `index.html` の **BUILD 番号**を上げる。`index.html` の中の `?v=8` を、すべて新しい番号（例：`?v=9`）に置き換える（import map の各行・`style.css`・`main.js` の行。冒頭のコメントの番号も）。
+1. `index.html` の **BUILD 番号**を上げる。`index.html` の中の `?v=9` を、すべて新しい番号（例：`?v=10`）に置き換える（import map の各行・`style.css`・`main.js` の行。冒頭のコメントの番号も）。
    - ブラウザやスマホのキャッシュで古いファイルが混ざるのを防ぐため。パック（`content/*.js`）は `registry.js` が同じ番号を付けて読み込むので、`index.html` に書き足す必要はない。
 2. `node tools/check.mjs` を実行し、エラーが 0 件であることを確かめる。
 3. GitHub Pages にはフォルダごと置く（空の `.nojekyll`、`manifest.webmanifest`、`sw.js`、`icons/` も一緒に）。
@@ -394,3 +394,18 @@ tutorial: [{ id: 'tut_main', mode: 'rank_d', floor: 1, enemy: 'e_patrol_d',
   ] }],
 ```
 - `type: 'noise'` … 逆流汚染 50% 以上のとき、侵食ラインににじむ「他人の記憶」の文字（`text` のみ）
+
+## 画面の案内（rules.guides）
+各画面を初めて開いたときに出る案内。見出しの「?」でもう一度見られる（設定の「画面の案内をもう一度出す」で全部やり直し）。
+```js
+guides: {
+  broker: { title: 'ブローカー（店）', steps: [
+    { at: '.g-amp', text: '…' },          // at：光らせる部分（CSSセレクタ）。省略すると画面中央にカードだけ出る
+    { at: '.preserve', optional: true, text: '…' },   // optional：その部分が画面にないときは飛ばす
+  ] },
+}
+```
+キーは画面名：thaw（検体の選択）／ spine・vault・broker・contract・records（培養槽のタブ）／ routes ／ choice（抜去か潜行か）／ reward（変異因子）／ battle（変異因子やアンプルを初めて持ち込んだ戦闘）。
+
+## 階層突破の流れ
+突破 → choice（成果を確認し、神経抜去か深部潜行か）→ 深部潜行を選んだときだけ reward（変異因子を1つ）→ 次の階層。最終階層では変異因子は出ない。

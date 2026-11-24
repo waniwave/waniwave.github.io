@@ -229,6 +229,7 @@ export function createScreens(root, game, reg, deps = {}) {
           <div class="lin-p">＋ ${esc(l.pros)}</div><div class="lin-c">− ${esc(l.cons)}</div>
           <div class="lin-d">${l.locked ? '未開放' : esc(l.desc)}</div></button>`).join('')}</div>`);
     on(d, '.lin', n => { if (game.thaw(n.dataset.id)) done(); });
+    guideFor(d, 'thaw');
   }
 
   // ---- 培養槽 ----
@@ -240,7 +241,7 @@ export function createScreens(root, game, reg, deps = {}) {
       <header class="sh hub-h">
         <div><b>検体 #${s.specimen}</b><small>${esc(lin?.name ?? '—')} ／ 熟練 Lv.${lv}</small>
           <div class="xp"><i style="width:${next ? Math.round(((dv?.points ?? 0) - cur) / (next - cur) * 100) : 100}%"></i></div></div>
-        <div class="syn">SYN <b>${fmt(s.syn)}</b><button class="gear" title="設定">⚙</button></div>
+        <div class="syn gq-at">SYN <b>${fmt(s.syn)}</b><button class="gear" title="設定">⚙</button></div>
       </header>
       <div class="hub-rec">最深 ${Object.entries(s.records.deepest).filter(([id]) => !reg.get('modes', id)?.floors).map(([, f]) => f + '層').join(' ') || '—'} ／ 最大 ${fmt(BigNum.from(s.records.maxDamage))} ／ 最大連結 ${s.records.maxChain} ／ ロスト ${s.records.lost}</div>
       <section class="hub-body"></section>
@@ -251,6 +252,7 @@ export function createScreens(root, game, reg, deps = {}) {
     const body = d.querySelector('.hub-body');
     const again = () => { h.save(); hub(tab, h); };
     ({ spine: tabSpine, vault: tabVault, broker: tabBroker, contract: tabContract, records: tabRecords })[tab](body, h, again);
+    guideFor(d, tab);
   }
 
   function tabSpine(body, h, again) {
@@ -302,13 +304,13 @@ export function createScreens(root, game, reg, deps = {}) {
     const next = game.opticNext();
     body.innerHTML = `
       <p class="broker">${esc(out.lines[0]?.text ?? '……')}</p>
-      <h4>椎骨義体</h4><div class="mlist">${shop.items.map((x, i) => vertCard(x.inst, `<button class="buy" data-i="${i}" ${game.s.syn < x.price ? 'disabled' : ''}>購入 ${fmt(x.price)} SYN</button>`)).join('') || '<p class="dim">売り切れ。次の潜行後に入荷する。</p>'}</div>
+      <h4>椎骨義体</h4><div class="mlist g-items">${shop.items.map((x, i) => vertCard(x.inst, `<button class="buy" data-i="${i}" ${game.s.syn < x.price ? 'disabled' : ''}>購入 ${fmt(x.price)} SYN</button>`)).join('') || '<p class="dim">売り切れ。次の潜行後に入荷する。</p>'}</div>
       <h4>系統を指定して購入（${fmt(game.strainPrice())} SYN・STANDARD）</h4>
-      <div class="row">${reg.all('strains').filter(s => s.resonance).map(s => `<button class="bs" data-s="${s.id}" ${game.s.syn < game.strainPrice() ? 'disabled' : ''}>${esc(s.icon)} ${esc(s.name)}</button>`).join('')}</div>
+      <div class="row g-strain">${reg.all('strains').filter(s => s.resonance).map(s => `<button class="bs" data-s="${s.id}" ${game.s.syn < game.strainPrice() ? 'disabled' : ''}>${esc(s.icon)} ${esc(s.name)}</button>`).join('')}</div>
       <h4>神経アンプル（所持 ${game.s.ampoules.length}/${game.ampouleSlots()}）</h4>
-      <div class="row">${reg.all('ampoules').filter(a => game.unlocked(a)).map(a => `<button class="ba" data-a="${a.id}" title="${esc(a.desc)}" ${game.s.syn < game.ampoulePrice(a) || game.s.ampoules.length >= game.ampouleSlots() ? 'disabled' : ''}>${esc(a.name)} ${fmt(game.ampoulePrice(a))}</button>`).join('')}</div>
+      <div class="row g-amp">${reg.all('ampoules').filter(a => game.unlocked(a)).map(a => `<button class="ba" data-a="${a.id}" title="${esc(a.desc)}" ${game.s.syn < game.ampoulePrice(a) || game.s.ampoules.length >= game.ampouleSlots() ? 'disabled' : ''}>${esc(a.name)} ${fmt(game.ampoulePrice(a))}</button>`).join('')}</div>
       <h4>その他</h4>
-      <div class="row"><button class="optic" ${!next || game.s.syn < next.price ? 'disabled' : ''}>視神経予測網 Lv.${game.s.optic}${next ? ` → ${next.lv}（${fmt(next.price)}）` : '（最大）'}</button>
+      <div class="row g-etc"><button class="optic" ${!next || game.s.syn < next.price ? 'disabled' : ''}>視神経予測網 Lv.${game.s.optic}${next ? ` → ${next.lv}（${fmt(next.price)}）` : '（最大）'}</button>
         <button class="vx" ${game.s.syn < R.shop.vaultPrice ? 'disabled' : ''}>倉庫 +${R.shop.vaultStep}枠（${fmt(R.shop.vaultPrice)}）</button></div>`;
     on(body, '.buy', n => { game.buy(Number(n.dataset.i)); again(); });
     on(body, '.bs', n => { const it = game.buyStrain(n.dataset.s); if (it) toast(`購入：${game.tmpl(it).name}`); again(); });
@@ -372,7 +374,7 @@ export function createScreens(root, game, reg, deps = {}) {
       <label class="slider">BGM <input type="range" min="0" max="1" step="0.05" value="${st.bgm}" data-k="bgm"><output>${Math.round(st.bgm * 100)}%</output></label>
       <label class="slider">効果音 <input type="range" min="0" max="1" step="0.05" value="${st.sfx}" data-k="sfx"><output>${Math.round(st.sfx * 100)}%</output></label>
       <div class="row"><button class="flash">強い点滅・ネガ反転を弱める：${st.reduceFlash ? 'ON' : 'OFF'}</button></div>
-      <div class="row"><button class="s-tut">チュートリアルを再実行</button></div>
+      <div class="row"><button class="s-tut">チュートリアルを再実行</button><button class="s-gd">画面の案内をもう一度出す</button></div>
       ${deps.install?.available() ? '<div class="row"><button class="inst">ホーム画面に追加</button></div>' : ''}
       <div class="row"><button class="wipe">セーブを初期化</button></div>`, m => {
       on(m, '.inst', () => deps.install.run());
@@ -381,6 +383,7 @@ export function createScreens(root, game, reg, deps = {}) {
       }));
       on(m, '.flash', n => { st.reduceFlash = !st.reduceFlash; n.textContent = `強い点滅・ネガ反転を弱める：${st.reduceFlash ? 'ON' : 'OFF'}`; h?.save(); });
       on(m, '.s-tut', () => { closeModal(); h?.practice(); });
+      on(m, '.s-gd', () => { for (const f of [...game.mem.flags]) if (f.startsWith('guide:')) game.mem.flags.delete(f); h?.save(); closeModal(); toast('各画面を開くと、案内がもう一度出る'); });
       on(m, '.wipe', () => modal('<b>セーブを初期化</b><p>すべての検体・義体・記録・断片ログが消える。元に戻せない。</p><button class="wide yes">初期化する</button><button class="wide no">やめる</button>',
         m2 => { on(m2, '.yes', () => h?.wipe()); on(m2, '.no', () => closeModal()); }));
     });
@@ -428,16 +431,15 @@ export function createScreens(root, game, reg, deps = {}) {
           <div class="r-rw">${r.kind === 'elite' ? '義体確定・SYN×1.5' : r.kind === 'vault' ? 'SYN×3・アンプル確定・3ターン' : r.boss ? '義体確定' : '変異因子'}${r.wreck ? '<br><em>残骸あり</em>' : ''}</div>
         </button>`).join('')}</div>`);
     on(d, '.route', n => pick(Number(n.dataset.i)));
+    guideFor(d, 'routes');
   }
 
-  // ---- 報酬 ----
+  // ---- 変異因子（深部潜行を決めたあとに選ぶ。その潜行の間だけ効く） ----
   function reward(run, take) {
     const rw = run.reward;
     const d = view('reward', `
-      <header class="sh"><b>${run.floor}F 突破</b><small>未精製 SYN +${fmt(rw.syn)}${rw.overkill ? '（過剰出力 +20%）' : ''}</small></header>
-      ${rw.vertebra ? `<p class="note">義体を拾った（抜去すれば倉庫へ）</p>${vertCard(rw.vertebra)}` : ''}
-      ${rw.ampoule ? `<p class="note">アンプル：${esc(reg.get('ampoules', rw.ampoule)?.name)}${rw.ampouleLost ? '（首筋ポートが埋まっていて持てない）' : ''}</p>` : ''}
-      <h4>変異因子を1つ選ぶ（${run.mutagens.length}/${R.combat.mutagenSlots}）</h4>
+      <header class="sh"><b>${run.floor + 1}F へ潜行</b><small>持ち込む変異因子（${run.mutagens.length}/${R.combat.mutagenSlots}）</small></header>
+      <p class="note">変異因子は、この潜行が終わるまで効く。抜去・ロストで消える。</p>
       <div class="mlist">${rw.mutagens.map(id => `<button class="pick" data-id="${id}">${mutCard(id)}</button>`).join('')}
         <button class="pick syn" data-syn="1"><div class="vcard"><b>神経素を選ぶ</b><div class="vc-d">未精製 SYN +${fmt(rw.synOption)}</div></div></button></div>`);
     on(d, '.pick', n => {
@@ -448,21 +450,64 @@ export function createScreens(root, game, reg, deps = {}) {
           m => on(m, '.rp', x => { closeModal(); take({ type: 'mutagen', id, replace: Number(x.dataset.i) }); }));
       else take({ type: 'mutagen', id });
     });
+    guideFor(d, 'reward');
   }
 
-  // ---- 抜去／深部潜行 ----
+  // ---- 抜去／深部潜行（突破の成果もここで見せる） ----
   function choice(run, act) {
-    const m = reg.get('modes', run.mode);
-    const first = !game.has('help:extract');
+    const m = reg.get('modes', run.mode), rw = run.reward ?? {};
     const d = view('choice', `
-      <header class="sh"><b>${esc(m.name)} ${run.floor}F ${run.reward?.closed ? '金庫閉鎖' : '突破'}</b><small>次：${run.floor + 1}F ／ 全${m.floors}階層</small></header>
-      ${first ? `<p class="cer">神経抜去（EXTRACT）すれば、未精製の神経素と拾った義体を持ち帰れる。深部潜行（DIVE）を続けて死亡すれば、装着中の義体と拾った義体はすべて砕け、神経素は30%しか残らない。判断は、検体に委ねる。</p>` : ''}
+      <header class="sh"><b>${esc(m.name)} ${run.floor}F ${rw.closed ? '金庫閉鎖' : '突破'}</b><small>次：${run.floor + 1}F ／ ${m.floors ? '全' + m.floors + '階層' : '∞'}</small></header>
+      ${rw.syn ? `<p class="note gain">未精製 SYN +${fmt(rw.syn)}${rw.overkill ? '（過剰出力 +20%）' : ''}${rw.ampoule ? ` ／ アンプル：${esc(reg.get('ampoules', rw.ampoule)?.name)}${rw.ampouleLost ? '（首筋ポートが埋まっていて持てない）' : ''}` : ''}${rw.vertebra ? ' ／ 義体を拾った' : ''}</p>` : ''}
       <dl class="t-rec"><dt>SYNC</dt><dd>${run.sync}%</dd><dt>未精製 SYN</dt><dd>${fmt(run.syn)}</dd><dt>拾った義体</dt><dd>${run.found.length}</dd>
         <dt>変異因子</dt><dd>${run.mutagens.length}</dd></dl>
       <div class="mlist">${run.found.map(it => vertCard(it)).join('')}</div>
-      <div class="ch-btns"><button class="ex">[ 神経抜去 // EXTRACT ]</button><button class="dv">[ 深部潜行 // DIVE ]<small>SYNC +${R.run.diveHeal}%</small></button></div>`);
-    on(d, '.ex', () => { game.mem.flags.add('help:extract'); act('extract'); });
-    on(d, '.dv', () => { game.mem.flags.add('help:extract'); act('dive'); });
+      <div class="ch-btns"><button class="ex">[ 神経抜去 // EXTRACT ]<small>持ち帰る</small></button><button class="dv">[ 深部潜行 // DIVE ]<small>SYNC +${R.run.diveHeal}%${rw.mutagens?.length ? '・変異因子を選ぶ' : ''}</small></button></div>`);
+    on(d, '.ex', () => act('extract'));
+    on(d, '.dv', () => act('dive'));
+    guideFor(d, 'choice');
+  }
+
+  // ---- 画面の案内（初回だけ自動で出る。見出しの ? でもう一度） ----
+  // R.guides[id] = { title, steps: [{ at: CSSセレクタ（省略で中央）, text, optional }] }
+  function guideFor(d, id) {
+    const g = R.guides?.[id]; if (!g) return;
+    const sh = d.querySelector('.gq-at') ?? d.querySelector('.sh');
+    if (sh && !sh.querySelector('.gq')) {
+      const b = document.createElement('button'); b.className = 'gq'; b.textContent = '?'; b.title = '案内';
+      b.addEventListener('click', () => { A?.tick?.(); showGuide(d, id); }); sh.appendChild(b);
+    }
+    // 会話ログや確認窓が出ている間は待ってから出す
+    const wait = () => {
+      if (!d.isConnected || game.has('guide:' + id)) return;
+      if (document.querySelector('.logcard, .modal, .tutcard.show, .gd')) return setTimeout(wait, 300);
+      game.mem.flags.add('guide:' + id); deps.save?.(); showGuide(d, id);
+    };
+    setTimeout(wait, 150);
+  }
+  function showGuide(d, id) {
+    const g = R.guides[id], steps = g.steps.filter(x => !x.optional || d.querySelector(x.at));
+    if (!steps.length) return;
+    document.querySelector('.gd')?.remove();
+    const o = document.createElement('div'); o.className = 'gd';
+    o.innerHTML = `<div class="gd-spot"></div><div class="gd-card"><small></small><p></p><div class="row"><button class="gd-skip">閉じる</button><button class="gd-next">次へ</button></div></div>`;
+    document.body.appendChild(o);
+    let i = 0;
+    const spot = o.querySelector('.gd-spot'), card = o.querySelector('.gd-card');
+    const show = () => {
+      const st = steps[i], t = st.at ? d.querySelector(st.at) : null;
+      t?.scrollIntoView?.({ block: 'nearest' });
+      const r = t?.getBoundingClientRect();
+      spot.hidden = !r;
+      if (r) Object.assign(spot.style, { left: r.left - 4 + 'px', top: r.top - 4 + 'px', width: r.width + 8 + 'px', height: r.height + 8 + 'px' });
+      card.classList.toggle('top', !!r && r.top + r.height / 2 > innerHeight * 0.5);
+      card.querySelector('small').textContent = `${g.title} ${i + 1}/${steps.length}`;
+      card.querySelector('p').textContent = st.text;
+      card.querySelector('.gd-next').textContent = i + 1 < steps.length ? '次へ' : 'わかった';
+    };
+    o.querySelector('.gd-next').addEventListener('click', () => { A?.tick?.(); if (++i < steps.length) show(); else o.remove(); });
+    o.querySelector('.gd-skip').addEventListener('click', () => o.remove());
+    show();
   }
 
   // ---- 結果 ----
@@ -636,5 +681,5 @@ export function createScreens(root, game, reg, deps = {}) {
     setTimeout(() => t.remove(), ms);
   }
 
-  return { title, textSeq, thaw, hub, routes, reward, choice, result, story, modal, closeModal, toast, settings, drawCard, logCard };
+  return { guideFor, title, textSeq, thaw, hub, routes, reward, choice, result, story, modal, closeModal, toast, settings, drawCard, logCard };
 }

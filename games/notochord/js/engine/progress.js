@@ -390,14 +390,15 @@ export class Game {
       if (i >= 0) run.ampoules[i] = amp; else ampLost = true;
     }
     const final = this.isFinal(m, f);
-    const mutagens = kind === 'vault' ? [] : this.genMutagens(kind === 'elite' ? rd.mutagenTierUp ?? 1 : 0);
+    // 変異因子はその潜行の間だけ効くので、最終階層では出さない（選ぶのは深部潜行を決めたあと）
+    const mutagens = kind === 'vault' || final ? [] : this.genMutagens(kind === 'elite' ? rd.mutagenTierUp ?? 1 : 0);
     run.reward = { syn, synOption: Math.round(syn * this.R.run.rewardSyn), mutagens, vertebra: vert, ampoule: amp, ampouleLost: ampLost, overkill: over, final };
     this.emit('FLOOR_CLEAR', { mode: m.id, floor: f, boss, kind });
     if (final) {
       this.s.records.clears[m.id] = (this.s.records.clears[m.id] || 0) + 1;
       this.emit('MODE_CLEAR', { mode: m.id, floor: f });
     }
-    run.phase = mutagens.length ? 'reward' : (final ? 'final' : 'choice');
+    run.phase = final ? 'final' : 'choice';
     return { won: true, final };
   }
   genMutagens(tierUp = 0) {
@@ -435,13 +436,16 @@ export class Game {
       }
       run.mutagens.push(choice.id);
     } else if (choice.type === 'syn') run.syn += run.reward.synOption;
-    run.phase = run.reward.final ? 'final' : 'choice';
+    if (run.reward.dived) this.nextFloor();
+    else run.phase = run.reward.final ? 'final' : 'choice';   // 旧セーブ（選択が抜去の前だった版）
     return { ok: true };
   }
   dive() {
     const run = this.s.run;
     if (!run || run.phase !== 'choice') return false;
     run.sync = Math.min(run.syncMax, run.sync + this.R.run.diveHeal);
+    // 潜ると決めてから、次の階層に持ち込む変異因子を選ぶ
+    if (run.reward?.mutagens?.length) { run.reward.dived = true; run.phase = 'reward'; return true; }
     this.nextFloor();
     return true;
   }

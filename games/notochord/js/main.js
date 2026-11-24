@@ -132,7 +132,9 @@ function battleScreen() {
       }, 300);
     },
   });
-  if (debug) globalThis.__notochord = battle;
+  // チュートリアル戦闘の後、強化を初めて持ち込んだ戦闘で案内を出す
+  if (!tut && (cb.mutagens.length || cb.ampoules.some(Boolean))) ui.guideFor(app.querySelector('.battle') ?? app, 'battle');
+  if (debug) { globalThis.__notochord = battle; globalThis.__game = game; }
 }
 // 試験戦闘（デバッグ）：記録に残らない
 function testBattle(mode, floor) {
@@ -144,7 +146,7 @@ function testBattle(mode, floor) {
 function rewardScreen() { ui.reward(game.run, ch => { game.takeReward(ch); save(); resume(); }); }
 function choiceScreen() {
   ui.choice(game.run, act => {
-    if (act === 'dive') { game.dive(); save(); flush(routeScreen); }
+    if (act === 'dive') { game.dive(); save(); flush(resume); }
     else { const r = game.extract(); save(); flush(() => ui.result(r, () => hubScreen('vault'))); }
   });
 }
@@ -178,7 +180,7 @@ async function boot() {
   game = new Game(reg, rng, q.has('fresh') ? null : load());
   audio = createAudio({ ...reg.rules.audio, bgm: game.s.settings.bgm, sfx: game.s.settings.sfx });
   document.addEventListener('pointerdown', () => audio.unlock(), { once: true });
-  ui = createScreens(app, game, reg, { audio, install });
+  ui = createScreens(app, game, reg, { audio, install, save });
   app.innerHTML = '';
   if (reg.errors.length) showErrors(reg.errors);
   if (reg.all('modes').length) title();
