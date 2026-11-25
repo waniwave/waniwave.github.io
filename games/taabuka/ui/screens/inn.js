@@ -13,7 +13,7 @@ import { SE } from '../audio/audio.js';
 import { confetti, shards } from '../fx/particles.js';
 import { nameOf, sellValue } from '../../engine/dive.js';
 import {
-  facility, facilityDef, upgradeInfo, upgrade, stashRoom, overflowNow, toggleDeck, sell, choubaGoods, buyChouba, canTakeStarter, takeStarter, pawnGoods, pawnInfo, borrowPawn, returnPawn, setShibari, shibariList, dailyInfo, readShare,
+  facility, facilityDef, upgradeInfo, upgrade, stashRoom, overflowNow, sudoInfo, sudoDeck, upgradeSudo, setSudoTheme, toggleDeck, sell, choubaGoods, buyChouba, canTakeStarter, takeStarter, pawnGoods, pawnInfo, borrowPawn, returnPawn, setShibari, shibariList, dailyInfo, readShare,
   shikomiMenu, applyShikomi, basicGoods, buyBasic, decorState, buyDecor, weeklyInfo, exchangeSouvenir, careInfo, careRegular, dungeonList, souvenirsOf, deckGoods, buyDeck, comboGoods, buyCombo, copyInfo, copyCard, fuseInfo, fuseCards, kuyoPrice, kuyo, prepInfo, insurable, charmable, premium, returnRate, carryOf, warpChoices,
 } from '../../engine/meta.js';
 
@@ -538,11 +538,32 @@ export function prepScreen(ctx) {
     );
   }
   function lightBody() {
-    const P = base.balance;
+    const E = base.balance.economy.inn;
+    const si = sudoInfo(base, H);
+    const pv = sudoDeck(base, H);
+    const lvDots = Array.from({ length: si.max + 1 }, (_, i) => h(`i${i <= si.lv ? '.on' : ''}`));
     return [
+      h('div.sudolv', {}, [
+        h('div.sl', {}, [h('span', { text: '借り物デッキ' }), h('b', { text: `Lv${si.lv}` }), h('span.dots', {}, lvDots)]),
+        si.next ? h('button.btn', { type: 'button', disabled: H.zeni < si.next.cost, onclick: () => { if (guard(() => upgradeSudo(base, H))) { ctx.save(); SE.coin?.(); render(); } } }, [`強化 宿銭${si.next.cost}`]) : h('span.q', { text: '最大' }),
+      ]),
+      si.def.theme ? h('div.themes', {}, [
+        h(`button.chip${!si.theme ? '.on' : ''}`, { type: 'button', onclick: () => { setSudoTheme(base, H, null); ctx.save(); render(); } }, ['おまかせ']),
+        ...si.themes.map((t) => h(`button.chip.th${si.theme?.id === t.id ? '.on' : ''}`, { type: 'button', onclick: () => { setSudoTheme(base, H, t.id); ctx.save(); render(); } }, [
+          ...t.cats.map((c) => h('span.glyph', { style: { background: catColor(c) } }, [catGlyph(c)])), t.name])),
+      ]) : null,
+      si.theme ? h('p.sudohint', { text: si.theme.hint }) : null,
       h('div.lightinfo', {}, [
-        ['宿泊客', 'おまかせ'], ['札', `借り物 ${P.economy?.inn?.sudomariSize ?? 20}枚`], ['行き先', '本坑'], ['深さ', `B${P.economy?.inn?.sudomariFloors ?? '？'}まで`], ['倒れても', '失う物なし'],
+        ['宿泊客', C.guests[pv.guest]?.name ?? 'おまかせ'], ['行き先', '本坑'], ['深さ', `B${E.sudomariFloors ?? '？'}まで`], ['倒れても', '失う物なし'],
       ].map(([k, v]) => h('div.li', {}, [h('span', { text: k }), h('b', { text: v })]))),
+      h('button.btn', { type: 'button', onclick: () => {
+        const list = pv.deck.map((x) => ({ ...x, type: 'card' })).sort((a, b) => String(C.cards[a.id]?.cat?.[0]).localeCompare(String(C.cards[b.id]?.cat?.[0]), 'ja'));
+        const s2 = sheet(app, [
+          h('h2', { text: `借り物デッキ ${list.length}枚` }),
+          h('div.things.deck', {}, list.map((x) => thingEl(base, x))),
+          h('div.row', {}, [h('button.btn.main', { type: 'button', onclick: () => s2.close() }, ['閉じる'])]),
+        ]);
+      } }, [`中身を見る（${pv.deck.length}枚）`]),
       h('div.grow'),
       h('footer.ops.big', {}, [holdButton('素泊まりで潜る', () => ctx.go.dive(true), 'main')]),
     ];

@@ -873,13 +873,60 @@ export function beginShared(base, H, o) {
   return D;
 }
 
+/** 素泊まりの借り物デッキの段（0〜）と、次の段の値段 */
+export function sudoInfo(base, H) {
+  const lv = inn(base).sudoLv || [{ cost: 0 }];
+  const cur = Math.min(H.sudoLv || 0, lv.length - 1);
+  const themes = (inn(base).sudoThemes || []).filter((t) => t.cats.every((c) => base.balance.tiers.categories.includes(c)));
+  return { lv: cur, max: lv.length - 1, def: lv[cur], next: lv[cur + 1] ?? null, themes, theme: lv[cur].theme ? (themes.find((t) => t.id === H.loadout?.sudoTheme) ?? null) : null };
+}
+/** 借り物デッキを強化する */
+export function upgradeSudo(base, H) {
+  const s = sudoInfo(base, H);
+  check(!!s.next, 'もう上がらない');
+  check(H.zeni >= s.next.cost, '宿銭が足りない');
+  H.zeni -= s.next.cost;
+  H.sudoLv = s.lv + 1;
+  return H;
+}
+/** アーキタイプを選ぶ（null でおまかせ） */
+export function setSudoTheme(base, H, id) {
+  check(id == null || sudoInfo(base, H).themes.some((t) => t.id === id), 'そのデッキは無い');
+  H.loadout.sudoTheme = id ?? null;
+  return H;
+}
+/** 次の素泊まりの宿泊客と借り物デッキ（決まった乱数。潜行準備の「中身を見る」と同じになる） */
+export function sudoDeck(base, H, seed = `sudo${H.records.dives}`) {
+  const C = base.content;
+  const E = inn(base);
+  const s = sudoInfo(base, H);
+  const rng = Rng.child(seed, 'sudomari', 0);
+  const guest = rng.pick(H.unlocked.guests);
+  const all = poolOf(base, H, guest).cards.map((id) => C.cards[id]).filter((d) => d && !['pawn', 'cursed', 'expiry', 'bet'].includes(d.origin) && !C.sets[d.set]?.joke);
+  const by = (grade, cat) => all.filter((d) => d.grade === grade && (!cat || d.cat?.includes(cat)));
+  const pickG = (cat) => {
+    const g = rng.next() < (s.def.joU ?? 0.3) ? '上' : '並';
+    for (const l of [by(g, cat), by(g === '上' ? '並' : '上', cat)]) if (l.length) return rng.pick(l);
+    return null;
+  };
+  const ids = [];
+  const t = s.theme;
+  for (let k = 0; k < (s.def.toku || 0); k++) { const l = by('特上', t?.cats[0]); if (l.length) ids.push(rng.pick(l).id); }
+  const mix = E.sudoMix || { main: 11, sub: 6 };
+  if (t) {
+    while (ids.length < mix.main) { const d = pickG(t.cats[0]); if (!d) break; ids.push(d.id); }
+    for (let k = 0; k < mix.sub; k++) { const d = pickG(t.cats[1]); if (d) ids.push(d.id); }
+  }
+  while (ids.length < E.sudomariSize) { const d = pickG(null); if (!d) break; ids.push(d.id); }
+  if (t && ids.length > E.sudomariSize) ids.length = E.sudomariSize;
+  const deck = ids.slice(0, E.sudomariSize).map((id, i) => ({ uid: `b${seed}_${i}`, id, origin: 'orig', borrowed: true }));
+  return { guest, deck, theme: t };
+}
+
 function beginSudomari(base, H, o) {
   check(H.sudomari > 0, '素泊まりの回数が無い');
   const C = base.content;
-  const rng = Rng.child(o.seed, 'sudomari', 0);
-  const guest = rng.pick(H.unlocked.guests);
-  const pool = poolOf(base, H, guest).cards.map((id) => C.cards[id]).filter((d) => ['並', '上'].includes(d.grade) && !['pawn', 'cursed', 'expiry', 'bet'].includes(d.origin));
-  const deck = Array.from({ length: inn(base).sudomariSize }, (_, i) => ({ uid: `b${o.seed}_${i}`, id: rng.pick(pool).id, origin: 'orig', borrowed: true }));
+  const { guest, deck } = sudoDeck(base, H);
   const g = C.guests[guest];
   H.sudomari -= 1;
   const D = createDive(base, {

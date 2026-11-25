@@ -83,6 +83,27 @@ inn:
   sudomariMax: 2          # 素泊まり潜行の回数の上限
   sudomariSize: 20        # 素泊まり潜行の借り物デッキ
   sudomariFloors: 6       # 素泊まり潜行は第二層（B6）まで
+  # 素泊まりの借り物デッキの強化（宿銭で段を上げる）。強くしすぎない：レア（特上）は最大2枚、刻印なし
+  #  theme：アーキタイプ（主カテゴリ main 枚＋副カテゴリ sub 枚＋残りは自由）を選べる　joU：上の札の割合　toku：特上の札の枚数（主カテゴリから）
+  sudoLv:
+    - { cost: 0,    theme: false, joU: 0.3, toku: 0 }
+    - { cost: 400,  theme: true,  joU: 0.3, toku: 0 }
+    - { cost: 900,  theme: true,  joU: 0.5, toku: 1 }
+    - { cost: 1800, theme: true,  joU: 0.7, toku: 1 }
+    - { cost: 3200, theme: true,  joU: 0.8, toku: 2 }
+  sudoMix: { main: 11, sub: 6 }
+  # アーキタイプ（構築の手がかり）。cats の1つめが主、2つめが副
+  sudoThemes:
+    - { id: men,    name: 麺と食べ物の上乗せ, cats: [麺, 食べ物], hint: 同じカテゴリを重ねて倍率を伸ばす }
+    - { id: sure,   name: スレの引き,         cats: [スレ, 速さ],   hint: 札を引いて重なりを作る }
+    - { id: taa,    name: ターの番付操作,     cats: [ター, 老],     hint: 番付を上げてTierで押す }
+    - { id: yado,   name: 宿の受けと封殺,     cats: [宿, 湯],       hint: 流して受け、反撃と封殺で勝つ }
+    - { id: doubutsu, name: 動物の群れ,       cats: [動物, 校庭],   hint: 枚数を並べて共感させる }
+    - { id: kakuge, name: 格ゲーの連打,       cats: [格ゲー, 速さ], hint: 出す回数を増やして刻む }
+    - { id: rou,    name: 老の熟成,           cats: [老, 湯],       hint: 手札に残して育てる }
+    - { id: shi,    name: 死の捨て身,         cats: [死, ター],     hint: 体力を払って番付を落とす }
+    - { id: robo,   name: ロボの効果なし強化, cats: [ロボ, スレ],   hint: 効果の無い札を強くして呆れさせる }
+    - { id: koutei, name: 校庭の足止め,       cats: [校庭, 動物],   hint: 相手を止めて論点をずらす }
   starterBelow: 15        # 蔵の札がこれ未満なら素泊まりセット（初期デッキ）を渡す
   pawnThanks: 0.5         # 質札を返したときの謝礼（売値の割合）
   betZeniPerGrow: 5       # 賭け札：脱出で育ち×5の宿銭
