@@ -120,6 +120,8 @@ export function hitPlayer(B, env, e, dmg, ignore) {
   const guarded = Math.max(0, dmg - ignore);
   const fromGuard = Math.min(B.guard, guarded);
   B.guard -= fromGuard;
+  const k = env.balance.hands.play.counterPerGuard ?? 0;
+  if (fromGuard > 0 && k > 0) { const add = Math.round(fromGuard * k); B.counterS = (B.counterS || 0) + add; log(B, { t: 'counter', add, total: B.counterS }); }
   const loss = dmg - fromGuard;
   B.hp = Math.max(0, B.hp - loss);
   log(B, { t: 'attack', enemy: e.uid, name: e.name, dmg, guarded: fromGuard, loss, hp: B.hp });
@@ -228,7 +230,7 @@ export function createBattle(base, o) {
     rules: (o.rules || []).map((r) => ({ ...r })), mods: [], flags: {}, guest: o.guest ?? null, guestSwap: null,
     guestState: { ...(guestDef?.state || {}), ...(o.guestState || {}) }, quirk: o.quirk ?? null, quirkParams: o.quirkParams ?? null, heldRules: o.heldRules ?? null, xmods: o.xmods ?? null, itemPool: o.itemPool ?? null,
     sealed: { cats: [], hands: [], discard: false }, pendingFaceDown: 0, fixedPlay: null,
-    lastHand: null, turnLastHand: null, lastPlayedCats: [], carryS: 0, banzukeFloorStart: o.banzukeFloorStart ?? null, initialClaim: ZERO, zeni: 0, overkill: null, result: null, rewardRate: 1,
+    lastHand: null, turnLastHand: null, lastPlayedCats: [], carryS: 0, counterS: 0, banzukeFloorStart: o.banzukeFloorStart ?? null, initialClaim: ZERO, zeni: 0, overkill: null, result: null, rewardRate: 1,
     stats: { plays: 0, maxV: ZERO, hands: {}, cats: {} },
     rngState: rng.getState(), uidSeq: 0, log: [],
   };
@@ -820,6 +822,20 @@ export function discard(B, env, indices) {
   for (const c of cards) { c.faceDown = false; B.discard.push(c); }
   B.discardsLeft -= 1;
   log(B, { t: 'discard', cards: cards.map((c) => c.name) });
+  // 流すと受け（流した札の強さ×guardOnDiscard。仕込み「守」と場の状態の受けの倍率も掛かる）
+  const gk = P.guardOnDiscard ?? 0;
+  if (gk > 0) {
+    const md = moodDef(B, balance);
+    let add = 0;
+    for (const c of cards) {
+      const view = cardView(c, balance, B.banzuke);
+      if (view.cats.some((cat) => balance.tiers.missing?.[B.banzuke[cat]]?.noGuard)) continue;
+      const enh = c.enh && balance.hands.enhancements[c.enh];
+      add += cardStrength(c, balance, B.banzuke) * gk * (enh?.guardMul ?? 1) * (md?.guardMul ?? 1);
+    }
+    add = Math.round(add);
+    if (add > 0) { B.guard += add; log(B, { t: 'guard', card: '流し', add, guard: B.guard }); }
+  }
   for (const c of cards) {
     const seal = c.seal && balance.hands.seals[c.seal];
     if (seal && seal.discardedItem) gainItem(B, env, seal.discardedItem, {});

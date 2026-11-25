@@ -2,7 +2,8 @@
 //   index.html        … タイトル → 宿 → 潜行準備 → 潜行 → 結果 → 宿
 //   index.html?dev=1  … 試し場（IDを指定して手札・席・敵・宿泊客を置き、すぐ戦闘）
 
-import { h, toast, loadSettings, saveSettings, hideTip } from './dom.js';
+import { h, toast, loadSettings, saveSettings, hideTip, installKeepScroll } from './dom.js';
+installKeepScroll();
 import { FxQueue } from './fx/queue.js';
 import { battleScreen } from './screens/battle.js';
 import { titleScreen } from './screens/title.js';
@@ -267,8 +268,10 @@ function showDive() {
   if (!D) return goInn();
   if (D.phase === 'battle') return showDiveBattle();
   window.__taabuka.dive = D;
-  show(diveScreen({ app, base, D, queue, onBattle: showDiveBattle, onChange: () => { pendingRep = diveChanged() ?? pendingRep; }, onEnd: () => showResult(),
-    onRender: (d) => ambience(d.phase === 'landing' ? 'landing' : d.phase === 'end' ? 'none' : 'dive', d) }));
+  const ds = diveScreen({ app, base, D, queue, onBattle: showDiveBattle, onChange: () => { pendingRep = diveChanged() ?? pendingRep; }, onEnd: () => showResult(),
+    onRender: (d) => ambience(d.phase === 'landing' ? 'landing' : d.phase === 'end' ? 'none' : 'dive', d) });
+  window.__taabuka.diveScr = ds;
+  show(ds);
 }
 let pendingRep = null;
 function showResult() {
@@ -308,7 +311,7 @@ function showDiveBattle() {
 // ───────── 宿 ─────────
 const innCtx = {
   app, base, coach: null, rules: () => rules(base), settings, saveSettings, queue, applySettings, H: () => H, save: () => persist('inn'), refreshBgm: () => ambience('inn'),
-  exportText: async () => { await saving; return exportText(saveInn(H), D ? saveDive(D) : null); },
+  exportText: async () => { await Promise.race([saving, new Promise((r) => setTimeout(r, 1500))]); return exportText(saveInn(H), D ? saveDive(D) : null); },
   importText: async (t) => {
     const o = await importText(t);
     const h2 = loadInn(o.inn);

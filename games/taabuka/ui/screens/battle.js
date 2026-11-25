@@ -7,9 +7,10 @@ import { MS } from '../fx/queue.js';
 import { cardArt, enemyArt, smallArt } from '../art.js';
 import {
   catGlyph, catColor, GRADE_COLOR, ORIGIN_MARK, SEAL_COLOR, tierLabel, slotLabel, cardTip, enemyTip, intentText, fmtNum, fmtMul, kwLines,
-  RAR_VAR, RAR_SHORT, rarOfCard,
+  RAR_VAR, RAR_SHORT, rarOfCard, rarStars,
 } from '../labels.js';
 import { tierOf } from '../../engine/hand.js';
+import { cardStrength } from '../../engine/score.js';
 import { yieldText } from '../../engine/yield.js';
 import { comboEffText } from '../labels.js';
 import { play, discard, endTurn, predict, guestAction, guestActions, guestStatus, choicesFor, useItem, layerNoAt } from '../../engine/battle.js';
@@ -43,10 +44,12 @@ export function battleScreen(o) {
   const st = { sel: [], target: B.enemies.findIndex((e) => !e.dead), choices: {} };
   const root = h('div.scr.battle');
   let refs = {};
+  let guardNow = B.guard || 0, hpNow = B.hp, counterNow = B.counterS || 0;   // 演出の途中の受けと体力（画面に出ている値）
 
   // ───────── 描く ─────────
   function render() {
     refs = { cards: new Map(), foes: new Map(), slots: new Map(), seats: new Map() };
+    guardNow = B.guard || 0; hpNow = B.hp; counterNow = B.counterS || 0;
     if (B.enemies[st.target]?.dead || st.target < 0) st.target = B.enemies.findIndex((e) => !e.dead);
     root.replaceChildren(renderTop(), renderBanzuke(), renderFoes(), renderSeats(), renderInfo(), renderCalc(), renderHand(), renderOps(), h('div.moodfx'));
     updateCalc();
@@ -55,7 +58,8 @@ export function battleScreen(o) {
 
   function renderTop() {
     const hp = hpGauge();
-    const gd = h('span.gd', {}, B.guard ? ['受け ', h('b', { text: B.guard })] : []);
+    const gd = h('div.shield', {}, [h('b'), h('small')]);
+    tip(gd, () => `<b>受け ${guardNow}</b><br>敵の攻めは、まず受けで止まる。足りない分だけ体力が減る。ターンの始めに0に戻る${incoming() ? `<br>予告の攻め ${incoming()}${guardNow >= incoming() ? '（全部受けきれる）' : `（あと ${incoming() - guardNow} 足りない）`}` : ''}`);
     const zn = h('span.zn', {}, ['宿銭 ', h('b', { text: B.zeni })]);
     refs.hp = hp; refs.guard = gd; refs.zeni = zn;
     const speed = h('button.btn', { type: 'button', onclick: () => {
@@ -68,15 +72,19 @@ export function battleScreen(o) {
     tip(menu, () => '<b>中断</b><br>速さと、戦闘をやめる');
     const pres = h('span.pres', {}, [`気配 ${B.presence}`]);
     tip(pres, () => `<b>気配 ${B.presence}</b><br>4で敵の主張＋20%、8で追跡者、12で主張＋50%`);
-    return h('header.top.hasgauge', {}, [h('div.st', {}, [h('span.fl', { text: `B${B.floor}` }), pres, gd, zn]), speed, menu, hp]);
+    const ctr = h('div.ctr'); refs.ctr = ctr;
+    tip(ctr, () => `<b>反撃 ＋${counterNow}</b><br>受けで止めた攻めの分だけ、次の出しの強さ（S）に足される`);
+    const out = h('header.top.hasgauge', {}, [h('div.st', {}, [h('span.fl', { text: `B${B.floor}` }), pres, zn]), speed, menu, h('div.hpw', {}, [gd, hp, ctr])]);
+    guardView();
+    return out;
   }
 
   /** 体力のゲージ（作り直し仕様 A）：減った分が白く残って遅れて縮む。予告どおり食らった後を点線で */
   function hpGauge() {
-    const fill = h('i.fill'), trail = h('i.trail'), fore = h('i.fore'), txt = h('span.txt');
-    const el = h('div.hpg', {}, [trail, fill, fore, txt]);
+    const fill = h('i.fill'), trail = h('i.trail'), fore = h('i.fore'), gseg = h('i.gseg'), txt = h('span.txt');
+    const el = h('div.hpg', {}, [trail, fill, gseg, fore, txt]);
     tip(el, () => `<b>体力 ${B.hp}/${B.maxHp}</b><br>0で倒れる（持ち込んだ物を失う）。点線は、敵が予告どおり動いたときの残り（受けを引いた後）`);
-    refs.hpParts = { el, fill, trail, fore, txt };
+    refs.hpParts = { el, fill, trail, fore, txt, gseg };
     setHp(B.hp, true);
     return el;
   }
@@ -90,6 +98,21 @@ export function battleScreen(o) {
     }
     return n;
   }
+  /** 受けの見た目：体力ゲージの左の盾（数）と、ゲージの守られている部分（青い斜線）。予告を全部受けきれるなら金の盾 */
+  function guardView() {
+    const sh = refs.guard; const p = refs.hpParts;
+    if (!sh || !p) return;
+    const g = Math.max(0, guardNow), inc = incoming();
+    sh.classList.toggle('on', g > 0);
+    sh.classList.toggle('full', g > 0 && inc > 0 && g >= inc);
+    sh.querySelector('b').textContent = g > 0 ? String(g) : '';
+    sh.querySelector('small').textContent = g > 0 ? (inc > 0 ? (g >= inc ? '受けきる' : `−${inc - g}`) : '受け') : '';
+    const cov = Math.min(g, hpNow);
+    p.gseg.style.width = `${(cov / B.maxHp) * 100}%`;
+    p.gseg.style.left = `${((hpNow - cov) / B.maxHp) * 100}%`;
+    p.el.classList.toggle('guarded', g > 0);
+    if (refs.ctr) { refs.ctr.classList.toggle('on', counterNow > 0); refs.ctr.textContent = counterNow > 0 ? `反撃+${counterNow}` : ''; }
+  }
   function setHp(v, now = false) {
     const p = refs.hpParts; if (!p) return;
     const pct = Math.max(0, Math.min(100, (v / B.maxHp) * 100));
@@ -101,6 +124,7 @@ export function battleScreen(o) {
     p.fore.style.left = `${(after / B.maxHp) * 100}%`;
     p.txt.replaceChildren('体力 ', h('b', { text: v }), `/${B.maxHp}`);
     p.el.classList.toggle('low', v <= B.maxHp * 0.3);
+    hpNow = v; guardView();
     root.classList.toggle('lowhp', v > 0 && v <= B.maxHp * 0.3);
   }
 
@@ -222,7 +246,7 @@ export function battleScreen(o) {
     if (content.sets[content.cards[c.id]?.set]?.joke) el.classList.add('joke');
     el.append(
       h('span.tier', { text: tierLabel(tierOf(c, balance, B.banzuke)) }),
-      h('span.rr', { text: RAR_SHORT[r] }),
+      h('span.rr', { text: rarStars(r) }),
       h('span.cats', {}, c.cat.map((x) => h('span.glyph', { style: { background: catColor(x) } }, [catGlyph(x)]))),
       h('span.nm', { text: c.name }),
     );
@@ -324,6 +348,13 @@ export function battleScreen(o) {
     refs.ops.ply.disabled = !!B.result || B.playsLeft <= 0 || n < P.minCards || n > (B.maxPlay ?? P.maxPlayCards) || (B.fixedPlay != null && n !== Math.min(B.fixedPlay, B.hand.length));
     refs.ops.dis.disabled = !!B.result || B.discardsLeft <= 0 || B.sealed.discard || n < P.minCards || n > P.maxDiscardCards
       || B.hand.some((c) => c.enh && balance.hands.enhancements[c.enh]?.blocksDiscard);
+    {
+      // 流したときの受けの見込み（Tier8 は出しごとの乱数なので目安）
+      const gk = P.guardOnDiscard ?? 0; const md = balance.moods?.[B.mood?.id];
+      const g = gk && n ? Math.round(st.sel.reduce((a, i) => { const c = B.hand[i]; if (!c) return a; const enh = c.enh && balance.hands.enhancements[c.enh]; return a + cardStrength(c, balance, B.banzuke) * gk * (enh?.guardMul ?? 1) * (md?.guardMul ?? 1); }, 0)) : 0;
+      refs.ops.dis.querySelector('.gq')?.remove();
+      if (g > 0 && !refs.ops.dis.disabled) refs.ops.dis.append(h('span.gq', { text: `受+${g}` }));
+    }
     refs.ops.end.disabled = !!B.result;
     refs.ops.itm.disabled = !!B.result || !B.items.length;
     const table = document.getElementById('handtable');
@@ -440,8 +471,12 @@ export function battleScreen(o) {
       refs.calc.classList.remove('empty');
     };
     let tgtClaim = prev.target ? prev.claims.get(prev.target) : null;
-    let guardNow = prev.guard;
-    const setGuard = (g) => { guardNow = Math.max(0, g); refs.guard.replaceChildren(...(guardNow ? ['受け ', h('b', { text: guardNow })] : [])); };
+    guardNow = prev.guard;
+    const setGuard = (g, why) => {
+      const was = guardNow; guardNow = Math.max(0, g); guardView();
+      if (guardNow > was) queue.bounce(refs.guard, 300);
+      else if (was > guardNow) { queue.shake(refs.guard, 6, 300); if (guardNow === 0 && why === 'turn') queue.pop('受けが消えた', refs.guard, null, 'note'); }
+    };
     const burn = (S, M) => {
       if (!tgtClaim || !Big.from(S).mul(M).gte(tgtClaim)) return;
       if (!refs.calc.classList.contains('burn')) {
@@ -494,6 +529,7 @@ export function battleScreen(o) {
             }
             switch (s.type) {
               case 'hand': T.push({ ms: 240, run: () => {
+                if (counterNow) { counterNow = 0; guardView(); }
                 refs.calcHd.replaceChildren(h('b', { text: '採点' }));
                 calcSet(s.S, s.M); queue.slam(refs.calc);
               } }); break;
@@ -560,11 +596,12 @@ export function battleScreen(o) {
         } });
           if (pendingStage && !entries.slice(entries.indexOf(e) + 1).some((x) => x.t === 'damage')) flushStage();
           break;
+        case 'counter': T.push({ ms: MS.note, run: () => { counterNow = e.total; guardView(); queue.pop(`反撃+${e.add}`, refs.ctr, null, 'm'); queue.bounce(refs.ctr, 300); typeFx(X(), refs.ctr, 'x', 3); } }); break;
         case 'guard': T.push({ ms: MS.note, run: () => { setGuard(e.guard); queue.pop(`受け+${e.add}`, refs.guard, null, 's'); typeFx(X(), refs.guard, 'guard', 3); } }); break;
         case 'broken': T.push({ ms: MS.note, run: () => queue.pop(`${e.card} が割れた`, refs.calc, null, 'note') }); break;
         case 'zeni': T.push({ ms: MS.note, run: () => { queue.pop(`宿銭+${e.add}`, refs.zeni, null, 'note'); } }); break;
         case 'overkill': if (e.level) T.push({ ms: MS.banner, run: () => queue.banner(e.level, 'big') }); break;
-        case 'turn': T.push({ ms: e.n > 1 ? 420 : 0, run: () => { setGuard(0); if (e.n > 1) queue.banner(`${e.n}ターン目`, 'small', 600); } }); break;
+        case 'turn': T.push({ ms: e.n > 1 ? 420 : 0, run: () => { setGuard(0, 'turn'); if (e.n > 1) queue.banner(`${e.n}ターン目`, 'small', 600); } }); break;
         case 'attack': T.push({ ms: MS.enemy, run: () => {
           const f = foe(e.enemy);
           if (f) queue.bounce(f.el, MS.enemy);
@@ -651,6 +688,10 @@ export function battleScreen(o) {
 
   // ───────── 窓 ─────────
   /** 論客の最後のひと言（結果の窓に、1人1行） */
+  function okamiLine() {
+    const ls = content.flavor?.[B.result === 'win' ? 'battleWin' : 'battleLose'];
+    return ls?.length ? h('p.flv', { text: ls[(B.turn * 7 + B.floor) % ls.length] }) : null;
+  }
   function lastWords() {
     if (B.result !== 'win') return null;
     const seen = new Set();
@@ -665,8 +706,9 @@ export function battleScreen(o) {
         h('p', { text: `${B.turn}ターン　最大論破値 ${format(B.stats.maxV)}${B.zeni ? `　宿銭 ${B.zeni}` : ''}` }),
         ok?.level ? h('p', { text: `過剰論破：${ok.level}（×${fmtMul(ok.r)}）` }) : null,
         lastWords(),
+        okamiLine(),
         h('div.row', {}, [h('button.btn.main', { type: 'button', onclick: () => { s.close(); o.onDone(B); } }, ['進む'])]),
-      ]);
+      ], { sticky: true });
       return;
     }
     const ok = B.overkill;
@@ -679,7 +721,7 @@ export function battleScreen(o) {
         o.onRestart ? h('button.btn.main', { type: 'button', onclick: () => { s.close(); o.onRestart(); } }, ['もう一戦']) : null,
         h('button.btn', { type: 'button', onclick: () => { s.close(); o.onExit(); } }, ['戻る']),
       ]),
-    ]);
+    ], { sticky: true });
   }
 
   function openMenu() {

@@ -480,8 +480,9 @@ button { font: inherit; color: inherit; }
 .ins.m { color: #a03ab0; font-weight: 700; }
 .card.r-ミシック { border-image: linear-gradient(135deg, #e04a4a, #e0b84a, #4ac06a, #4a8ae0, #b04ad0) 1; border-width: 3px; }
 .card.r-ユニーク, .card.r-レジェンダリー { box-shadow: 0 0 6px var(--g); }
-.card .rr { position: absolute; right: 3px; bottom: 2px; font-size: 11px; font-weight: 700; color: var(--g); }
-.thing .rr { font-size: 12px; font-weight: 700; color: var(--g); margin-left: 4px; }
+.card .rr { position: absolute; right: 3px; bottom: 1px; font-size: 8px; letter-spacing: -1px; line-height: 9px; color: var(--g); text-shadow: 0 0 2px #fff; }
+.thing .rr { font-size: 11px; letter-spacing: -1px; color: var(--g); margin-left: 4px; text-shadow: 0 0 2px #fff; }
+.rar .rar0 { opacity: .3; }
 .calc .hd .ov { display: inline-block; color: #fff; font-weight: 700; font-size: 13px; border-radius: 4px; padding: 0 4px; margin-right: 3px; }
 
 /* 体力のゲージと被弾（作り直し仕様 A） */
@@ -701,3 +702,31 @@ button { font: inherit; color: inherit; }
 .foe .nm small.ep { display: block; font-size: 10px; line-height: 11px; color: #b8432c; font-weight: 700; }
 .ov.cfx { position: absolute; z-index: 31; pointer-events: none; font-weight: 900; text-shadow: 0 1px 0 #fff8, 1px 1px 0 #1b161255; transform-origin: center; margin: -10px 0 0 -10px; white-space: nowrap; }
 .ov.cfx-ring { position: absolute; z-index: 30; pointer-events: none; width: 70px; height: 70px; border-radius: 50%; border: 4px solid; }
+/* 受け（守り）：体力ゲージの左に盾、ゲージの守られている部分に青い斜線。予告を全部受けきれるなら金 */
+.hpw { order: 5; flex: 0 0 100%; position: relative; display: flex; align-items: center; gap: 0; }
+.hpw .hpg { flex: 1 1 auto; order: 0; }
+.hpw .shield { flex: 0 0 auto; width: 0; height: 30px; overflow: hidden; transition: width .2s, margin .2s; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1;
+  color: #fff; background: linear-gradient(#5a9ae8, #2a5aa8); clip-path: polygon(50% 0, 100% 14%, 96% 62%, 50% 100%, 4% 62%, 0 14%); text-shadow: 0 1px 2px #0008; }
+.hpw .shield.on { width: 46px; margin-right: 4px; }
+.hpw .shield b { font-family: var(--mincho); font-size: 15px; }
+.hpw .shield small { font-size: 8px; font-weight: 700; margin-top: 1px; }
+.hpw .shield.full { background: linear-gradient(#f6d77a, #c8901a); color: #3a2a08; text-shadow: 0 1px 0 #fff8; animation: shieldfull 1.4s ease-in-out infinite; }
+@keyframes shieldfull { 50% { filter: brightness(1.25); } }
+.hpg .gseg { background: repeating-linear-gradient(135deg, #5a9ae8cc 0 5px, #2a5aa8cc 5px 9px); border-left: 2px solid #cfe2ff; transition: width .2s, left .2s; }
+.hpg.guarded { box-shadow: inset 0 1px 3px #0006, 0 0 0 2px #5a9ae8; }
+.foe > :not(.art) { flex-shrink: 0; }
+.foe .art { min-height: 18px; }
+.foe .nm { line-height: 15px; }
+.hpw .ctr { flex: 0 0 auto; width: 0; overflow: hidden; white-space: nowrap; font-size: 12px; font-weight: 900; color: #fff; background: linear-gradient(#e0603a, #a0301a); border-radius: 6px; height: 22px; line-height: 22px; text-align: center; transition: width .2s, margin .2s; }
+.hpw .ctr.on { width: auto; padding: 0 6px; margin-left: 4px; }
+.btn .gq { display: block; font-size: 10px; line-height: 10px; color: #3a6aa8; font-weight: 900; }
+.btn.evc { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.btn.evc .evh { font-size: 11px; color: var(--quiet, #8a7f6e); font-weight: 400; }
+.evfx { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 8px; }
+.evf { padding: 6px 10px; border-radius: 8px; font-weight: 700; font-size: 15px; animation: evfin .35s ease-out both; }
+.evf:nth-child(2) { animation-delay: .12s; } .evf:nth-child(3) { animation-delay: .24s; } .evf:nth-child(4) { animation-delay: .36s; } .evf:nth-child(5) { animation-delay: .48s; }
+.evf.good { background: #3f8a3a1f; color: #2e6a2a; border-left: 4px solid #3f8a3a; }
+.evf.bad { background: #b8432c1f; color: #a0301a; border-left: 4px solid #b8432c; }
+.evf.none { color: var(--quiet, #8a7f6e); font-weight: 400; }
+@keyframes evfin { from { opacity: 0; transform: translateX(-12px); } }
+.flv { font-size: 13px; color: var(--quiet, #8a7f6e); font-style: italic; margin: 0 0 4px; text-align: center; }

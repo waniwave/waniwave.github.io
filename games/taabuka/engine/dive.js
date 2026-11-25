@@ -925,6 +925,52 @@ export function eventChoices(base, D) {
   });
 }
 
+// 謎の前後で何が変わったか（画面に「起きたこと」として並べる）
+function eventSnap(D) {
+  return {
+    hp: D.hp, maxHp: D.maxHp, zeni: D.zeni, presence: D.presence, banzuke: { ...(D.banzuke || {}) },
+    items: (D.items || []).map((x) => x.id ?? x.kind), deck: new Map((D.deck || []).map((c) => [c.uid, JSON.stringify([c.id, c.enh, c.ed, c.seal, c.ins, c.rar, c.mod])])),
+    seats: (D.seats || []).map((x) => x.uid), pouch: (D.pouch || []).map((x) => x.uid), charm: (D.charm || []).map((x) => x.uid), curses: (D.curses || []).length, rules: (D.rules || []).length, msg: D.msg,
+  };
+}
+function eventDiff(base, a, D) {
+  const out = [];
+  const num = (k, label, good = 1) => { const d = D[k] - a[k]; if (d) out.push({ text: `${label} ${d > 0 ? '＋' : '−'}${Math.abs(d)}`, good: d * good > 0 }); };
+  num('hp', '体力'); num('maxHp', '体力の上限'); num('zeni', '宿銭'); num('presence', '気配', -1);
+  const ring = base.balance.tiers.ring;
+  for (const [cat, t] of Object.entries(D.banzuke || {})) {
+    const was = a.banzuke[cat];
+    if (was != null && was !== t) out.push({ text: `番付：${cat} ${was === 'God' ? 'God' : `T${was}`} → ${t === 'God' ? 'God' : `T${t}`}`, good: ring.indexOf(String(t)) < ring.indexOf(String(was)) });
+  }
+  const itemName = (id) => base.content.items?.[id]?.name ?? id;
+  const before = [...a.items];
+  for (const id of D.items || []) { const k = before.indexOf(id.id ?? id.kind); if (k >= 0) before.splice(k, 1); else out.push({ text: `お品書き「${itemName(id.id ?? id.kind)}」を得た`, good: true }); }
+  for (const id of before) out.push({ text: `お品書き「${itemName(id)}」を失った`, good: false });
+  const now = new Map((D.deck || []).map((c) => [c.uid, c]));
+  for (const [uid, sig] of a.deck) {
+    const c = now.get(uid);
+    if (!c) { const [id] = JSON.parse(sig); out.push({ text: `札「${base.content.cards[id]?.name ?? id}」がデッキから消えた`, good: false }); continue; }
+    const was = JSON.parse(sig); const is = JSON.parse(now.get(uid) && JSON.stringify([c.id, c.enh, c.ed, c.seal, c.ins, c.rar, c.mod]));
+    if (JSON.stringify(was) === JSON.stringify(is)) continue;
+    const nm = base.content.cards[c.id]?.name ?? c.id;
+    if (was[0] !== is[0]) out.push({ text: `札「${base.content.cards[was[0]]?.name ?? was[0]}」が「${nm}」に変わった`, good: true });
+    if (is[1] && was[1] !== is[1]) out.push({ text: `札「${nm}」に仕込み「${is[1]}」`, good: true });
+    if (is[2] && was[2] !== is[2]) out.push({ text: `札「${nm}」に版「${is[2]}」`, good: true });
+    if (is[3] && was[3] !== is[3]) out.push({ text: `札「${nm}」に判「${is[3]}」`, good: true });
+    if (JSON.stringify(was[4]) !== JSON.stringify(is[4])) out.push({ text: `札「${nm}」に刻印`, good: true });
+    if (is[5] && was[5] !== is[5]) out.push({ text: `札「${nm}」が${is[5]}に`, good: true });
+    if (JSON.stringify(was[6]) !== JSON.stringify(is[6])) out.push({ text: `札「${nm}」のTierかカテゴリが変わった（この潜行のあいだ）`, good: true });
+  }
+  for (const c of D.deck || []) if (!a.deck.has(c.uid)) out.push({ text: `札「${base.content.cards[c.id]?.name ?? c.id}」がデッキに入った`, good: true });
+  const sin = new Set(a.seats); for (const x of D.seats || []) if (!sin.has(x.uid)) out.push({ text: `常連客「${base.content.regulars?.[x.id]?.name ?? x.id}」が席に着いた`, good: true });
+  const pin = new Set(a.pouch); for (const x of D.pouch || []) if (!pin.has(x.uid)) out.push({ text: `懐に「${nameOf(base, x)}」`, good: true });
+  const cin = new Set(a.charm); for (const x of D.charm || []) if (!cin.has(x.uid)) out.push({ text: `お守り袋に「${nameOf(base, x)}」`, good: true });
+  if ((D.curses || []).length > a.curses) for (const c of D.curses.slice(a.curses)) out.push({ text: `呪い「${c.name}」`, good: false });
+  if ((D.rules || []).length > a.rules) for (const r of D.rules.slice(a.rules)) out.push({ text: `この潜行のあいだ：${r.text ?? r.name ?? '決まりが増えた'}`, good: true });
+  if (D.msg && D.msg !== a.msg) out.push({ text: D.msg, good: true });
+  return out;
+}
+
 /** 謎で選ぶ */
 export function chooseEvent(base, D, i) {
   check(D.phase === 'event' && D.event && D.event.choice == null, 'もう選んだ');
@@ -933,7 +979,10 @@ export function chooseEvent(base, D, i) {
   check(!!c && eventChoices(base, D)[i].ok, '選べない');
   D.event.choice = i;
   D.event.result = c.result ?? '';
-  if (c.do) runOutside(base, D, (B, env) => runDo(makeE({ battle: B, env }, null, 'event', { id: ev.id, name: ev.title }), c.do));
+  const snap = eventSnap(D);
+  const Bx = c.do ? runOutside(base, D, (B, env) => runDo(makeE({ battle: B, env }, null, 'event', { id: ev.id, name: ev.title }), c.do)) : null;
+  D.event.effects = eventDiff(base, snap, D);
+  for (const l of Bx?.log || []) if (l.t === 'note' && l.what && !/^次の出し/.test(l.what)) D.event.effects.push({ text: l.what, good: false });
   log(D, { t: 'event', id: ev.id, choice: i });
   if (D.hp <= 0) return endDive(base, D, 'lost', 'event');
   return D;

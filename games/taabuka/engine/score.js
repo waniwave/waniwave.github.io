@@ -171,6 +171,10 @@ export function computeScore(o) {
   sc.steps.push({ type: 'hand', src: { kind: 'hand', id: sc.hand, level: sc.level }, phase: 'base', S: sc.S, M: sc.M });
 
   // 余韻など「次の出しの最初に」足すもの
+  if (sc.battle.counterS) {
+    sc.addS(sc.battle.counterS, { kind: 'rule', name: '反撃' });
+    if (!sc.predict) sc.battle.counterS = 0;
+  }
   if (sc.battle.carryS) {
     sc.addS(sc.battle.carryS, { kind: 'rule', name: '余韻' });
     if (!sc.predict) sc.battle.carryS = 0;

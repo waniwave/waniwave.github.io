@@ -1204,7 +1204,7 @@ group('段階7：先行版の中身');
   eq(Object.keys(C.regulars).length, 62, '常連客62人（先行版40＋宿泊客6人の専用各3＋限定4）');
   eq(Object.values(C.regulars).filter((d) => d.grow).length, 5, 'うち成長型5人');
   eq(Object.keys(C.relics).length, 36, '置物36（先行版20＋宿泊客6人の最初の置物＋暖簾の外側の縁起物10）');
-  eq(Object.keys(C.events).length, 36, '謎36（各層＋本編の第三〜五層＋第5弾の6）');
+  eq(Object.keys(C.events).length, 49, '謎49（第7弾でター宿調に作り直し）');
   ok(!!C.events.ev_noren, '第二層の「暖簾」を含む');
   eq(Object.keys(C.guests).map((g) => bySet('cards', g).length).join('/'), Object.keys(C.guests).map(() => 25).join('/'), '宿泊客8人の専用札が各25枚');
   eq(bySet('cards', 'ryukogo').length, 30, '流行語30枚');

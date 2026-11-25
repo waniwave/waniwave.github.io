@@ -91,9 +91,10 @@ export function confirmSheet(root, title, body, yes = 'はい', no = 'やめる'
 
 // ───────── 下から出る窓 ─────────
 /** @returns {{close: () => void, el: HTMLElement}} */
-export function sheet(root, kids, { onClose } = {}) {
+export function sheet(root, kids, { onClose, sticky } = {}) {
   const box = h('div.sheet', {}, kids);
-  const back = h('div.sheet-back', { onclick: (e) => { if (e.target === back) close(); } }, [box]);
+  // sticky：外側を押しても閉じない（戦闘の結果など、閉じると先へ進めなくなる窓）
+  const back = h('div.sheet-back', { onclick: (e) => { if (e.target === back && !sticky) close(); } }, [box]);
   function close() { back.remove(); if (onClose) onClose(); }
   root.append(back);
   return { close, el: box };
@@ -147,4 +148,43 @@ export function fitText(el, min = 9) {
     size = Math.max(min, size * Math.max(0.6, (box.clientWidth / box.scrollWidth) * 0.98));
     box.style.fontSize = `${size}px`;
   }
+}
+
+// ───────── 描き直しでスクロールが一番上に戻らないように ─────────
+// replaceChildren の前に、中のスクロールしている箱の位置を「親からの道筋（タグと型の名前・同じ名前の何番目）」で覚え、
+// 描き直した後に同じ道筋の箱へ戻す。画面が別物に変わったら道筋が合わないので戻さない。
+const STATE_CLS = new Set(['took', 'on', 'tap', 'sel', 'hasact', 'dead', 'locked', 'open', 'hurt', 'lowhp', 'busy', 'dim', 'pick', 'hot', 'cur', 'off', 'joke']);
+const keyOf = (el) => `${el.tagName}.${[...el.classList].filter((c) => !STATE_CLS.has(c)).sort().join('.')}`;
+function pathOf(root, el) {
+  const path = [];
+  for (let e = el; e && e !== root; e = e.parentElement) {
+    const k = keyOf(e);
+    let i = 0; for (let s = e.previousElementSibling; s; s = s.previousElementSibling) if (keyOf(s) === k) i++;
+    path.unshift([k, i]);
+  }
+  return path;
+}
+function follow(root, path) {
+  let e = root;
+  for (const [k, i] of path) {
+    let n = 0; let hit = null;
+    for (const c of e.children) if (keyOf(c) === k && n++ === i) { hit = c; break; }
+    if (!hit) return null;
+    e = hit;
+  }
+  return e;
+}
+export function installKeepScroll() {
+  const P = Element.prototype;
+  if (P.__keepScroll) return;
+  const orig = P.replaceChildren;
+  P.__keepScroll = true;
+  P.replaceChildren = function keep(...nodes) {
+    if (!this.isConnected || !this.childElementCount) return orig.apply(this, nodes);
+    const saved = [];
+    if (this.scrollTop > 0) saved.push([[], this.scrollTop]);
+    for (const el of this.querySelectorAll('*')) if (el.scrollTop > 0) saved.push([pathOf(this, el), el.scrollTop]);
+    orig.apply(this, nodes);
+    for (const [path, top] of saved) { const el = follow(this, path); if (el) el.scrollTop = top; }
+  };
 }

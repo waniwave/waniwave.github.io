@@ -196,6 +196,8 @@ export function stashRoom(base, H, type) {
   const over = Object.values(by).some((b) => b.used > b.cap) || stackOver.length > 0;
   return { by, over, stack: caps.stack, stackOver, used: by.card.used, cap: by.card.cap };
 }
+/** 今あふれているか（その場で数え直し、H.overflow も合わせる。改装やデッキの出し入れで変わるため） */
+export function overflowNow(base, H) { H.overflow = stashRoom(base, H).over; return H.overflow; }
 /** 1つ入れられるか（お土産は、もう持っている種類なら重ねられる） */
 export function roomFor(base, H, type, id) {
   const r = stashRoom(base, H, type);
@@ -226,7 +228,7 @@ export function sell(base, H, u) {
   H.deck = H.deck.filter((d) => d !== u);
   for (const k of ['seats', 'charm', 'items', 'insured']) H.loadout[k] = H.loadout[k].filter((d) => d !== u);
   H.zeni += sellValue(base, x);
-  if (H.overflow) H.overflow = stashRoom(base, H).over;
+  overflowNow(base, H);
   return H;
 }
 
@@ -731,7 +733,7 @@ export function prepInfo(base, H, L = H.loadout) {
  * @param {{seed:string, sudomari?:boolean}} o
  */
 export function beginDive(base, H, o) {
-  check(!H.overflow, '蔵があふれている。先に売る');
+  check(!overflowNow(base, H), '蔵があふれている。先に売る');
   const C = base.content;
   if (o.sudomari) return beginSudomari(base, H, o);
   const L = H.loadout;
@@ -801,7 +803,7 @@ export function dailyInfo(base, H, date) {
 }
 
 export function beginDaily(base, H, o) {
-  check(!H.overflow, '蔵があふれている。先に売る');
+  check(!overflowNow(base, H), '蔵があふれている。先に売る');
   const info = dailyInfo(base, H, o.date);
   check(!info.done, '今日の日替わり潜行は済んだ');
   const C = base.content;
@@ -829,7 +831,7 @@ export function weeklyInfo(base, H, week) {
   return { week, seed, guest, guestName: C.guests[guest]?.name, best, curses: inn(base).weekly?.curses ?? 2 };
 }
 export function beginWeekly(base, H, o) {
-  check(!H.overflow, '蔵があふれている。先に売る');
+  check(!overflowNow(base, H), '蔵があふれている。先に売る');
   const info = weeklyInfo(base, H, o.week);
   const C = base.content;
   const pool = defaultPool(C, info.guest);
@@ -853,7 +855,7 @@ export function readShare(base, code) { return decodeShare(base.content, code); 
 
 /** 共有コードの潜行：同じシード・宿泊客・深度で素泊まり（持ち込みなし・喪失なし・層の制限なし） */
 export function beginShared(base, H, o) {
-  check(!H.overflow, '蔵があふれている。先に売る');
+  check(!overflowNow(base, H), '蔵があふれている。先に売る');
   const r = decodeShare(base.content, o.code);
   check(!!r, '共有コードが読めない');
   const C = base.content;

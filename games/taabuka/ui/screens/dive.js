@@ -36,7 +36,7 @@ export function diveScreen(o) {
   function render() {
     const L = layerAt(content, D.floor, D.dungeon);
     root.style.setProperty('--lbg', L?.palette?.bg ?? 'var(--paper)');
-    root.replaceChildren(renderTop(), renderPresence(), renderCurses(), h('main.dv', {}, [renderBody()]), renderFoot());
+    root.replaceChildren(...[renderTop(), renderPresence(), renderCurses(), h('main.dv', {}, [renderBody()]), renderFoot()].filter(Boolean));
     o.onRender?.(D);
     if (D.phase === 'reward' && !revealed.has(D.reward)) reveal();
   }
@@ -186,6 +186,12 @@ export function diveScreen(o) {
     return sharedThing(base, x);
   }
 
+  // その部屋の一行（content/flavor.yaml の shop／bath／landing／reward）。同じ部屋では同じ行
+  function flLine(key) {
+    const ls = content.flavor?.[key]; if (!ls?.length) return null;
+    const k = (D.floor * 31 + (D.here?.room ?? 0) * 7 + (D.here?.row ?? 0) * 3 + key.length) % ls.length;
+    return h('p.flv', { text: ls[k] });
+  }
   function renderReward() {
     const R = D.reward;
     const title = { 宝: '宝', 寄り道: '寄り道', 通常: '勝ち', 精鋭: '精鋭に勝った', 層主: '層主を倒した', 追跡者: '追跡者を退けた' }[R.kind] ?? '報酬';
@@ -208,6 +214,7 @@ export function diveScreen(o) {
     });
     return h('div.panel.reward', {}, [
       h('h2', { text: title }),
+      flLine('reward'),
       R.overkill ? h('p.ok', { text: R.overkill }) : null,
       R.zeni ? h('p', { text: `宿銭 ＋${R.zeni}` }) : null,
       ...groups,
@@ -246,6 +253,7 @@ export function diveScreen(o) {
     });
     return h('div.panel.shop', {}, [
       h('h2', { text: '商い' }),
+      flLine('shop'),
       h('p.q', { text: `宿銭 ${D.zeni}` }),
       h('div.shopgrid', {}, cells),
       h('div.row', {}, [h('button.btn.main', { type: 'button', onclick: () => redo(() => leaveRoom(base, D)) }, ['出る'])]),
@@ -256,6 +264,7 @@ export function diveScreen(o) {
     const opts = bathOptions(base, D);
     return h('div.panel.bath', {}, [
       h('h2', { text: '湯' }),
+      flLine('bath'),
       h('p.q', { text: D.bath.done ? '湯気が、ゆっくり上がっていく。' : 'ひとつだけ。' }),
       h('div.col', {}, opts.map((op) => h('button.btn', { type: 'button', disabled: D.bath.done, onclick: async () => {
         if (op.needCard) {
@@ -268,14 +277,49 @@ export function diveScreen(o) {
     ]);
   }
 
+  // 選ぶ前の目安（do から作る。hide: true の選択肢は「？？？」）
+  function doHint(c) {
+    if (c.hide) return '？？？';
+    const sg = (n) => (n > 0 ? `＋${n}` : `−${Math.abs(n)}`);
+    const cat = (a) => (a && typeof a === 'object' && a.カテゴリ && !['乱数', '一番低い', '一番高い', '相手'].includes(a.カテゴリ) ? a.カテゴリ : '？');
+    const out = [];
+    for (const d of [].concat(c.do || [])) {
+      const [k, v] = typeof d === 'string' ? [d, null] : Object.entries(d)[0];
+      switch (k) {
+        case '宿銭': out.push(`宿銭${sg(v)}`); break;
+        case '体力': out.push(`体力${sg(v)}`); break;
+        case '気配': out.push(`気配${sg(v)}`); break;
+        case '番付を上げる': out.push(`番付↑ ${cat(v)}${v?.段 ? `${v.段}段` : ''}`); break;
+        case '番付を下げる': out.push(`番付↓ ${cat(v)}${v?.段 ? `${v.段}段` : ''}`); break;
+        case '番付を移す': out.push(`番付 ${cat(v)}→${v?.先 === 'God' ? 'God' : `T${v?.先 ?? '？'}`}`); break;
+        case '番付を入れ替える': out.push('番付が入れ替わる'); break;
+        case '番付を反転': out.push('番付が逆さに'); break;
+        case '番付を均す': out.push('番付が揃う'); break;
+        case 'お品書きを得る': out.push(`お品書き（${v}）`); break;
+        case 'お土産を得る': out.push(`お土産「${content.souvenirs[v]?.name ?? '？'}」`); break;
+        case '札に付ける': out.push(`札に${v?.仕込み ? '仕込み' : v?.判 ? '判' : v?.版 ? '版' : '何か'}`); break;
+        case '常連客を得る': out.push('常連客が来る'); break;
+        case 'デッキから除く': out.push('札が1枚減る'); break;
+        case '襖を見せる': out.push('襖の中が見える'); break;
+        default: out.push('？');
+      }
+    }
+    return out.join('・');
+  }
+
   function renderEvent() {
     const ev = content.events[D.event.id];
     const kids = [h('h2', { text: ev.title }), h('p.ev', { text: ev.text })];
     if (D.event.choice == null) {
       const ch = eventChoices(base, D);
-      kids.push(h('div.col', {}, ch.map((c) => h('button.btn', { type: 'button', disabled: !c.ok, onclick: () => redo(() => chooseEvent(base, D, c.i)) }, [c.label]))));
+      kids.push(h('div.col', {}, ch.map((c) => { const hint = doHint(ev.choices[c.i]); return h('button.btn.evc', { type: 'button', disabled: !c.ok, onclick: () => redo(() => chooseEvent(base, D, c.i)) }, [h('span', { text: c.label }), hint ? h('small.evh', { text: hint }) : null]); })));
     } else {
-      kids.push(h('p.ev.res', { text: D.event.result }), h('div.row', {}, [h('button.btn.main', { type: 'button', onclick: () => redo(() => leaveRoom(base, D)) }, ['進む'])]));
+      const fx = D.event.effects || [];
+      kids.push(
+        h('p.ev.res', { text: D.event.result }),
+        h('div.evfx', {}, fx.length ? fx.map((f) => h(`div.evf.${f.good ? 'good' : 'bad'}`, { text: f.text })) : [h('div.evf.none', { text: '何も起きなかった（たぶん）' })]),
+        h('div.row', {}, [h('button.btn.main', { type: 'button', onclick: () => redo(() => leaveRoom(base, D)) }, ['進む'])]),
+      );
     }
     return h('div.panel.event', {}, kids);
   }
@@ -308,6 +352,7 @@ export function diveScreen(o) {
     down.disabled = !info.canDescend;
     return h('div.panel.landing', {}, [
       h('h2', { text: `${floorName(content, D.dungeon, D.floor)} 踊り場` }),
+      flLine('landing'),
       h('div.lstat', {}, [
         h('div', {}, ['体力 ', h('b', { text: info.hp }), `/${info.maxHp}`]),
         h('div', {}, ['気配 ', h('b', { text: info.presence })]),

@@ -22,6 +22,11 @@ export const GRADE_COLOR = { 並: 'var(--g-並)', 上: 'var(--g-上)', 特上: '
 /** レアリティの枠の色（CSS の値）。ミシックは虹 */
 export const RAR_VAR = { コモン: 'var(--r0)', アンコモン: 'var(--r1)', レア: 'var(--r2)', レジェンダリー: 'var(--r3)', ユニーク: 'var(--r4)', ミシック: 'var(--r5)' };
 export const RAR_SHORT = { コモン: 'C', アンコモン: 'UC', レア: 'R', レジェンダリー: 'L', ユニーク: 'U', ミシック: 'M' };
+/** レアリティの段（1〜6）と星。上下が一目でわかるように星の数で出す */
+export const RAR_RANK = { コモン: 1, アンコモン: 2, レア: 3, レジェンダリー: 4, ユニーク: 5, ミシック: 6 };
+export const rarStars = (r) => '★'.repeat(RAR_RANK[r] ?? 1);
+/** 説明窓の見出しに付けるレアリティ（星＋名前＋6段中の何段目） */
+export const rarHead = (r) => `<span class="rar" style="color:${RAR_VAR[r]}">${'★'.repeat(RAR_RANK[r] ?? 1)}<span class="rar0">${'☆'.repeat(6 - (RAR_RANK[r] ?? 1))}</span> ${r}</span>`;
 /** 札の個体のレアリティ（無ければ種類の最低） */
 export function rarOfCard(balance, x, def) {
   if (x?.rar && balance.rarity.defs[x.rar]) return x.rar;
@@ -126,7 +131,7 @@ export function cardTip(env, c, B = null) {
   const def = env.content.cards[c.id] || {};
   const r = rarOfCard(env.balance, c, def);
   const lines = [
-    `<b>${esc(c.name)}</b>　<span class="rar" style="color:${RAR_VAR[r]}">${esc(r)}</span>`,
+    `<b>${esc(c.name)}</b>　${rarHead(r)}`,
     `<span class="q">${c.cat.map(esc).join('・')}　Tier ${tierLabel(tierOf(c, env.balance, B?.banzuke))}・強さ ${cardStrength(c, env.balance, B?.banzuke)}</span>`,
   ];
   const fake = (def.rules || []).some((x) => x.name === '効果文を偽る');

@@ -1,7 +1,7 @@
 // 持ち物（札・常連客・置物・お品書き・お土産）の小さな札と説明。宿の画面で使う
 import { h, tip, esc, sheet, toast } from './dom.js';
 import { souvenirsOf } from '../engine/meta.js';
-import { GRADE_COLOR, catGlyph, catColor, kwLines, ORIGIN_MARK, ORIGIN_JA, RAR_VAR, RAR_SHORT, rarOfCard, fxText, rarNote, affixLines, attrText, comboLines } from './labels.js';
+import { GRADE_COLOR, catGlyph, catColor, kwLines, ORIGIN_MARK, ORIGIN_JA, RAR_VAR, RAR_SHORT, rarOfCard, rarStars, rarHead, fxText, rarNote, affixLines, attrText, comboLines } from './labels.js';
 import { nameOf, sellValue } from '../engine/dive.js';
 
 export function defOf(content, x) {
@@ -14,7 +14,7 @@ export function thingTip(base, x) {
   const def = defOf(base.content, x);
   const isCard = x.type === 'card';
   const r = isCard ? rarOfCard(base.balance, x, def) : null;
-  const lines = [`<b>${esc(nameOf(base, x))}</b>${isCard ? `　<span class="rar" style="color:${RAR_VAR[r]}">${esc(r)}</span>` : def?.grade ? `　<span class="q">${esc(def.grade)}</span>` : ''}`];
+  const lines = [`<b>${esc(nameOf(base, x))}</b>${isCard ? `　${rarHead(r)}` : def?.grade ? `　<span class="q">${esc(def.grade)}</span>` : ''}`];
   if (x.type === 'souvenir') {
     const where = ['honko', ...Object.keys(base.content.dungeons || {})].filter((dg) => souvenirsOf(base, dg).some((v) => v.id === x.id))
       .map((dg) => (dg === 'honko' ? '本坑' : base.content.dungeons[dg].name));
@@ -59,7 +59,7 @@ export function thingEl(base, x, opt = {}) {
   if (x.type === 'card') {
     const cats = [...new Set([...(x.mod?.cat ?? def?.cat ?? []), ...(x.ins || []).map((i) => String(i).split(':')[1]).filter(Boolean)])];
     kids.push(h('span.sub', {}, [...cats.map((c) => h('span.glyph', { style: { background: catColor(c) } }, [catGlyph(c)])),
-      h('span.rr', { text: RAR_SHORT[rarOfCard(base.balance, x, def)] }),
+      h('span.rr', { text: rarStars(rarOfCard(base.balance, x, def)), title: rarOfCard(base.balance, x, def) }),
       ...(x.ins?.length ? [h('span.ed', { text: ` ◆${x.ins.length}` })] : []),
       ...[x.enh, x.ed, x.seal].filter(Boolean).map((t) => h('span.ed', { text: ` ${t}` }))]));
   } else kids.push(h('span.sub', { text: { regular: '常連客', relic: '置物', item: 'お品書き', souvenir: `お土産・重さ${def?.weight ?? 1}` }[x.type] ?? '' }));

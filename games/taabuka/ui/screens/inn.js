@@ -13,7 +13,7 @@ import { SE } from '../audio/audio.js';
 import { confetti, shards } from '../fx/particles.js';
 import { nameOf, sellValue } from '../../engine/dive.js';
 import {
-  facility, facilityDef, upgradeInfo, upgrade, stashRoom, toggleDeck, sell, choubaGoods, buyChouba, canTakeStarter, takeStarter, pawnGoods, pawnInfo, borrowPawn, returnPawn, setShibari, shibariList, dailyInfo, readShare,
+  facility, facilityDef, upgradeInfo, upgrade, stashRoom, overflowNow, toggleDeck, sell, choubaGoods, buyChouba, canTakeStarter, takeStarter, pawnGoods, pawnInfo, borrowPawn, returnPawn, setShibari, shibariList, dailyInfo, readShare,
   shikomiMenu, applyShikomi, basicGoods, buyBasic, decorState, buyDecor, weeklyInfo, exchangeSouvenir, careInfo, careRegular, dungeonList, souvenirsOf, deckGoods, buyDeck, comboGoods, buyCombo, copyInfo, copyCard, fuseInfo, fuseCards, kuyoPrice, kuyo, prepInfo, insurable, charmable, premium, returnRate, carryOf, warpChoices,
 } from '../../engine/meta.js';
 
@@ -96,7 +96,7 @@ export function innScreen(ctx) {
       (() => { const ds = decorState(base, H); const ok = base.content.flavor?.okami || []; const day = Math.floor((Date.now() + 9 * 3600e3) / 86400e3); return h('button.innart', { type: 'button', onclick: () => ctx.go.decor() }, [h('div.art', { html: innArt(ds) }), ok.length ? h('div.okamisay', { text: `女将「${ok[day % ok.length]}」` }) : null, h('div.rank', {}, [h('b', { text: ds.rank }), h('span', { text: ds.nextRank ? `格 ${ds.pts}／次「${ds.nextRank.name}」${ds.nextRank.pts}` : `格 ${ds.pts}` }), h('span.go', { text: '内装 ›' })])]); })(),
       h('div.recs', { text: `最深 B${H.records.deepest}・最大論破値 ${format(H.records.maxV)}・脱出 ${H.records.extracts}・未帰還 ${H.records.deaths}` }),
       h('div.facs', {}, rows),
-      H.overflow ? h('p.warn', { text: `蔵があふれている（${roomText(room)}）。売ってから潜る` }) : null,
+      room.over ? h('p.warn', { text: `蔵があふれている（${roomText(room)}）。売ってから潜る` }) : null,
       h('div.irow', {}, [
         h('button.btn', { type: 'button', onclick: () => ctx.go.stash() }, [`蔵・編成 ${room.used}/${room.cap}`]),
         h('button.btn', { type: 'button', onclick: () => ctx.go.board() }, ['掲示板']),
@@ -104,8 +104,8 @@ export function innScreen(ctx) {
         h('button.btn', { type: 'button', onclick: () => ctx.go.settings() }, ['設定']),
       ]),
       h('footer.ops', {}, [
-        h('button.btn', { type: 'button', disabled: H.sudomari <= 0 || H.overflow, onclick: () => ctx.go.sudomari() }, [`素泊まり ${H.sudomari}`]),
-        h('button.btn.main', { type: 'button', disabled: H.overflow, onclick: () => ctx.go.prep() }, ['潜る']),
+        h('button.btn', { type: 'button', disabled: H.sudomari <= 0 || room.over, onclick: () => ctx.go.sudomari() }, [`素泊まり ${H.sudomari}`]),
+        h('button.btn.main', { type: 'button', disabled: room.over, onclick: () => ctx.go.prep() }, ['潜る']),
       ]),
     );
   }
@@ -455,7 +455,7 @@ export function stashScreen(ctx) {
         (() => { const x = h('select', { onchange: () => { U.sort = x.value; render(); } }, SORTS.map(([v, t]) => h('option', { value: v }, [`並び：${t}`]))); x.value = U.sort; return x; })(),
         ...(U.tab === 'card' ? [
           sel('cat', 'カテゴリ：全部', base.balance.tiers.categories.map((c) => [c, c])),
-          sel('rar', 'レアリティ：全部', base.balance.rarity.order.map((r) => [r, r])),
+          sel('rar', 'レアリティ：全部', base.balance.rarity.order.map((r, i) => [r, `${'★'.repeat(i + 1)} ${r}`])),
           sel('origin', '由来：全部', [['orig', '原本'], ['copy', '写し'], ['expiry', '期限'], ['cursed', '曰く付き'], ['bet', '賭け'], ['pawn', '質']]),
         ] : []),
       ]),
@@ -463,8 +463,8 @@ export function stashScreen(ctx) {
       h('div.things.list2', {}, rest.length ? (U.tab === 'souvenir' ? groupSv(rest) : rest.map((x) => el(x, false))) : [h('p.q', { text: '無い' })]),
     ]);
     put(root,
-      top('蔵', H, () => (H.overflow ? toast('先に売って蔵に収める') : ctx.go.inn())),
-      H.overflow ? h('p.warn', { text: `蔵があふれている（${roomText(room)}）` }) : null,
+      top('蔵', H, () => (overflowNow(base, H) ? toast('先に売って蔵に収める') : ctx.go.inn())),
+      room.over ? h('p.warn', { text: `蔵があふれている（${roomText(room)}）` }) : null,
       h('div.tabs', {}, STASH_TABS.map((t) => h(`button.tab${t.id === U.tab ? '.on' : ''}`, { type: 'button', onclick: () => { U.tab = t.id; chosen.clear(); focus = null; render(); } }, [t.label, h('small', { text: ` ${H.stash.filter(t.has).length}` })]))),
       bodyEl,
       h('div.detail', { html: fx ? thingTip(base, fx) : `<span class="q">${roomText(room)}</span>` }),
@@ -475,7 +475,7 @@ export function stashScreen(ctx) {
       ] : [
         h('button.btn', { type: 'button', onclick: () => { selling = true; render(); } }, ['売る']),
         U.tab === 'souvenir' && souv.length ? h('button.btn', { type: 'button', onclick: () => sellMany(souv.map((x) => x.uid), 'お土産を全部売る') }, ['お土産を全部売る']) : null,
-        h('button.btn.main', { type: 'button', onclick: () => (H.overflow ? toast('先に売って蔵に収める') : ctx.go.inn()) }, ['宿へ']),
+        h('button.btn.main', { type: 'button', onclick: () => (overflowNow(base, H) ? toast('先に売って蔵に収める') : ctx.go.inn()) }, ['宿へ']),
       ]),
     );
     bodyEl.scrollTop = keep;
@@ -498,6 +498,10 @@ export function prepScreen(ctx) {
       const s = sheet(app, [], { onClose: () => { L[key] = [...chosen]; ctx.save(); resolve(); render(); } });
       const draw = () => s.el.replaceChildren(
         h('h2', { text: `${title}（${chosen.size}/${max}）` }),
+        list.length > 1 ? h('div.row', {}, [
+          h('button.btn', { type: 'button', onclick: () => { for (const x of list) if (chosen.size < max) chosen.add(x.uid); draw(); } }, ['全部選ぶ']),
+          h('button.btn', { type: 'button', onclick: () => { chosen.clear(); draw(); } }, ['全部外す']),
+        ]) : null,
         list.length ? h('div.things.half', {}, list.map((x) => thingEl(base, x, { on: chosen.has(x.uid), onclick: () => {
           if (chosen.has(x.uid)) chosen.delete(x.uid);
           else if (chosen.size < max) chosen.add(x.uid);
@@ -612,9 +616,9 @@ export function resultScreen(ctx, rep) {
       rep.share ? h('div.share', {}, [h('span.q', { text: '共有コード' }), h('code', { text: rep.share }),
         h('button.btn.small', { type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(rep.share); toast('写した'); } catch { toast('写せなかった'); } } }, ['写す'])]) : null,
       rep.starter ? h('p', { text: '帳場から素泊まりセット（20枚）を受け取った。' }) : null,
-      rep.overflow ? h('p.warn', { text: '蔵があふれている。売って収める。' }) : null,
+      overflowNow(base, H) ? h('p.warn', { text: '蔵があふれている。売って収める。' }) : null,
     ]),
-    h('footer.ops', {}, [h('button.btn.main', { type: 'button', onclick: () => (rep.overflow ? ctx.go.stash() : ctx.go.inn()) }, [rep.overflow ? '蔵へ' : '宿へ'])]),
+    h('footer.ops', {}, [h('button.btn.main', { type: 'button', onclick: () => (overflowNow(base, H) ? ctx.go.stash() : ctx.go.inn()) }, [overflowNow(base, H) ? '蔵へ' : '宿へ'])]),
   ]);
   // 脱出：物が一つずつ落ち、総額が数え上がる。最高額なら記録更新のファンファーレ
   // 未帰還：白黒、失った物が一つずつ砕けて消え、お守り袋だけ色が残る
@@ -670,8 +674,43 @@ export function settingsScreen(ctx) {
   const { app } = ctx;
   const H = ctx.H();
   const root = h('div.scr.inn.settings');
-  const out = h('textarea', { readonly: true, rows: 4, placeholder: '「書き出す」でここに出る' });
-  const inp = h('textarea', { rows: 4, placeholder: '書き出した文字列を貼る' });
+  const out = h('textarea', { rows: 4, placeholder: '「書き出す」でここに出る', spellcheck: false, autocomplete: 'off' });
+  const inp = h('textarea', { rows: 4, placeholder: '書き出した文字列を貼る（またはファイルから読む）', spellcheck: false, autocomplete: 'off' });
+  const fileIn = h('input', { type: 'file', accept: '.txt,text/plain', style: { display: 'none' } });
+  fileIn.addEventListener('change', async () => { const f = fileIn.files?.[0]; if (!f) return; inp.value = (await f.text()).trim(); fileIn.value = ''; toast('ファイルを読んだ。「読み込む」で置き換わる'); });
+  const selectAll = (ta) => { ta.focus(); ta.select(); try { ta.setSelectionRange(0, ta.value.length); } catch { /* 古い端末 */ } };
+  /** 写す：使えるものから順に（ClipboardItem は押した瞬間の扱いが保たれるので iPhone でも通る） */
+  async function copyText(textOrPromise) {
+    try {
+      if (window.ClipboardItem && navigator.clipboard?.write) {
+        const blob = Promise.resolve(textOrPromise).then((t) => new Blob([t], { type: 'text/plain' }));
+        await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })]);
+        return true;
+      }
+    } catch { /* 次へ */ }
+    const t = await textOrPromise;
+    try { await navigator.clipboard.writeText(t); return true; } catch { /* 次へ */ }
+    try { out.value = t; selectAll(out); if (document.execCommand('copy')) return true; } catch { /* 次へ */ }
+    return false;
+  }
+  async function doExport(copy) {
+    const p = ctx.exportText();
+    const ok = copy ? copyText(p) : Promise.resolve(false);
+    try { out.value = await p; } catch (e) { toast(`書き出せない：${e.message}`); return; }
+    selectAll(out);
+    if (copy) toast((await ok) ? '書き出して写した。メモなどに貼って残して' : '写せなかった。上の文字を選んで写して');
+  }
+  function saveFile() {
+    ctx.exportText().then((t) => {
+      out.value = t;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([t], { type: 'text/plain' }));
+      a.download = `taabuka-save-${new Date().toISOString().slice(0, 10)}.txt`;
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      toast('ファイルに保存した');
+    }).catch((e) => toast(`書き出せない：${e.message}`));
+  }
   function render() {
     const S = ctx.settings;
     const set = (k, v) => { S[k] = v; ctx.saveSettings(S); ctx.applySettings?.(); render(); };
@@ -700,12 +739,16 @@ export function settingsScreen(ctx) {
       h('h3', { text: '書き出し' }),
       out,
       h('div.row', {}, [
-        h('button.btn', { type: 'button', onclick: async () => { out.value = await ctx.exportText(); out.select(); } }, ['書き出す']),
-        h('button.btn', { type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(out.value); toast('写した'); } catch { out.select(); toast('選んで写す'); } } }, ['写す']),
+        h('button.btn.main', { type: 'button', onclick: () => doExport(true) }, ['書き出して写す']),
+        h('button.btn', { type: 'button', onclick: saveFile }, ['ファイルに保存']),
       ]),
       h('h3', { text: '読み込み（いまの宿は置き換わる）' }),
-      inp,
-      h('div.row', {}, [holdButton('読み込む', async () => { try { await ctx.importText(inp.value); toast('読み込んだ'); } catch (e) { toast(e.message); } })]),
+      inp, fileIn,
+      h('div.row', {}, [
+        h('button.btn', { type: 'button', onclick: async () => { try { const t = await navigator.clipboard.readText(); if (t) inp.value = t.trim(); } catch { toast('貼り付けは、欄を押して「ペースト」で'); } } }, ['貼る']),
+        h('button.btn', { type: 'button', onclick: () => fileIn.click() }, ['ファイルから読む']),
+        holdButton('読み込む', async () => { if (!inp.value.trim()) { toast('先に貼るか、ファイルから読む'); return; } try { await ctx.importText(inp.value); toast('読み込んだ'); } catch (e) { toast(`読み込めない：${e.message}`); } }),
+      ]),
       h('h3', { text: '最初から' }),
       h('div.row', {}, [holdButton('宿を消す（取り消せない）', async () => { await ctx.resetAll(); })]),
       h('p.q', { text: `版 ${window.BUILD ?? ''}` }),
