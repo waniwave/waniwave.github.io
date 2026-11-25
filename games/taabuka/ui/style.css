@@ -838,7 +838,6 @@ button { font: inherit; color: inherit; }
 .scr.dive[data-dg]:not([data-dg="honko"]) { background: var(--tbg); }
 .scr.battle[data-dg]:not([data-dg="honko"]) { background: var(--tbg); }
 .themefx { position: absolute; inset: 0; pointer-events: none; z-index: 20; }
-.scr.dive { position: relative; }
 /* 屋台通り：夜の紺と提灯の赤 */
 .scr[data-dg="yatai"] { --paper: #262d4a; --paper2: #303860; --ink: #f2e8d6; --quiet: #a9a6bf; --line: #4c5680; --acc: #e5503c; --acc2: #f0b04a; --bad: #ff6a52;
   --tbg: radial-gradient(circle at 12% -4%, #ff6a3a55 0, transparent 120px), radial-gradient(circle at 88% -4%, #ff6a3a55 0, transparent 120px), linear-gradient(#1a2036, #141a2c); }
@@ -941,3 +940,6 @@ button { font: inherit; color: inherit; }
 .themes .chip { min-height: 36px; font-size: 13px; display: inline-flex; align-items: center; gap: 3px; }
 .themes .glyph { width: 16px; height: 16px; font-size: 11px; line-height: 16px; border-radius: 3px; color: #fff; text-align: center; display: inline-block; }
 .sudohint { margin: 0; font-size: 13px; color: var(--acc2); text-align: center; }
+#updpill { position: fixed; z-index: 60; right: 8px; top: calc(48px + env(safe-area-inset-top)); padding: 6px 12px; border-radius: 16px; border: 1.5px solid #8a2a16; background: linear-gradient(#c8553c, #a8371f); color: #fff8ee; font-size: 13px; font-weight: 700; box-shadow: 0 3px 10px #0006; cursor: pointer; }
+/* 潜行準備は縦に長いので、潜るボタンを下に貼り付ける（小さい画面でも押せる） */
+.prep footer.ops.big { position: sticky; bottom: 0; z-index: 5; margin-top: auto; padding: 8px 0 calc(6px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, var(--paper) 30%); }

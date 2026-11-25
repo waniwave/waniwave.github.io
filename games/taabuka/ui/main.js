@@ -335,12 +335,18 @@ let swWaiting = null;
 let swReloading = false;
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('./sw.js').then((reg) => {
-    const check = () => { if (reg.waiting && navigator.serviceWorker.controller) { swWaiting = reg.waiting; if (current?.where === 'inn') current.render?.(); } };
+    const check = () => { if (reg.waiting && navigator.serviceWorker.controller) { swWaiting = reg.waiting; if (current?.where === 'inn') current.render?.(); showUpdatePill(); } };
     check();
     reg.addEventListener('updatefound', () => { const w = reg.installing; w?.addEventListener('statechange', () => { if (w.state === 'installed') check(); }); });
     setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000);
   }).catch(() => {});
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (swReloading) location.reload(); });
+}
+/** 宿以外（潜行中・タイトル）でも更新できるように、右上に小さな「更新」を出す。潜行は保存済みなので更新しても続きから */
+function showUpdatePill() {
+  if (document.getElementById('updpill')) return;
+  const b = h('button#updpill', { type: 'button', onclick: () => innCtx.applyUpdate() }, ['新しい版 › 更新']);
+  document.body.append(b);
 }
 innCtx.updateReady = () => !!swWaiting;
 innCtx.applyUpdate = async () => { await saving; swReloading = true; swWaiting?.postMessage('SKIP_WAITING'); };
