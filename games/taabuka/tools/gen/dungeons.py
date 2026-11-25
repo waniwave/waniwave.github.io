@@ -1,4 +1,5 @@
 # テーマの穴（ダンジョン）を作る。python3 tools/gen/dungeons.py
+# このあと tools/gen/foes.py を回す（層の groups/elites を専用の論客に差し替える）
 # 出力：content/dungeons.yaml、content/layers/dg_*.yaml、content/enemies/dungeons.yaml、content/souvenirs_dg.yaml（お土産に追記）
 import os, yaml, json
 
@@ -28,7 +29,7 @@ DG = [
        layers=['脱衣所', '露天の崖', '源泉の底'],
        boss=dict(id='en_dg_bandai', name='番台', custom='逆さ宿', acts=['攻め', '溜め', '攻め'], line='入湯料は論破でお願いします',
                  intro=['入湯料は論破でお願いします', '桶は元の場所に'], defeat=['お釣りはいりません', 'いいお湯でした']),
-       sv=dict(id='sv_dg_yu', name='湯の花', sell=50, text='どこの湯の花かは、言わないでおく。')),
+       sv=dict(id='sv_dg_yu', name='源泉の小石', sell=50, text='握ると、少し温かい。')),
   dict(id='gesen', name='ゲーセン跡', cats=['格ゲー', '速さ'], unlock={'rank': 2}, power=4, rar=1, base=[3, 3, 4],
        bg='#16121f', ink='#f0e4ff', line='電源の入っていない筐体から、BGMが聞こえる。',
        layers=['両替機前', '対戦台の列', '店長の休憩室'],

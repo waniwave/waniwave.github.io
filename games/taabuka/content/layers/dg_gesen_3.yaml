@@ -6,15 +6,15 @@ line: ゲーセン跡・店長の休憩室
 palette: {bg: '#ece6f4', ink: '#2a2520'}
 doors: {戦い: 44, 精鋭: 14, 宝: 11, 商い: 10, 湯: 9, 謎: 10}
 groups:
-- [en_aboon]
-- [en_kieta]
-- [en_rokunana]
-- [en_shiyou]
-- [en_kakusan, en_aboon]
-- [en_hikoukai, en_kieta]
-- [en_rokunana, en_shiyou]
-- [en_hikoukai, en_hikoukai]
-elites: [en_unei, en_kiyaku, en_etsuran]
+- [en_f_gesen_3a]
+- [en_f_gesen_3b]
+- [en_f_gesen_3c]
+- [en_f_gesen_3d]
+- [en_f_gesen_3a, en_f_gesen_3b]
+- [en_f_gesen_3c, en_f_gesen_3d]
+- [en_f_gesen_3a, en_f_gesen_3c]
+- [en_f_gesen_3b, en_f_gesen_3d, en_f_gesen_3a]
+elites: [en_f_gesen_3e, en_unei]
 bosses: [en_dg_rensho]
 warden: en_genkanban
 stalker: en_kidoku

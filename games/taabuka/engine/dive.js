@@ -7,6 +7,7 @@
 // 部屋の番号：列r・左からc番目＝r×10＋c、寄り道＝50＋列、層主＝90、帰路の番人＝91、
 //             非常口＝60＋列、追跡者＝割り込まれた部屋＋100
 
+import { withEpithets } from './epithet.js';
 import { Big, ZERO } from './big.js';
 import { Rng } from './rng.js';
 import { rollRarity, rollAffixes, rarIndex, floorRarity, rarOf } from './rarity.js';
@@ -615,7 +616,7 @@ export function battleOptions(base, D) {
     hp: D.hp, maxHp: D.maxHp, guest: D.guest, guestState: D.guestState,
     deck: D.deck, seats: D.seats, relics: D.relics, items: D.items, rules: D.rules, ...(D.carry?.maxPlay ? { maxPlay: D.carry.maxPlay } : {}),
     banzuke: D.banzuke, handLevels: D.handLevels, banzukeFloorStart: D.floorBanzuke,
-    enemies: bt.enemies, weight: bt.kind === '番人' ? pouchWeight(base, D) : 0,
+    enemies: withEpithets(base, D, bt), weight: bt.kind === '番人' ? pouchWeight(base, D) : 0,
     ...(quirkOf(base, D) ? { quirk: quirkOf(base, D).name, quirkParams: quirkOf(base, D).params } : {}),
     ...(D.heldRules?.length ? { heldRules: D.heldRules } : {}), ...(D.pool?.items ? { itemPool: D.pool.items } : {}), ...(D.xmods ? { xmods: D.xmods } : {}),
   };

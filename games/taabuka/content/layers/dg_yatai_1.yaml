@@ -6,15 +6,15 @@ line: 提灯の下を、どこまでも屋台が続いている。
 palette: {bg: '#f4e7d2', ink: '#2a2520'}
 doors: {戦い: 45, 精鋭: 12, 宝: 10, 商い: 10, 湯: 10, 謎: 10}
 groups:
-- [en_niwaka]
-- [en_teiki]
-- [en_tsuri]
-- [en_kaiko]
-- [en_copipe, en_copipe]
-- [en_teiki, en_jien]
-- [en_niwaka, en_tsuri]
-- [en_jien, en_kaiko]
-elites: [en_chobun, en_anka]
+- [en_f_yatai_1a]
+- [en_f_yatai_1b]
+- [en_f_yatai_1c]
+- [en_f_yatai_1d]
+- [en_f_yatai_1a, en_f_yatai_1b]
+- [en_f_yatai_1c, en_f_yatai_1d]
+- [en_f_yatai_1a, en_f_yatai_1c]
+- [en_f_yatai_1b, en_f_yatai_1d, en_f_yatai_1a]
+elites: [en_f_yatai_1e, en_chobun]
 bosses: [en_suretate, en_tsuchi_nashi]
 warden: en_gesoku
 stalker: en_ashioto

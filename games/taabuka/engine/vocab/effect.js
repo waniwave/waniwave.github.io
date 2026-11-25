@@ -106,6 +106,7 @@ export function resolveCategory(E, word) {
       return c.length ? [c[0]] : [];
     }
     case '乱数': return [E.env.rng.pick(cats)];
+    case '相手': return [...new Set(B.enemies.filter((e) => !e.dead && e.cat).map((e) => e.cat))];
     case '直前に出した札': return B.lastPlayedCats?.length ? [B.lastPlayedCats[0]] : [];
     case '選ぶ': return [E.choices.カテゴリ && cats.includes(E.choices.カテゴリ) ? E.choices.カテゴリ : cats[0]];
     case '手札で一番多い': {

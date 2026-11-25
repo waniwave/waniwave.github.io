@@ -657,3 +657,47 @@ button { font: inherit; color: inherit; }
 .dgrow b { font-family: var(--mincho); font-size: 17px; }
 .dgrow.locked b { color: var(--quiet); }
 .dgrow .q { font-size: 13px; }
+.lastwords { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; padding: 6px 10px; border-left: 3px solid var(--acc); background: #fbf7ee; }
+.lastwords .lw b { font-size: 13px; color: var(--quiet); margin-right: 6px; }
+.lastwords .lw span { font-size: 15px; }
+.foe .yd { display: flex; gap: 4px; justify-content: center; align-items: center; font-size: 11px; line-height: 14px; white-space: nowrap; }
+.foe .yd .ycat { background: var(--ink2, #888); color: #fff; border-radius: 3px; padding: 0 3px; }
+.foe .yd .ytx { color: #5a7a9a; font-weight: 700; }
+/* 場の状態の劇的化（画面全体の空気。.battle::after に重ねる。押せないように pointer-events:none） */
+.battle[data-mood]:not([data-mood=""]) { position: relative; }
+.battle .moodfx { display: none; }
+.battle[data-mood]:not([data-mood=""]) .moodfx { display: block; position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.battle[data-mood]:not([data-mood=""]) .top .fl { color: var(--moodc); }
+.battle[data-mood="ノリノリ"] .moodfx { background: repeating-linear-gradient(90deg, #e8508a18 0 40px, #4ab8e818 40px 80px, #f0c75e18 80px 120px); animation: nori-bg .8s linear infinite; }
+@keyframes nori-bg { to { background-position: 120px 0; } }
+.battle[data-mood="ノリノリ"] section.hand .card { animation: bop .4s ease-in-out infinite alternate; }
+.battle[data-mood="ノリノリ"] section.hand .card:nth-child(even) { animation-delay: .2s; }
+.battle[data-mood="ノリノリ"] section.foes .foe:not(.dead) .art { animation: bop .4s ease-in-out infinite alternate; }
+.nori { animation: bop .2s ease-in-out 6 alternate; }
+.battle[data-mood="しんみり"] { filter: saturate(.55); }
+.battle[data-mood="しんみり"] .moodfx { background: repeating-linear-gradient(105deg, transparent 0 18px, #9ab4d855 18px 19px, transparent 19px 37px); background-size: 200px 200px; animation: rain .5s linear infinite; }
+@keyframes rain { to { background-position: -40px 200px; } }
+.battle[data-mood="グダグダ"] section.hand .card:nth-child(odd) { transform: rotate(-4deg) translateY(3px); }
+.battle[data-mood="グダグダ"] section.hand .card:nth-child(even) { transform: rotate(3deg); }
+.battle[data-mood="グダグダ"] section.foes { animation: gdgd 3s ease-in-out infinite; }
+@keyframes gdgd { 50% { transform: rotate(-1.2deg) translateX(-3px); } }
+.gdgd { animation: gdgd 0.5s ease-in-out 3; }
+.battle[data-mood="お祭り"] .moodfx { background: radial-gradient(circle at 10% 0, #f0c75e88 0 10px, transparent 11px) 0 0 / 60px 40px repeat-x, linear-gradient(#d0402a10, #d6a42514); animation: lantern 1.6s ease-in-out infinite alternate; }
+@keyframes lantern { to { filter: brightness(1.4); } }
+.battle[data-mood="修羅場"] .moodfx { background: radial-gradient(ellipse at center, transparent 45%, #a0141488 100%); animation: shura .7s ease-in-out infinite alternate; }
+@keyframes shura { to { opacity: .55; } }
+.battle[data-mood="修羅場"] section.foes .foe:not(.dead) { animation: shake-s .25s linear infinite; }
+@keyframes shake-s { 25% { transform: translate(1px, -1px); } 75% { transform: translate(-1px, 1px); } }
+.battle[data-mood="演歌"] .moodfx { background: radial-gradient(ellipse 60% 45% at 50% 40%, transparent 0 55%, #1b0f1ccc 100%); }
+.battle[data-mood="演歌"] section.foes .foe:not(.dead) { animation: kobushi 1.8s ease-in-out infinite; }
+@keyframes kobushi { 30% { transform: translateY(-2px) rotate(-1deg); } 60% { transform: translateY(1px) rotate(1deg); } }
+.battle[data-mood="静寂"] { filter: grayscale(.9) contrast(1.1); }
+.battle[data-mood="静寂"] section.foes .foe .int { opacity: .35; }
+.battle[data-mood="大団円"] .moodfx { background: radial-gradient(circle at 50% 30%, #fff5c080 0, transparent 60%), conic-gradient(from 0deg at 50% 30%, #f0c75e22, transparent 10%, #f0c75e22 20%, transparent 30%, #f0c75e22 40%, transparent 50%, #f0c75e22 60%, transparent 70%, #f0c75e22 80%, transparent 90%); animation: daidan 6s linear infinite; }
+@keyframes daidan { to { filter: hue-rotate(40deg) brightness(1.15); } }
+.ov.okami.moodtalk { bottom: 26%; z-index: 34; max-width: 86%; }
+.ov.okami.moodtalk b { font-size: 17px; line-height: 1.35; white-space: normal; color: #1b1612; }
+@media (prefers-reduced-motion: reduce) { .battle .moodfx, .battle[data-mood] section.hand .card, .battle[data-mood] section.foes, .battle[data-mood] section.foes .foe, .battle[data-mood] .art { animation: none !important; } }
+.foe .nm small.ep { display: block; font-size: 10px; line-height: 11px; color: #b8432c; font-weight: 700; }
+.ov.cfx { position: absolute; z-index: 31; pointer-events: none; font-weight: 900; text-shadow: 0 1px 0 #fff8, 1px 1px 0 #1b161255; transform-origin: center; margin: -10px 0 0 -10px; white-space: nowrap; }
+.ov.cfx-ring { position: absolute; z-index: 30; pointer-events: none; width: 70px; height: 70px; border-radius: 50%; border: 4px solid; }

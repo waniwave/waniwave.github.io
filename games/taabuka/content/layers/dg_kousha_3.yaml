@@ -6,15 +6,15 @@ line: 旧校舎・開かずの職員室
 palette: {bg: '#e9ebe6', ink: '#2a2520'}
 doors: {戦い: 45, 精鋭: 14, 宝: 10, 商い: 10, 湯: 9, 謎: 10}
 groups:
-- [en_ronpa]
-- [en_kotehan]
-- [en_hanron]
-- [en_idgae]
-- [en_sokuresu, en_sokuresu]
-- [en_hitosore, en_ronpa]
-- [en_kotehan, en_hanron]
-- [en_idgae, en_sokuresu]
-elites: [en_source, en_ronsou, en_surechigai]
+- [en_f_kousha_3a]
+- [en_f_kousha_3b]
+- [en_f_kousha_3c]
+- [en_f_kousha_3d]
+- [en_f_kousha_3a, en_f_kousha_3b]
+- [en_f_kousha_3c, en_f_kousha_3d]
+- [en_f_kousha_3a, en_f_kousha_3c]
+- [en_f_kousha_3b, en_f_kousha_3d, en_f_kousha_3a]
+elites: [en_f_kousha_3e, en_source]
 bosses: [en_dg_kouchou]
 warden: en_genkanban
 stalker: en_kidoku

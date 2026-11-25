@@ -6,15 +6,15 @@ line: ゲーセン跡・対戦台の列
 palette: {bg: '#ece6f4', ink: '#2a2520'}
 doors: {戦い: 45, 精鋭: 14, 宝: 10, 商い: 10, 湯: 9, 謎: 10}
 groups:
-- [en_ronpa]
-- [en_kotehan]
-- [en_hanron]
-- [en_idgae]
-- [en_sokuresu, en_sokuresu]
-- [en_hitosore, en_ronpa]
-- [en_kotehan, en_hanron]
-- [en_idgae, en_sokuresu]
-elites: [en_source, en_ronsou, en_surechigai]
+- [en_f_gesen_2a]
+- [en_f_gesen_2b]
+- [en_f_gesen_2c]
+- [en_f_gesen_2d]
+- [en_f_gesen_2a, en_f_gesen_2b]
+- [en_f_gesen_2c, en_f_gesen_2d]
+- [en_f_gesen_2a, en_f_gesen_2c]
+- [en_f_gesen_2b, en_f_gesen_2d, en_f_gesen_2a]
+elites: [en_f_gesen_2e, en_source]
 bosses: [en_kakuzukeshi, en_sakasayado]
 warden: en_genkanban
 stalker: en_kidoku

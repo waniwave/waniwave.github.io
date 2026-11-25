@@ -1,5 +1,6 @@
 // 持ち物（札・常連客・置物・お品書き・お土産）の小さな札と説明。宿の画面で使う
 import { h, tip, esc, sheet, toast } from './dom.js';
+import { souvenirsOf } from '../engine/meta.js';
 import { GRADE_COLOR, catGlyph, catColor, kwLines, ORIGIN_MARK, ORIGIN_JA, RAR_VAR, RAR_SHORT, rarOfCard, fxText, rarNote, affixLines, attrText, comboLines } from './labels.js';
 import { nameOf, sellValue } from '../engine/dive.js';
 
@@ -14,6 +15,11 @@ export function thingTip(base, x) {
   const isCard = x.type === 'card';
   const r = isCard ? rarOfCard(base.balance, x, def) : null;
   const lines = [`<b>${esc(nameOf(base, x))}</b>${isCard ? `　<span class="rar" style="color:${RAR_VAR[r]}">${esc(r)}</span>` : def?.grade ? `　<span class="q">${esc(def.grade)}</span>` : ''}`];
+  if (x.type === 'souvenir') {
+    const where = ['honko', ...Object.keys(base.content.dungeons || {})].filter((dg) => souvenirsOf(base, dg).some((v) => v.id === x.id))
+      .map((dg) => (dg === 'honko' ? '本坑' : base.content.dungeons[dg].name));
+    if (where.length) lines.push(`<span class="q">出る所：${where.map(esc).join('・')}</span>`);
+  }
   if (isCard) {
     const cats = [...(x.mod?.cat ?? def?.cat ?? []), ...(x.ins || []).map((i) => String(i).split(':')[1]).filter(Boolean)];
     lines.push(`<span class="q">${[...new Set(cats)].map(esc).join('・')}</span>`);

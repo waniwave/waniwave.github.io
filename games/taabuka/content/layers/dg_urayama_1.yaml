@@ -6,15 +6,15 @@ line: 鳥居をくぐるたびに、少しだけ番付が動く。
 palette: {bg: '#e7efdf', ink: '#2a2520'}
 doors: {戦い: 44, 精鋭: 14, 宝: 11, 商い: 10, 湯: 9, 謎: 10}
 groups:
-- [en_aboon]
-- [en_kieta]
-- [en_rokunana]
-- [en_shiyou]
-- [en_kakusan, en_aboon]
-- [en_hikoukai, en_kieta]
-- [en_rokunana, en_shiyou]
-- [en_hikoukai, en_hikoukai]
-elites: [en_unei, en_kiyaku, en_etsuran]
+- [en_f_urayama_1a]
+- [en_f_urayama_1b]
+- [en_f_urayama_1c]
+- [en_f_urayama_1d]
+- [en_f_urayama_1a, en_f_urayama_1b]
+- [en_f_urayama_1c, en_f_urayama_1d]
+- [en_f_urayama_1a, en_f_urayama_1c]
+- [en_f_urayama_1b, en_f_urayama_1d, en_f_urayama_1a]
+elites: [en_f_urayama_1e, en_unei]
 bosses: [en_ketsuban, en_yakkan8]
 warden: en_genkanban
 stalker: en_kidoku

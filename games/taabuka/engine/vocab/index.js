@@ -62,7 +62,7 @@ export function createVocab() {
 // 配列：その中の値のどれか（選択肢）
 // オブジェクト：キーごとの形。キー名の最後が ? なら省略できる
 
-export const CATEGORY_WORDS = ['この札', '乱数', '手札で一番多い', '一番高い', '一番低い', '直前に出した札', '選ぶ'];
+export const CATEGORY_WORDS = ['この札', '乱数', '手札で一番多い', '一番高い', '一番低い', '直前に出した札', '選ぶ', '相手'];
 export const SCOPES = { この出し: 'play', ターン: 'turn', 戦闘: 'battle', 潜行: 'dive' };
 export const TIER_CHANGES = ['+1', '-1', '+2', '-2'];
 

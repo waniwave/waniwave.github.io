@@ -6,15 +6,15 @@ line: 廃工場・組立ライン
 palette: {bg: '#e6e8ea', ink: '#2a2520'}
 doors: {戦い: 44, 精鋭: 14, 宝: 11, 商い: 10, 湯: 9, 謎: 10}
 groups:
-- [en_aboon]
-- [en_kieta]
-- [en_rokunana]
-- [en_shiyou]
-- [en_kakusan, en_aboon]
-- [en_hikoukai, en_kieta]
-- [en_rokunana, en_shiyou]
-- [en_hikoukai, en_hikoukai]
-elites: [en_unei, en_kiyaku, en_etsuran]
+- [en_f_koujou_2a]
+- [en_f_koujou_2b]
+- [en_f_koujou_2c]
+- [en_f_koujou_2d]
+- [en_f_koujou_2a, en_f_koujou_2b]
+- [en_f_koujou_2c, en_f_koujou_2d]
+- [en_f_koujou_2a, en_f_koujou_2c]
+- [en_f_koujou_2b, en_f_koujou_2d, en_f_koujou_2a]
+elites: [en_f_koujou_2e, en_unei]
 bosses: [en_ketsuban, en_yakkan8]
 warden: en_genkanban
 stalker: en_kidoku

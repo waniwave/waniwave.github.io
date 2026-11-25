@@ -6,15 +6,15 @@ line: 止まったはずのベルトコンベアに、札が流れてくる。
 palette: {bg: '#e6e8ea', ink: '#2a2520'}
 doors: {戦い: 45, 精鋭: 14, 宝: 10, 商い: 10, 湯: 9, 謎: 10}
 groups:
-- [en_ronpa]
-- [en_kotehan]
-- [en_hanron]
-- [en_idgae]
-- [en_sokuresu, en_sokuresu]
-- [en_hitosore, en_ronpa]
-- [en_kotehan, en_hanron]
-- [en_idgae, en_sokuresu]
-elites: [en_source, en_ronsou, en_surechigai]
+- [en_f_koujou_1a]
+- [en_f_koujou_1b]
+- [en_f_koujou_1c]
+- [en_f_koujou_1d]
+- [en_f_koujou_1a, en_f_koujou_1b]
+- [en_f_koujou_1c, en_f_koujou_1d]
+- [en_f_koujou_1a, en_f_koujou_1c]
+- [en_f_koujou_1b, en_f_koujou_1d, en_f_koujou_1a]
+elites: [en_f_koujou_1e, en_source]
 bosses: [en_kakuzukeshi, en_sakasayado]
 warden: en_genkanban
 stalker: en_kidoku

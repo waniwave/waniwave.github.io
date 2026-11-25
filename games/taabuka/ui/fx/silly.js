@@ -97,9 +97,10 @@ export const SILLY = {
 };
 
 /** 場の状態が変わった（id が null なら元に戻った） */
-export function playMood(X, id, def) {
+export function playMood(X, id, def, line = '') {
   setBgmMood(id ? def?.bgm : null);
   X.root.dataset.mood = id || '';
+  if (id && X.root.style) X.root.style.setProperty('--moodc', def?.color || '#b8432c');
   if (!id) { X.queue.pop?.('場の状態が戻った', X.root.querySelector('section.calc'), null, 'note'); return 300; }
   if (X.queue.skipping) return 0;
   const el = ov(X, 'moodban');
@@ -110,6 +111,16 @@ export function playMood(X, id, def) {
   anim(X, el, [{ opacity: 0, transform: 'translate(-50%,-50%) scale(1.6)' }, { opacity: 1, transform: 'translate(-50%,-50%) scale(1)', offset: 0.15 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }], 1300);
   if (id === 'ノリノリ' || id === 'お祭り' || id === '大団円') confetti(40);
   if (id === '修羅場') { const p = mid(X); embers(p.x, p.y, 40, 300); }
+  if (id === '演歌' || id === '静寂') { const sp = ov(X, 'spot'); anim(X, sp, [{ opacity: 0 }, { opacity: 1, offset: 0.2 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }], 1600); }
+  if (id === 'グダグダ') flash(X, 'section.hand .card', 'gdgd', 1400);
+  if (id === 'ノリノリ') flash(X, 'section.hand .card, section.foes .foe', 'nori', 1600);
+  if (id === 'しんみり') flash(X, 'section.foes .foe', 'blush', 1400);
+  if (line) {
+    const ok = ov(X, 'okami moodtalk');
+    const b = document.createElement('b'); b.textContent = line;
+    ok.append(document.createElement('i'), b);
+    anim(X, ok, [{ transform: 'translateX(-110%)' }, { transform: 'translateX(0)', offset: 0.12 }, { transform: 'translateX(0)', offset: 0.88 }, { transform: 'translateX(-110%)' }], 2400);
+  }
   SE.fanfare?.();
-  return 1100;
+  return line ? 1700 : 1100;
 }

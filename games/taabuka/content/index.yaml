@@ -50,6 +50,7 @@ sets:
   noren_soto: [cards.yaml, items.yaml, relics.yaml, set.yaml]
   ofuzake: [cards.yaml, set.yaml]
   ryukogo: [cards.yaml, custom/kougo.js, custom/nibai.js, custom/sengen.js, keywords.yaml, set.yaml]
+  senjutsu: [cards.yaml, set.yaml]
   soutourou: [cards.yaml, regulars.yaml, relics.yaml, set.yaml]
   taaaam: [cards.yaml, regulars.yaml, relics.yaml, set.yaml]
   taajuku: [cards.yaml, items.yaml, regulars.yaml, relics.yaml, set.yaml]
@@ -86,6 +87,7 @@ enemies:
   - custom/tier8.js
   - custom/tsuchi_nashi.js
   - custom/yakkan8.js
+  - dg_foes.yaml
   - dungeons.yaml
   - ghost.yaml
   - layer1.yaml
@@ -149,3 +151,5 @@ root:
   - decor.yaml
   - flavor.yaml
   - dungeons.yaml
+  - yields.yaml
+  - epithets.yaml

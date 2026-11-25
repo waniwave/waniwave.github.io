@@ -1,6 +1,6 @@
 // サービスワーカー：オフライン起動。BUILD ごとに先読みし直す（一覧は tools/release.mjs が書く）。
 // 新しい版が入っても勝手に切り替えない。宿の画面の「更新」で切り替える（SKIP_WAITING を受けたら入れ替わる）。
-const BUILD = '1.4.0';
+const BUILD = '1.5.0';
 const FILES = [
   './content/achievements.yaml',
   './content/affixes.yaml',
@@ -32,6 +32,7 @@ const FILES = [
   './content/enemies/custom/tier8.js',
   './content/enemies/custom/tsuchi_nashi.js',
   './content/enemies/custom/yakkan8.js',
+  './content/enemies/dg_foes.yaml',
   './content/enemies/dungeons.yaml',
   './content/enemies/ghost.yaml',
   './content/enemies/layer1.yaml',
@@ -39,6 +40,7 @@ const FILES = [
   './content/enemies/layer3.yaml',
   './content/enemies/layer4.yaml',
   './content/enemies/layer5.yaml',
+  './content/epithets.yaml',
   './content/events/layer1.yaml',
   './content/events/layer2.yaml',
   './content/events/layer3.yaml',
@@ -219,6 +221,8 @@ const FILES = [
   './content/sets/ryukogo/custom/sengen.js',
   './content/sets/ryukogo/keywords.yaml',
   './content/sets/ryukogo/set.yaml',
+  './content/sets/senjutsu/cards.yaml',
+  './content/sets/senjutsu/set.yaml',
   './content/sets/soutourou/cards.yaml',
   './content/sets/soutourou/regulars.yaml',
   './content/sets/soutourou/relics.yaml',
@@ -246,11 +250,13 @@ const FILES = [
   './content/sets/tsuchi/set.yaml',
   './content/shibari.yaml',
   './content/souvenirs.yaml',
+  './content/yields.yaml',
   './engine/battle.js',
   './engine/big.js',
   './engine/combo.js',
   './engine/content.js',
   './engine/dive.js',
+  './engine/epithet.js',
   './engine/format.js',
   './engine/ghost.js',
   './engine/hand.js',
@@ -270,6 +276,7 @@ const FILES = [
   './engine/vocab/rule.js',
   './engine/vocab/show.js',
   './engine/vocab/when.js',
+  './engine/yield.js',
   './icons/apple-touch-icon.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -281,6 +288,7 @@ const FILES = [
   './ui/audio/audio.js',
   './ui/coach.js',
   './ui/dom.js',
+  './ui/fx/catfx.js',
   './ui/fx/combo.js',
   './ui/fx/flash.js',
   './ui/fx/particles.js',

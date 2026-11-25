@@ -6,15 +6,15 @@ line: 電源の入っていない筐体から、BGMが聞こえる。
 palette: {bg: '#ece6f4', ink: '#2a2520'}
 doors: {戦い: 45, 精鋭: 14, 宝: 10, 商い: 10, 湯: 9, 謎: 10}
 groups:
-- [en_ronpa]
-- [en_kotehan]
-- [en_hanron]
-- [en_idgae]
-- [en_sokuresu, en_sokuresu]
-- [en_hitosore, en_ronpa]
-- [en_kotehan, en_hanron]
-- [en_idgae, en_sokuresu]
-elites: [en_source, en_ronsou, en_surechigai]
+- [en_f_gesen_1a]
+- [en_f_gesen_1b]
+- [en_f_gesen_1c]
+- [en_f_gesen_1d]
+- [en_f_gesen_1a, en_f_gesen_1b]
+- [en_f_gesen_1c, en_f_gesen_1d]
+- [en_f_gesen_1a, en_f_gesen_1c]
+- [en_f_gesen_1b, en_f_gesen_1d, en_f_gesen_1a]
+elites: [en_f_gesen_1e, en_source]
 bosses: [en_kakuzukeshi, en_sakasayado]
 warden: en_genkanban
 stalker: en_kidoku

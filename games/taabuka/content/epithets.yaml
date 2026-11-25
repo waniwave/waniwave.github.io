@@ -1,0 +1,46 @@
+# 二つ名（論客の名前の前に付く）。潜行の戦いで、深いほど付きやすい（engine/epithet.js）
+# chance：付く確率 base＋perFloor×階（max まで）。kinds：付く論客の種類
+# 1つの二つ名：name（前に付く）、hp／atk（掛ける）、acts（行動の列の後ろに足す）、yield（降参の決まりを差し替え）、cat（カテゴリを差し替え）、line（登場の一言）、zeni（倒した時の宿銭の倍率）
+chance: { base: 0.12, perFloor: 0.025, max: 0.65 }
+kinds: [通常, 精鋭, 層主]
+list:
+  - { id: ep_shinya, name: 深夜の, atk: 1.2, line: 寝る前にひとつだけ言わせて, zeni: 1.2 }
+  - { id: ep_kotei, name: 固定ハンの, hp: 1.3, line: 毎日このスレにいる }
+  - { id: ep_kujo, name: 苦情係の, hp: 1.1, acts: [{ 封じ: 最多カテゴリ }], line: 担当者を出してください }
+  - { id: ep_meijin, name: 名人, hp: 1.25, atk: 1.1, zeni: 1.5, line: 二十年、論破してきた }
+  - { id: ep_shoshinsha, name: 初心者の, hp: 0.7, atk: 0.8, yield: { kind: 共感 }, line: あの、初めてなんですけど }
+  - { id: ep_kenka, name: 喧嘩腰の, atk: 1.35, hp: 0.85, line: 表に出ろ }
+  - { id: ep_nonbiri, name: のんびりした, atk: 0.7, hp: 1.2, yield: { kind: 根負け }, line: まあ、ゆっくりいこうや }
+  - { id: ep_netsuretsu, name: 熱烈な, atk: 1.1, acts: [溜め], line: この熱、受け止めて }
+  - { id: ep_kaisetsu, name: 解説の, hp: 1.15, acts: [{ 伏せ: 1 }], line: ここで解説を挟みます }
+  - { id: ep_mendoi, name: めんどくさい, hp: 1.4, atk: 0.8, yield: { kind: 呆れ }, line: そもそも論なんだけど }
+  - { id: ep_soku, name: 即レスの, atk: 1.15, acts: [攻め], line: はい論破 }
+  - { id: ep_chinmoku, name: 無口な, atk: 1.2, line: …… }
+  - { id: ep_ippiki, name: 一匹狼の, hp: 1.2, cat: 動物, yield: { kind: 共感 }, line: 群れるのは嫌いだ }
+  - { id: ep_tensai, name: 自称天才の, hp: 0.9, atk: 1.3, yield: { kind: 呆れ }, line: IQ論破 }
+  - { id: ep_shishou, name: 師匠気取りの, hp: 1.2, acts: [格下げ], line: 弟子にしてやろう }
+  - { id: ep_ritsugi, name: 律儀な, hp: 1.1, yield: { kind: 封殺 }, line: 順番に反論します }
+  - { id: ep_hanbun, name: 半分寝てる, atk: 0.6, hp: 1.3, line: ……ぐう }
+  - { id: ep_kaigai, name: 海外勢の, atk: 1.15, cat: 速さ, line: GG EZ }
+  - { id: ep_furui, name: 古参の, hp: 1.25, cat: 老, yield: { kind: 番付落ち }, line: v0.1の頃から知ってる }
+  - { id: ep_shinsan, name: 新参の, hp: 0.85, atk: 1.1, line: 今北産業 }
+  - { id: ep_ochi, name: 落ち目の, hp: 0.9, yield: { kind: 番付落ち }, line: 昔はTier1だったんだ }
+  - { id: ep_kanpai, name: 酔っぱらいの, atk: 1.25, hp: 0.9, yield: { kind: 呆れ }, cat: 食べ物, line: もう一軒いこう }
+  - { id: ep_yuagari, name: 湯上がりの, atk: 0.85, cat: 湯, yield: { kind: 根負け }, line: いい湯だったから機嫌がいい }
+  - { id: ep_kyoshin, name: 狂信の, hp: 1.2, acts: [{ 居座り: 0.1 }], line: 全部God }
+  - { id: ep_kanbu, name: 幹部の, hp: 1.3, atk: 1.2, zeni: 1.6, line: 上に話を通してある }
+  - { id: ep_otoshi, name: 落とし物をした, hp: 0.9, zeni: 2, line: あれ、財布どこやったっけ }
+  - { id: ep_kagami, name: 鏡写しの, acts: [席を奪う], line: お前の常連はもらう }
+  - { id: ep_mahou, name: 魔法少女の, hp: 1.1, atk: 1.1, yield: { kind: 共感 }, line: 論破の力で変身よ！ }
+  - { id: ep_shinkansen, name: 新幹線の, atk: 1.3, cat: 速さ, yield: { kind: 論点ずらし }, line: 次は、論破に止まります }
+  - { id: ep_ura, name: 裏垢の, hp: 1.15, cat: スレ, yield: { kind: 論点ずらし }, line: 本音はこっち }
+  - { id: ep_kami, name: 神の, hp: 1.5, atk: 1.2, cat: ター, zeni: 2, line: Tier God }
+  - { id: ep_rouhai, name: 老いた, atk: 0.8, cat: 老, yield: { kind: 根負け }, line: 昔はな…… }
+  - { id: ep_hara, name: 腹ペコの, atk: 1.1, cat: 麺, yield: { kind: 共感 }, line: 腹が減っては論破できぬ }
+  - { id: ep_buki, name: 武器を持った, atk: 1.4, line: 割り箸だけど }
+  - { id: ep_robo, name: 改造された, hp: 1.2, cat: ロボ, acts: [溜め], line: アップデート完了 }
+  - { id: ep_yuurei, name: 幽霊の, hp: 0.8, cat: 死, yield: { kind: 封殺 }, line: うらめしTier }
+  - { id: ep_kodomo, name: 子ども会の, atk: 0.8, cat: 校庭, yield: { kind: 論点ずらし }, line: ねえねえ、それより鬼ごっこしよ }
+  - { id: ep_yokozuna, name: 横綱, hp: 1.4, atk: 1.25, zeni: 1.8, line: 番付の一番上から失礼 }
+  - { id: ep_goukaku, name: 合格祈願の, hp: 1.1, yield: { kind: 根負け }, line: 落ちるとか言わないで }
+  - { id: ep_owarai, name: お笑い担当の, hp: 1.0, yield: { kind: 呆れ }, line: はいどうもー！ }

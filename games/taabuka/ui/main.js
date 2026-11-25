@@ -20,6 +20,7 @@ import { innScreen, facilityScreen, stashScreen, prepScreen, resultScreen, setti
 import { readAll, write, exportText, importText } from './save.js';
 import { setFlashOptions } from './fx/flash.js';
 import { initParticles, setParticleScale } from './fx/particles.js';
+import { setCatFxScale } from './fx/catfx.js';
 import { setShowOptions } from './fx/shows.js';
 import { setNumMode, num as format } from './num.js';
 import { unlockAudio, setAudioOptions, playBgm, stopBgm, startHeart, stopHeart, setBgmMood } from './audio/audio.js';
@@ -44,6 +45,7 @@ function applySettings() {
   document.getElementById('app').classList.toggle('calm-flash', !!settings.noFlash);
   setShowOptions({ fx: settings.fx, shake: !!settings.shake });
   setParticleScale({ 控えめ: 0.35, 標準: 1, 激しい: 1.6 }[settings.fx] ?? 1);
+  setCatFxScale({ 控えめ: 0.4, 標準: 1, 激しい: 1.8 }[settings.fx] ?? 1);
   setAudioOptions({ se: settings.se, bgm: settings.bgm, vibrate: settings.vibrate });
   setNumMode(settings.numFmt);
 }

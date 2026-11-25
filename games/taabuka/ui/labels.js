@@ -1,3 +1,4 @@
+import { yieldText } from '../engine/yield.js';
 // 画面に出す短い文字と色（カテゴリの紋、格の色、由来の印、行動予告）
 
 import { esc } from './dom.js';
@@ -150,7 +151,7 @@ export function intentText(env, e, B = null) {
   if (e.dead) return { text: '', calm: true };
   if (e.skip > 0) return { text: `動けない（${e.skip}）`, calm: true };
   const { name, arg } = e.intent;
-  const mul = e.charged ? 2 : 1;
+  const mul = (e.charged ? 2 : 1) * (B?.mood ? (env.balance.moods?.[B.mood.id]?.atkMul ?? 1) : 1);
   switch (name) {
     case '攻め': { const d = Math.round(e.atk * (typeof arg === 'number' ? arg : 1) * mul); return { text: `攻め ${d}`, dmg: d }; }
     case '全体攻め': { const d = Math.round(e.atk * mul); return { text: `全体 ${d}`, dmg: d }; }
@@ -185,6 +186,7 @@ export function enemyTip(env, e, B = null) {
     e.line ? `<span class="fl">「${esc(e.line)}」</span>` : '',
     bindText(env, e.id) ? `<b>縛り</b>：${esc(bindText(env, e.id))}` : '',
     `次：${esc(intentText(env, e, B).text)}${def ? `<span class="q">（${esc(def.text)}）</span>` : ''}`,
+    e.yield ? `<b>降参</b>：〈${esc(e.cat || '')}〉${esc(yieldText(env, e)?.text || '')}` : '',
     e.charged ? '溜めている（次の攻めが×2）' : '',
     `<span class="q">行動：${esc(acts)}</span>`,
     ...(env.content.enemies[e.id]?.kwList || []).map((k) => `<span class="q"><b>${esc(k.label)}</b>：${esc(k.text)}</span>`),

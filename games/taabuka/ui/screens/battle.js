@@ -10,6 +10,7 @@ import {
   RAR_VAR, RAR_SHORT, rarOfCard,
 } from '../labels.js';
 import { tierOf } from '../../engine/hand.js';
+import { yieldText } from '../../engine/yield.js';
 import { comboEffText } from '../labels.js';
 import { play, discard, endTurn, predict, guestAction, guestActions, guestStatus, choicesFor, useItem, layerNoAt } from '../../engine/battle.js';
 import { askItem } from '../items.js';
@@ -22,6 +23,7 @@ const claimText = (e, v) => (e?.hideClaim ? '？？？' : format(v));
 import { playShow, playStage, playKetagoe, stageOf, rollNumber } from '../fx/shows.js';
 import { playSpell, playCombo } from '../fx/combo.js';
 import { playMood } from '../fx/silly.js';
+import { catBurst, typeFx } from '../fx/catfx.js';
 import { setBgmMood } from '../audio/audio.js';
 import { matchCombos } from '../../engine/combo.js';
 import { SE, buzz } from '../audio/audio.js';
@@ -46,7 +48,7 @@ export function battleScreen(o) {
   function render() {
     refs = { cards: new Map(), foes: new Map(), slots: new Map(), seats: new Map() };
     if (B.enemies[st.target]?.dead || st.target < 0) st.target = B.enemies.findIndex((e) => !e.dead);
-    root.replaceChildren(renderTop(), renderBanzuke(), renderFoes(), renderSeats(), renderInfo(), renderCalc(), renderHand(), renderOps());
+    root.replaceChildren(renderTop(), renderBanzuke(), renderFoes(), renderSeats(), renderInfo(), renderCalc(), renderHand(), renderOps(), h('div.moodfx'));
     updateCalc();
     renderSides();
   }
@@ -140,14 +142,15 @@ export function battleScreen(o) {
         updateCalc();
       } }, [
         h('div.art', { html: enemyArt(e) }),
-        h('div.nm', { text: e.name }),
+        e.baseName ? h('div.nm', {}, [h('small.ep', { text: e.name.slice(0, e.name.length - e.baseName.length) }), e.baseName]) : h('div.nm', { text: e.name }),
         ...((env.content.enemies[e.id]?.kwList || []).length ? [h('div.kw', { text: env.content.enemies[e.id].kwList.map((k) => k.label).join('・') })] : []),
+        ...(e.yield && !e.dead ? [h('div.yd', {}, [h('span.ycat', { text: e.cat || '' }), h('span.ytx', { text: yieldText(env, e)?.short || '' })])] : []),
         h(`div.int${it.calm ? '.calm' : ''}${it.dmg ? '.atk' : ''}${it.warn ? '.warn' : ''}`, { text: it.text }),
         h('div.barw', {}, [bar]),
         cl,
       ]);
       tip(foe, () => enemyTip(env, e, B));
-      refs.foes.set(e.uid, { el: foe, bar, cl, max: e.maxClaim });
+      refs.foes.set(e.uid, { el: foe, bar, cl, max: e.maxClaim, yd: foe.querySelector('.ytx') });
       el.append(foe);
     });
     return el;
@@ -447,6 +450,8 @@ export function battleScreen(o) {
         embers(r.left - L.left + r.width / 2, r.top - L.top + r.height / 2, 18, r.width * 0.8);
       }
     };
+    const catsOfSrc = (src) => (src?.kind === 'card' && src.uid ? ([...B.inPlay, ...B.hand, ...B.discard, ...B.draw, ...B.exhaust].find((c) => c.uid === src.uid)?.cat || content.cards[src.id]?.cat || []) : []);
+    const ringIx = (t) => balance.tiers.ring.indexOf(String(t));
     const srcEl = (src) => {
       if (!src) return refs.calc;
       if (src.kind === 'card' && src.uid) return refs.cards.get(src.uid) ?? refs.calc;
@@ -494,7 +499,8 @@ export function battleScreen(o) {
               } }); break;
               case 'S': T.push({ ms: s.src?.kind === 'card' ? MS.card : MS.note, run: () => {
                 const from = srcEl(s.src);
-                if (s.src?.kind === 'card') queue.bounce(from);
+                if (s.src?.kind === 'card') { queue.bounce(from); catBurst(X(), from, catsOfSrc(s.src)); }
+                typeFx(X(), from, 'S', 2);
                 queue.pop(`+${format(s.add)}`, from, refs.calc, 's');
                 SE.score(pitch++);
                 calcSet(s.S, s.M); burn(s.S, s.M);
@@ -503,7 +509,8 @@ export function battleScreen(o) {
                 const from = srcEl(s.src);
                 if (s.src?.kind === 'banzuke') queue.glow(from);
                 else if (s.src?.kind === 'regular') queue.shake(from, 3, MS.regular);
-                else if (s.src?.kind === 'card') queue.bounce(from);
+                else if (s.src?.kind === 'card') { queue.bounce(from); catBurst(X(), from, catsOfSrc(s.src)); }
+                typeFx(X(), from, 'M', 3);
                 queue.pop(`${s.add.isNeg() ? '' : '+'}${fmtMul(s.add)}`, from, refs.calc, 'm');
                 SE.mult(pitch++);
                 calcSet(s.S, s.M); burn(s.S, s.M);
@@ -517,6 +524,7 @@ export function battleScreen(o) {
                 }
                 if (s.src?.kind === 'regular') queue.shake(from, 4, MS.regular);
                 queue.pop(`×${fmtMul(s.mul)}`, from, refs.calc, 'x');
+                typeFx(X(), from, 'x', 5); if (s.src?.kind === 'card') catBurst(X(), from, catsOfSrc(s.src));
                 queue.slam(refs.calc);
                 SE.taiko();
                 if (s.src?.kind === 'regular') buzz(20);
@@ -552,7 +560,7 @@ export function battleScreen(o) {
         } });
           if (pendingStage && !entries.slice(entries.indexOf(e) + 1).some((x) => x.t === 'damage')) flushStage();
           break;
-        case 'guard': T.push({ ms: MS.note, run: () => { setGuard(e.guard); queue.pop(`受け+${e.add}`, refs.guard, null, 's'); } }); break;
+        case 'guard': T.push({ ms: MS.note, run: () => { setGuard(e.guard); queue.pop(`受け+${e.add}`, refs.guard, null, 's'); typeFx(X(), refs.guard, 'guard', 3); } }); break;
         case 'broken': T.push({ ms: MS.note, run: () => queue.pop(`${e.card} が割れた`, refs.calc, null, 'note') }); break;
         case 'zeni': T.push({ ms: MS.note, run: () => { queue.pop(`宿銭+${e.add}`, refs.zeni, null, 'note'); } }); break;
         case 'overkill': if (e.level) T.push({ ms: MS.banner, run: () => queue.banner(e.level, 'big') }); break;
@@ -575,16 +583,17 @@ export function battleScreen(o) {
         case 'stun': T.push({ ms: MS.note, run: () => { const f = foe(e.enemy); if (f) queue.pop(`動けない ${e.turns}`, f.el, null, 'note'); } }); break;
         case 'banzuke': T.push({ ms: MS.banzuke * 2, run: () => {
           queue.glow(refs.slots.get(String(e.to)));
+          typeFx(X(), refs.slots.get(String(e.to)), ringIx(e.to) < ringIx(e.from) ? 'up' : 'down', 3);
           queue.pop(`${e.cat} ${slotLabel(e.from)}→${slotLabel(e.to)}`, refs.slots.get(String(e.from)) ?? refs.calc, refs.slots.get(String(e.to)), 'note');
         } }); break;
         case 'mod': T.push({ ms: MS.note, run: () => queue.pop(`${{ plays: '出し', discards: '流し', handSize: '手札上限' }[e.key]}${e.delta > 0 ? '+' : ''}${e.delta}`, refs.calc, null, 'note') }); break;
         case 'level': T.push({ ms: MS.note, run: () => queue.pop(`${e.hand} Lv${e.level}`, refs.calc, null, 'note') }); break;
         case 'spawn': T.push({ ms: MS.note, run: () => queue.pop(`${e.card}が手札に`, refs.calc, null, 'note') }); break;
         case 'faceDown': T.push({ ms: MS.note, run: () => queue.pop(`${e.n}枚が裏向きに`, refs.calc, null, 'note') }); break;
-        case 'hp': T.push({ ms: MS.note, run: () => { setHp(e.hp); queue.pop(`${e.add > 0 ? '+' : ''}${e.add}`, refs.hp, null, e.add < 0 ? 'dmg big' : 'heal'); if (e.add < 0) { root.classList.remove('hurt'); void root.offsetWidth; root.classList.add('hurt'); } } }); break;
+        case 'hp': T.push({ ms: MS.note, run: () => { setHp(e.hp); typeFx(X(), refs.hp, e.add < 0 ? 'hurt' : 'heal', 4); queue.pop(`${e.add > 0 ? '+' : ''}${e.add}`, refs.hp, null, e.add < 0 ? 'dmg big' : 'heal'); if (e.add < 0) { root.classList.remove('hurt'); void root.offsetWidth; root.classList.add('hurt'); } } }); break;
         case 'useItem': T.push({ ms: MS.note * 1.5, run: () => queue.banner(e.name, 'small', 700) }); break;
         case 'note': T.push({ ms: MS.note, run: () => queue.pop(e.what, refs.calc, null, 'note') }); break;
-        case 'mood': { let ms = 0; T.push({ get ms() { return ms; }, run: () => { ms = playMood(X(), e.id, e.id ? balance.moods?.[e.id] : null); render(); } }); break; }
+        case 'mood': { let ms = 0; T.push({ get ms() { return ms; }, run: () => { const ml = e.id ? (base.content.flavor?.moodTalk?.[e.id] || []) : []; ms = playMood(X(), e.id, e.id ? balance.moods?.[e.id] : null, ml.length ? ml[Math.floor(Math.random() * ml.length)] : ''); render(); } }); break; }
         case 'hindrance': T.push({ ms: MS.note * 2, run: () => queue.pop(`妨害：${e.what}`, refs.calc, null, 'note') }); break;
         case 'form': T.push({ ms: MS.banner * 1.4, run: () => {
           const f = foe(e.enemy); if (!f) return;
@@ -596,10 +605,17 @@ export function battleScreen(o) {
           queue.banner(`${e.name}　第${e.form}形態`, 'big', 1400);
           if (e.what) queue.pop(e.what, f.el, null, 'note');
         } }); break;
+        case 'yield': T.push({ ms: MS.banner * 1.4, run: () => {
+          const f = foe(e.enemy);
+          if (f) { f.cl.textContent = '降参'; f.bar.style.width = '0%'; f.el.classList.add('dead'); queue.pop(e.how, f.el, null, 'note'); }
+          queue.shake(app, 6, 500); try { SE.taiko(); } catch { /* 音なし */ }
+          queue.banner(`${e.name} 降参！（${e.how}）`, 'big', 1300);
+        } }); break;
+        case 'yp': T.push({ ms: MS.note, run: () => { const f = foe(e.enemy); const o = foeOf(e.enemy); if (f?.yd && o) { f.yd.textContent = yieldText(env, o)?.short || ''; queue.pop(`${e.how}+${e.add}`, f.el, null, 'note'); typeFx(X(), f.el, 'yield', 3); } } }); break;
         case 'intent': T.push({ ms: MS.note, run: () => { const f = foe(e.enemy); if (f) queue.pop(`次は${e.act}`, f.el, null, 'note'); } }); break;
         case 'presence': T.push({ ms: MS.note, run: () => queue.pop(`気配+${e.add}`, refs.calc, null, 'note') }); break;
         case 'error': T.push({ ms: MS.note, run: () => { console.warn('[記録]', e.hook, e.message); queue.pop('（特注の不具合）', refs.calc, null, 'note'); } }); break;
-        case 'end': flushStage(); T.push({ ms: MS.banner, run: () => (setBgmMood(null), (e.result === 'win' && (() => { const last = B.enemies.find((x) => x.kind !== '通常') ?? B.enemies[B.enemies.length - 1]; const l = last && pickLine(last.id, 'defeat'); if (l) playShow('吹き出し', `${last.name}「${l}」`, X()); })(), queue.banner(e.result === 'win' ? '勝ち' : e.result === 'lose' ? '未帰還' : e.result === 'timeup' ? '時間切れ' : '脱出', e.result === 'win' ? '' : 'big') ))}); break;
+        case 'end': flushStage(); T.push({ ms: MS.banner, run: () => (setBgmMood(null), (queue.banner(e.result === 'win' ? '勝ち' : e.result === 'lose' ? '未帰還' : e.result === 'timeup' ? '時間切れ' : '脱出', e.result === 'win' ? '' : 'big') ))}); break;
         default: break;
       }
     }
@@ -634,6 +650,13 @@ export function battleScreen(o) {
   }
 
   // ───────── 窓 ─────────
+  /** 論客の最後のひと言（結果の窓に、1人1行） */
+  function lastWords() {
+    if (B.result !== 'win') return null;
+    const seen = new Set();
+    const rows = B.enemies.filter((e) => !seen.has(e.id) && seen.add(e.id)).map((e) => { const l = pickLine(e.id, 'defeat'); return l ? h('div.lw', {}, [h('b', { text: e.name }), h('span', { text: `「${l}」` })]) : null; }).filter(Boolean);
+    return rows.length ? h('div.lastwords', {}, rows) : null;
+  }
   function showResult() {
     if (o.onDone) {
       const ok = B.overkill;
@@ -641,6 +664,7 @@ export function battleScreen(o) {
         h('h2', { text: B.result === 'win' ? '勝ち' : B.result === 'lose' ? '倒れた' : '脱出' }),
         h('p', { text: `${B.turn}ターン　最大論破値 ${format(B.stats.maxV)}${B.zeni ? `　宿銭 ${B.zeni}` : ''}` }),
         ok?.level ? h('p', { text: `過剰論破：${ok.level}（×${fmtMul(ok.r)}）` }) : null,
+        lastWords(),
         h('div.row', {}, [h('button.btn.main', { type: 'button', onclick: () => { s.close(); o.onDone(B); } }, ['進む'])]),
       ]);
       return;
@@ -650,6 +674,7 @@ export function battleScreen(o) {
       h('h2', { text: B.result === 'win' ? '勝ち' : B.result === 'lose' ? '未帰還' : '脱出' }),
       h('p', { text: `${B.turn}ターン　最大論破値 ${format(B.stats.maxV)}　宿銭 ${B.zeni}` }),
       ok?.level ? h('p', { text: `過剰論破：${ok.level}（×${fmtMul(ok.r)}）` }) : null,
+      lastWords(),
       h('div.row', {}, [
         o.onRestart ? h('button.btn.main', { type: 'button', onclick: () => { s.close(); o.onRestart(); } }, ['もう一戦']) : null,
         h('button.btn', { type: 'button', onclick: () => { s.close(); o.onExit(); } }, ['戻る']),
@@ -702,7 +727,7 @@ export function battleScreen(o) {
     f.el.append(b);
     setTimeout(() => b.remove(), 2600);
   }
-  if (!B.result && B.turn === 1 && !B.stats.plays) B.enemies.forEach((e, i) => setTimeout(() => say(e.uid, pickLine(e.id, 'intro')), 400 + i * 700));
+  if (!B.result && B.turn === 1 && !B.stats.plays) B.enemies.forEach((e, i) => setTimeout(() => say(e.uid, (e.epithet && e.line) || pickLine(e.id, 'intro')), 400 + i * 700));
   if (B.result && o.onDone) setTimeout(showResult, 0);   // 終わったところで閉じて開き直したとき
   return { el: root, onKey, render, state: st, refs: () => refs };
 }

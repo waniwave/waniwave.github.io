@@ -1,0 +1,6 @@
+id: senjutsu
+name: 戦術
+unlock: { start: true }
+color: "#5a7a9a"
+keywords: []
+intro: 論破のほかの勝ち方。呆れさせる、共感させる、論点をずらす、受けで封殺する、番付から落とす、耐えて根負けさせる。

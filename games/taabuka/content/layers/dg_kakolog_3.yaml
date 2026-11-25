@@ -6,15 +6,15 @@ line: 過去ログ倉庫・1001の部屋
 palette: {bg: '#efe9d6', ink: '#2a2520'}
 doors: {戦い: 44, 精鋭: 15, 宝: 11, 商い: 10, 湯: 9, 謎: 10}
 groups:
-- [en_zako]
-- [en_kaso]
-- [en_hachi]
-- [en_kanzen]
-- [en_shoshin, en_hachi]
-- [en_owakon, en_zako]
-- [en_kaso, en_shoshin]
-- [en_owakon, en_kanzen]
-elites: [en_kamige, en_kusoge, en_saikyo]
+- [en_f_kakolog_3a]
+- [en_f_kakolog_3b]
+- [en_f_kakolog_3c]
+- [en_f_kakolog_3d]
+- [en_f_kakolog_3a, en_f_kakolog_3b]
+- [en_f_kakolog_3c, en_f_kakolog_3d]
+- [en_f_kakolog_3a, en_f_kakolog_3c]
+- [en_f_kakolog_3b, en_f_kakolog_3d, en_f_kakolog_3a]
+elites: [en_f_kakolog_3e, en_kamige]
 bosses: [en_dg_1001]
 warden: en_kaerimichi
 stalker: en_shisen

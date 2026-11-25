@@ -11,6 +11,11 @@ export function setMood(B, balance, id, log) {
   if (!d) return;
   B.mood = { id, turns: d.turns ?? 2 };
   log?.(B, { t: 'mood', id, turns: B.mood.turns });
+  // 切り替わった瞬間のばかばかしいルール（onSet：plays 出し＋・discards 流し＋・healFull 体力全快）
+  const o = d.onSet || {};
+  if (o.plays) { B.playsLeft = Math.max(0, (B.playsLeft || 0) + o.plays); log?.(B, { t: 'mod', key: 'plays', delta: o.plays }); }
+  if (o.discards) { B.discardsLeft = Math.max(0, (B.discardsLeft || 0) + o.discards); log?.(B, { t: 'mod', key: 'discards', delta: o.discards }); }
+  if (o.healFull && B.hp < B.maxHp) { const add = B.maxHp - B.hp; B.hp = B.maxHp; log?.(B, { t: 'hp', add, hp: B.hp }); }
 }
 /** ターンの終わりに1減らす。0で戻る */
 export function tickMood(B, log) {

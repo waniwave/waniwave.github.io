@@ -6,15 +6,15 @@ line: 床上・棟木の先
 palette: {bg: '#f3e4cf', ink: '#2a2520'}
 doors: {戦い: 44, 精鋭: 15, 宝: 11, 商い: 10, 湯: 9, 謎: 10}
 groups:
-- [en_zako]
-- [en_kaso]
-- [en_hachi]
-- [en_kanzen]
-- [en_shoshin, en_hachi]
-- [en_owakon, en_zako]
-- [en_kaso, en_shoshin]
-- [en_owakon, en_kanzen]
-elites: [en_kamige, en_kusoge, en_saikyo]
+- [en_f_yaneura_3a]
+- [en_f_yaneura_3b]
+- [en_f_yaneura_3c]
+- [en_f_yaneura_3d]
+- [en_f_yaneura_3a, en_f_yaneura_3b]
+- [en_f_yaneura_3c, en_f_yaneura_3d]
+- [en_f_yaneura_3a, en_f_yaneura_3c]
+- [en_f_yaneura_3b, en_f_yaneura_3d, en_f_yaneura_3a]
+elites: [en_f_yaneura_3e, en_kamige]
 bosses: [en_dg_yanenoura]
 warden: en_kaerimichi
 stalker: en_shisen

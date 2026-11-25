@@ -6,15 +6,15 @@ line: 屋台通り・湯気の路地
 palette: {bg: '#f4e7d2', ink: '#2a2520'}
 doors: {戦い: 45, 精鋭: 12, 宝: 10, 商い: 10, 湯: 10, 謎: 10}
 groups:
-- [en_shinja]
-- [en_anchi]
-- [en_kakolog]
-- [en_gobaku, en_netawaku]
-- [en_kisei, en_niwaka]
-- [en_shinja, en_anchi]
-- [en_netawaku, en_netawaku, en_gobaku]
-- [en_kakolog, en_kisei]
-elites: [en_matsuri, en_matome, en_arashi]
+- [en_f_yatai_2a]
+- [en_f_yatai_2b]
+- [en_f_yatai_2c]
+- [en_f_yatai_2d]
+- [en_f_yatai_2a, en_f_yatai_2b]
+- [en_f_yatai_2c, en_f_yatai_2d]
+- [en_f_yatai_2a, en_f_yatai_2c]
+- [en_f_yatai_2b, en_f_yatai_2d, en_f_yatai_2a]
+elites: [en_f_yatai_2e, en_matsuri]
 bosses: [en_fusuma_nushi, en_datochi]
 warden: en_gesoku
 stalker: en_ashioto

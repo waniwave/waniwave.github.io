@@ -7,10 +7,12 @@
 
 import { Big, ZERO } from './big.js';
 import { Rng } from './rng.js';
+import { applyEpithet } from './epithet.js';
 import { Hooks } from './hooks.js';
 import { cardView, evaluateHand, handBase } from './hand.js';
 import { rarOf, rarDef } from './rarity.js';
 import { computeScore, cardStrength, emitFor, slotDef } from './score.js';
+import { yieldAfterPlay, yieldOnHit, yieldEndTurn } from './yield.js';
 import { moodDef, tickMood } from './vocab/mood.js';
 import { matchCombos, spellOf } from './combo.js';
 import { makeE, runDo, testCond } from './vocab/effect.js';
@@ -106,17 +108,22 @@ export function makeEnemy(balance, def, o, uid) {
     uid, id: def.id, name: def.name ?? def.id, kind, claim, maxClaim: claim, atk, acts,
     actIndex: 0, intent: acts[0], charged: false, skip: 0, dead: false, line: def.line ?? '', vars: {},
     ...(def.hideClaim ? { hideClaim: true } : {}),
+    ...(def.cat ? { cat: def.cat } : {}), ...(def.yield ? { yield: { ...def.yield }, yp: 0 } : {}),
+    ...(def.epithetName ? { epithet: def.epithet, baseName: def.name.slice(def.epithetName.length) } : {}), ...(def.bonusZeni ? { bonusZeni: def.bonusZeni } : {}),
   };
 }
 
 /** 自分への攻撃。受けから先に減らし、残りを体力から引く。ignore は受けを無視する分 */
 export function hitPlayer(B, env, e, dmg, ignore) {
+  const am = moodDef(B, env.balance)?.atkMul;
+  if (am != null && am !== 1) { dmg = Math.round(dmg * am); ignore = Math.round(ignore * am); }
   const guarded = Math.max(0, dmg - ignore);
   const fromGuard = Math.min(B.guard, guarded);
   B.guard -= fromGuard;
   const loss = dmg - fromGuard;
   B.hp = Math.max(0, B.hp - loss);
   log(B, { t: 'attack', enemy: e.uid, name: e.name, dmg, guarded: fromGuard, loss, hp: B.hp });
+  yieldOnHit(B, env, e, loss);
 }
 
 /** 敵を倒す（差し込み口 enemy.defeated を通す） */
@@ -125,6 +132,7 @@ export function killEnemy(B, env, e) {
   const kctx = { battle: B, env, enemy: e };
   env.hooks.run('enemy.defeated', kctx, () => { e.dead = true; emitAll(env, '敵を倒した時', kctx, uidsOf(B.inPlay)); });
   if (e.dead) log(B, { t: 'defeated', enemy: e.uid, name: e.name });
+  if (e.dead && e.bonusZeni) { const n = Math.round((e.bonusZeni - 1) * 8 * (1 + (B.floor || 1) / 3)); if (n > 0) { B.zeni += n; log(B, { t: 'zeni', add: n, why: e.name }); } }
 }
 
 /** 手札で一番多いカテゴリ（同数なら categories の並びで先） */
@@ -231,7 +239,7 @@ export function createBattle(base, o) {
     const id = typeof x === 'string' ? x : x.id;
     const def = content.enemies?.[id];
     if (!def) throw new Error(`敵の定義がない「${id}」`);
-    return typeof x === 'string' ? def : { ...def, ...x };
+    return typeof x === 'string' ? def : applyEpithet(content, { ...def, ...x });
   });
   const normals = defs.filter((d) => (d.kind || '通常') === '通常');
   const split = balance.curve.splitGroupClaim && normals.length > 1;
@@ -552,7 +560,12 @@ function startTurn(B, env) {
     for (const e of B.enemies) if (!e.dead) e.atk = Math.max(e.atk + 1, Math.round(e.atk * (1 + en.atkMul)));
     log(B, { t: 'note', what: '敵が苛立っている（攻撃が上がる）' });
   }
-  drawCards(B, env, Math.max(0, B.handSize - B.hand.length));
+  const md = moodDef(B, balance);
+  drawCards(B, env, Math.max(0, B.handSize - B.hand.length) + (md?.drawPerTurn || 0));
+  if (md?.hpPerTurn && B.hp < B.maxHp) {
+    const add = Math.min(md.hpPerTurn, B.maxHp - B.hp); B.hp += add;
+    log(B, { t: 'hp', add, hp: B.hp });
+  }
   if (B.pendingFaceDown > 0) {
     const pool = env.rng.shuffle(B.hand.filter((c) => !c.faceDown));
     const n = Math.min(B.pendingFaceDown, pool.length);
@@ -708,6 +721,8 @@ export function playCards(B, env, cards, ti, opt = {}) {
   env.hooks.run('play.after', actx, () => emitAll(env, '出しの後', actx, played));
   env.hooks.removeTag('play');
   expire(B, env, 'play');
+  // 降参（論破のほかの勝ち方）
+  yieldAfterPlay(B, env, cards, (c) => cardView(c, balance).cats, log, killEnemy);
 
   settle(B, env, score.V);
   sync(B, env);
@@ -859,6 +874,8 @@ export function endTurn(B, env) {
     });
     settle(B, env);
   }
+  // 降参（根負け・封殺・番付落ち）
+  if (!B.result) { yieldEndTurn(B, env, log, killEnemy); settle(B, env); }
   // 決まったターン数の勝負（稽古場・ゴースト宿）：時間切れ
   if (!B.result && B.turnLimit && B.turn >= B.turnLimit) end(B, env, 'timeup');
   if (!B.result) startTurn(B, env);

@@ -173,9 +173,34 @@ export function carryOf(base, H, depth = 0) {
 }
 
 /** 蔵の大きさと使っている数（デッキに入れている札は数えない） */
-export function stashRoom(base, H) {
+const SHELF = { card: 'card', regular: 'regular', item: 'item', relic: 'item', souvenir: 'souvenir' };
+/**
+ * 蔵の棚ごとの使い方。type を渡すとその棚の {used, cap}。渡さなければ全部と、どこかがあふれているか（over）
+ * 札＝デッキ以外の枚数／常連客・品＝数／お土産＝種類の数（同じ種類は stack 個まで重なる）
+ */
+export function stashRoom(base, H, type) {
+  const f = facility(base, H, 'kura');
+  const caps = f.caps ?? { card: f.capacity ?? 60, regular: 99, item: 99, souvenir: 99, stack: 999 };
   const inDeck = new Set(H.deck || []);
-  return { used: H.stash.filter((x) => !inDeck.has(x.uid)).length, cap: facility(base, H, 'kura').capacity };
+  const by = { card: { used: 0, cap: caps.card }, regular: { used: 0, cap: caps.regular }, item: { used: 0, cap: caps.item }, souvenir: { used: 0, cap: caps.souvenir } };
+  const kinds = {};
+  for (const x of H.stash) {
+    const s = SHELF[x.type];
+    if (!s) continue;
+    if (s === 'souvenir') kinds[x.id] = (kinds[x.id] || 0) + 1;
+    else if (!(s === 'card' && inDeck.has(x.uid))) by[s].used += 1;
+  }
+  by.souvenir.used = Object.keys(kinds).length;
+  const stackOver = Object.entries(kinds).filter(([, n]) => n > caps.stack).map(([id]) => id);
+  if (type) return { ...by[SHELF[type] ?? type], stack: caps.stack, kinds };
+  const over = Object.values(by).some((b) => b.used > b.cap) || stackOver.length > 0;
+  return { by, over, stack: caps.stack, stackOver, used: by.card.used, cap: by.card.cap };
+}
+/** 1つ入れられるか（お土産は、もう持っている種類なら重ねられる） */
+export function roomFor(base, H, type, id) {
+  const r = stashRoom(base, H, type);
+  if (SHELF[type] === 'souvenir') return (r.kinds[id] ? r.kinds[id] < r.stack : r.used < r.cap);
+  return r.used < r.cap;
 }
 
 // ───────────────────────── 蔵・編成 ─────────────────────────
@@ -201,7 +226,7 @@ export function sell(base, H, u) {
   H.deck = H.deck.filter((d) => d !== u);
   for (const k of ['seats', 'charm', 'items', 'insured']) H.loadout[k] = H.loadout[k].filter((d) => d !== u);
   H.zeni += sellValue(base, x);
-  if (H.overflow) H.overflow = stashRoom(base, H).used > stashRoom(base, H).cap;
+  if (H.overflow) H.overflow = stashRoom(base, H).over;
   return H;
 }
 
@@ -266,7 +291,7 @@ export function buyChouba(base, H, i) {
   const g = choubaGoods(base, H)[i];
   check(g && !g.sold, 'もう売れた');
   check(H.zeni >= g.price, '宿銭が足りない');
-  const r = stashRoom(base, H); check(r.used < r.cap, '蔵がいっぱい');
+  check(roomFor(base, H, 'card'), '蔵の札の棚がいっぱい');
   H.zeni -= g.price;
   H.stash.push({ uid: uid(H, 'c'), type: 'card', id: g.id, origin: 'orig' });
   (H.choubaSold ||= {})[H.records.dives] = [...(H.choubaSold[H.records.dives] || []), i];
@@ -291,7 +316,7 @@ export function buyBasic(base, H, cat, id) {
   const g = basicGoods(base, H, cat).find((x) => x.id === id);
   check(g, 'その札は売っていない');
   check(H.zeni >= g.price, '宿銭が足りない');
-  const r = stashRoom(base, H); check(r.used < r.cap, '蔵がいっぱい');
+  check(roomFor(base, H, 'card'), '蔵の札の棚がいっぱい');
   H.zeni -= g.price;
   H.stash.push({ uid: uid(H, 'c'), type: 'card', id, origin: 'orig' });
   seen(H, id, true);
@@ -313,8 +338,8 @@ export function buyDeck(base, H, cat, asDeck = true) {
   const g = deckGoods(base, H, cat);
   check(g, 'まだ売っていない');
   check(H.zeni >= g.price, '宿銭が足りない');
-  const r = stashRoom(base, H);
-  check(r.used + (asDeck ? H.deck.length : g.ids.length) <= r.cap, '蔵に入りきらない');
+  const r = stashRoom(base, H, 'card');
+  check(r.used + (asDeck ? H.deck.length : g.ids.length) <= r.cap, '蔵の札の棚に入りきらない');
   H.zeni -= g.price;
   const got = g.ids.map((id) => ({ uid: uid(H, 'c'), type: 'card', id, origin: 'orig' }));
   H.stash.push(...got);
@@ -480,7 +505,7 @@ export function buyCombo(base, H, comboId) {
   const g = comboGoods(base, H).find((x) => x.id === comboId);
   check(g && g.ok, g?.reason ?? 'そのコンボは売っていない');
   check(H.zeni >= g.price, '宿銭が足りない');
-  const r = stashRoom(base, H); check(r.used + g.ids.length <= r.cap, '蔵に入りきらない');
+  const r = stashRoom(base, H, 'card'); check(r.used + g.ids.length <= r.cap, '蔵の札の棚に入りきらない');
   H.zeni -= g.price;
   for (const id of g.ids) { H.stash.push({ uid: uid(H, 'c'), type: 'card', id, origin: 'orig' }); seen(H, id, true); }
   return H;
@@ -566,7 +591,7 @@ export function copyCard(base, H, u) {
   check(info.ok, info.reason);
   check(H.zeni >= info.zeni, '宿銭が足りない');
   check(H.stash.some((s) => s.type === 'souvenir' && s.id === info.souvenir), `${base.content.souvenirs?.[info.souvenir]?.name}が要る`);
-  const r = stashRoom(base, H); check(r.used < r.cap, '蔵がいっぱい');
+  check(roomFor(base, H, 'card'), '蔵の札の棚がいっぱい');
   H.zeni -= info.zeni;
   paySouvenir(H, info.souvenir, 1);
   const x = find(H, u);
@@ -621,7 +646,7 @@ export function kuyo(base, H, i) {
   check(!!x, 'その品は無い');
   const p = kuyoPrice(base, x);
   check(H.kuyo >= p, '供養点が足りない');
-  const r = stashRoom(base, H); check(r.used < r.cap, '蔵がいっぱい');
+  check(roomFor(base, H, x.type, x.id), '蔵の棚がいっぱい');
   H.kuyo -= p;
   H.lostLog.splice(i, 1);
   const back = { ...x, uid: uid(H, x.type === 'regular' ? 'r' : 'c'), insured: false };
@@ -652,6 +677,14 @@ export function warpChoices(base, H, dg = H.loadout?.dungeon || 'honko') {
 }
 
 // ───────── テーマの穴（content/dungeons.yaml） ─────────
+/** その穴で出るお土産（専用のもの／層の番号で出るもの）。[{id, name, own, layers:[a,b]}] */
+export function souvenirsOf(base, dg = 'honko') {
+  const C = base.content;
+  const add = C.dungeons?.[dg]?.rarityAdd ?? 0;
+  const n = layerList(C, dg).length;
+  return Object.values(C.souvenirs || {}).filter((s) => !s.event && (s.dungeons ? s.dungeons.includes(dg) : (s.layers?.[0] ?? 1) <= n + add && (s.layers?.[1] ?? 99) >= 1 + add))
+    .map((s) => ({ id: s.id, name: s.name, own: !!s.dungeons, layers: s.layers ?? null }));
+}
 /** 穴の一覧と開いているか。本坑はいつでも */
 export function dungeonList(base, H) {
   const C = base.content;
@@ -1001,7 +1034,7 @@ export function finishDive(base, H, D) {
   rep.unlocked = refreshUnlocks(base, H);
   if (canTakeStarter(base, H)) { giveStarter(base, H, H.loadout.guest ?? D.guest); rep.starter = true; }
   const room = stashRoom(base, H);
-  H.overflow = room.used > room.cap;
+  H.overflow = room.over;
   rep.overflow = H.overflow;
   rep.firstExtract = D.result.outcome === 'escaped' && R.extracts === 1;
   rep.charm = D.charm.map((x) => nameOf(base, x));

@@ -6,15 +6,15 @@ line: 神社の裏山・奥の院
 palette: {bg: '#e7efdf', ink: '#2a2520'}
 doors: {戦い: 44, 精鋭: 15, 宝: 11, 商い: 10, 湯: 9, 謎: 10}
 groups:
-- [en_zako]
-- [en_kaso]
-- [en_hachi]
-- [en_kanzen]
-- [en_shoshin, en_hachi]
-- [en_owakon, en_zako]
-- [en_kaso, en_shoshin]
-- [en_owakon, en_kanzen]
-elites: [en_kamige, en_kusoge, en_saikyo]
+- [en_f_urayama_2a]
+- [en_f_urayama_2b]
+- [en_f_urayama_2c]
+- [en_f_urayama_2d]
+- [en_f_urayama_2a, en_f_urayama_2b]
+- [en_f_urayama_2c, en_f_urayama_2d]
+- [en_f_urayama_2a, en_f_urayama_2c]
+- [en_f_urayama_2b, en_f_urayama_2d, en_f_urayama_2a]
+elites: [en_f_urayama_2e, en_kamige]
 bosses: [en_tier8, en_byousoku]
 warden: en_kaerimichi
 stalker: en_shisen

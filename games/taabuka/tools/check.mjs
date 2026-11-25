@@ -37,7 +37,7 @@ export async function scanIndex(contentDir) {
   idx.enemies = await filesIn(path.join(contentDir, 'enemies'), ['.yaml']);
   idx.layers = await filesIn(path.join(contentDir, 'layers'), ['.yaml']);
   idx.events = await filesIn(path.join(contentDir, 'events'), ['.yaml']);
-  for (const f of ['souvenirs.yaml', 'facilities.yaml', 'achievements.yaml', 'shibari.yaml', 'affixes.yaml', 'combos.yaml', 'decor.yaml', 'flavor.yaml', 'dungeons.yaml']) if (await exists(path.join(contentDir, f))) idx.root.push(f);
+  for (const f of ['souvenirs.yaml', 'facilities.yaml', 'achievements.yaml', 'shibari.yaml', 'affixes.yaml', 'combos.yaml', 'decor.yaml', 'flavor.yaml', 'dungeons.yaml', 'yields.yaml', 'epithets.yaml']) if (await exists(path.join(contentDir, f))) idx.root.push(f);
   return idx;
 }
 

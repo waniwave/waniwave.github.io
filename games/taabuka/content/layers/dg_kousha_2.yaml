@@ -6,15 +6,15 @@ line: 旧校舎・理科室の奥
 palette: {bg: '#e9ebe6', ink: '#2a2520'}
 doors: {戦い: 45, 精鋭: 12, 宝: 10, 商い: 10, 湯: 10, 謎: 10}
 groups:
-- [en_shinja]
-- [en_anchi]
-- [en_kakolog]
-- [en_gobaku, en_netawaku]
-- [en_kisei, en_niwaka]
-- [en_shinja, en_anchi]
-- [en_netawaku, en_netawaku, en_gobaku]
-- [en_kakolog, en_kisei]
-elites: [en_matsuri, en_matome, en_arashi]
+- [en_f_kousha_2a]
+- [en_f_kousha_2b]
+- [en_f_kousha_2c]
+- [en_f_kousha_2d]
+- [en_f_kousha_2a, en_f_kousha_2b]
+- [en_f_kousha_2c, en_f_kousha_2d]
+- [en_f_kousha_2a, en_f_kousha_2c]
+- [en_f_kousha_2b, en_f_kousha_2d, en_f_kousha_2a]
+elites: [en_f_kousha_2e, en_matsuri]
 bosses: [en_fusuma_nushi, en_datochi]
 warden: en_gesoku
 stalker: en_ashioto

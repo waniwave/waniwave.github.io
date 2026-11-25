@@ -4,6 +4,7 @@
 //
 // 読み込みは止まらない：おかしなところは issues（1件1行の日本語）に積み、使える部分だけで組み立てる。
 
+import { YIELD_KINDS } from './yield.js';
 import { compileCombos } from './combo.js';
 import yaml from '../vendor/yaml.mjs';
 import { createVocab, checkArg, describeArgs, hint, KIND_JA, SCOPES } from './vocab/index.js';
@@ -232,6 +233,8 @@ export async function loadContent(io) {
     if (f === 'shibari.yaml') content.shibari = list;
     if (f === 'decor.yaml') content.decor = list;
     if (f === 'flavor.yaml') content.flavor = list;
+    if (f === 'yields.yaml') content.yieldsRaw = list;
+    if (f === 'epithets.yaml') content.epithets = list;
     if (f === 'dungeons.yaml') content.dungeons = Object.fromEntries((list || []).map((d) => [d.id, d]));
     if (f === 'combos.yaml') { content.combos = list.combos || []; content.comboShortsRaw = list.shorts || {}; }
     if (f === 'affixes.yaml') for (const d of list) putDef(content, 'affixes', d, `content/${f}`, add);
@@ -240,6 +243,25 @@ export async function loadContent(io) {
   validateContent(content, add);
   compileContent(content, add);
   compileCombos(content, add);
+  // 論客の定義に書いた一言（talk：intro／defeat）をフレーバーへ
+  content.flavor ??= {}; content.flavor.enemy ??= {};
+  for (const e of Object.values(content.enemies)) if (e.talk && !content.flavor.enemy[e.id]) content.flavor.enemy[e.id] = e.talk;
+  // 二つ名（content/epithets.yaml）の確かめ
+  for (const ep of content.epithets?.list || []) {
+    if (!ep.id || !ep.name) add('error', '形', 'epithets', '二つ名に id と name が要る');
+    if (ep.cat && !content.balance.tiers.categories.includes(ep.cat)) add('error', '参照', ep.id, `カテゴリ「${ep.cat}」が無い`);
+    if (ep.yield && !YIELD_KINDS.includes(ep.yield.kind)) add('error', '参照', ep.id, `降参の決まり「${ep.yield.kind}」が無い`);
+    for (const a of ep.acts || []) { const n = typeof a === 'string' ? a : Object.keys(a)[0]; if (content.vocab?.get && !content.vocab.get('act', n)) add('error', '参照', ep.id, `行動「${n}」が無い`); }
+  }
+  // 論客のカテゴリと降参の決まり（content/yields.yaml を敵に重ねる）
+  for (const [id, y] of Object.entries(content.yieldsRaw || {})) {
+    const e = content.enemies[id];
+    if (!e) { add('error', '参照', 'yields', `敵「${id}」が無い`); continue; }
+    if (y.cat && !content.balance.tiers.categories.includes(y.cat)) add('error', '参照', id, `カテゴリ「${y.cat}」が無い`);
+    if (y.yield && !YIELD_KINDS.includes(y.yield.kind)) add('error', '参照', id, `降参の決まり「${y.yield.kind}」は ${YIELD_KINDS.join(' / ')}`);
+    if (y.cat) e.cat = y.cat;
+    if (y.yield) e.yield = y.yield;
+  }
   // フレーバー（content/flavor.yaml）：参照の確かめ
   const FL = content.flavor || {};
   for (const t of FL.talk || []) for (const r of t.with || []) if (!content.regulars[r]) add('error', '参照', t.id, `雑談の常連客「${r}」が無い`);
@@ -633,7 +655,7 @@ export function validateContent(content, add) {
   }
   for (const d of Object.values(content.enemies)) {
     withCtx(d, (ctx) => {
-      unknownKeys(d, ['id', 'name', 'layer', 'kind', 'hp', 'atk', 'acts', 'line', 'custom', 'params', 'kw', 'hideClaim', 'bind'], add);
+      unknownKeys(d, ['id', 'name', 'layer', 'kind', 'hp', 'atk', 'acts', 'line', 'custom', 'params', 'kw', 'hideClaim', 'bind', 'cat', 'yield', 'talk'], add);
       req(d, add, { name: 'string', hp: 'number', atk: 'number' });
       if (!b.curve.kinds[d.kind ?? '通常']) add('error', '形', d.id, `kind「${d.kind}」は ${Object.keys(b.curve.kinds).join(' / ')} のどれか`);
       if (!Array.isArray(d.acts) || !d.acts.length) add('error', '形', d.id, 'acts は1つ以上の並び');

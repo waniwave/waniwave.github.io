@@ -10,6 +10,7 @@ import {
 import { num, sn, resolveCategory, resolveCards, resolveEnemies, CARD_TARGETS, ENEMY_TARGETS } from './effect.js';
 import { checkArg } from './index.js';
 import { MOODS, setMood } from './mood.js';
+import { addYield } from '../yield.js';
 import { overlapOf, kindsOf, isVanilla } from './if.js';
 import { tierOf } from '../hand.js';
 const tierStep = (E, c) => Math.max(0, E.env.balance.tiers.banzukeSteps.indexOf(tierOf(c, E.env.balance, E.B.banzuke)));
@@ -149,7 +150,11 @@ export const DO = [
     run: (E, a) => { for (const e of resolveEnemies(E, a)) { e.skip += 1; log(E.B, { t: 'stun', enemy: e.uid, name: e.name, turns: e.skip }); } } },
   // 経済・潜行
   { name: '場の状態', text: '場の状態を変える（ノリノリ・しんみり・グダグダ・お祭り・修羅場・演歌・静寂・大団円。前の状態は上書き。続くターンと効果は数値表 moods）', args: MOODS,
-    run: (E, a) => setMood(E.B, E.env.balance, a, log) },
+    run: (E, a) => { setMood(E.B, E.env.balance, a, log); addYield(E.B, E.env, '呆れ', E.env.balance.hands.yields?.呆れ?.perMood ?? 1, log, killEnemy); } },
+  { name: '呆れさせる', text: '「呆れ」で降参する論客の呆れを増やす', args: 'expr', run: (E, a) => addYield(E.B, E.env, '呆れ', Math.max(0, Math.round(sn(E, a))), log, killEnemy) },
+  { name: '共感させる', text: '「共感」で降参する論客の共感を増やす', args: 'expr', run: (E, a) => addYield(E.B, E.env, '共感', Math.max(0, Math.round(sn(E, a))), log, killEnemy) },
+  { name: '論点をずらす', text: '「論点ずらし」で降参する論客に、カテゴリの種類を足しておく（戦闘中ずっと）', args: 'expr', run: (E, a) => addYield(E.B, E.env, '論点ずらし', Math.max(0, Math.round(sn(E, a))), log, killEnemy) },
+  { name: '封殺を進める', text: '「封殺」で降参する論客の封殺を増やす', args: 'expr', run: (E, a) => addYield(E.B, E.env, '封殺', Math.max(0, Math.round(sn(E, a))), log, killEnemy) },
   { name: '宿銭', text: '宿銭を得る', args: 'expr', run: (E, a) => { const n = Math.round(sn(E, a)); E.B.zeni += n; log(E.B, { t: 'zeni', add: n, why: E.src.name }); } },
   { name: 'お品書きを得る', text: 'お品書きを得る（空きがあれば）', args: 'itemKind',
     run: (E, a) => gainItem(E.B, E.env, a, {}) },
