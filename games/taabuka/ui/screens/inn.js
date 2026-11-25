@@ -7,7 +7,7 @@ import { shihanInfo } from '../../engine/keiko.js';
 import { innArt } from '../innart.js';
 import { h, tip, toast, pick, sheet, holdButton, esc, confirmSheet } from '../dom.js';
 import { thingEl, pickThing, thingTip } from '../things.js';
-import { slotLabel, rarOfCard, ATTR_KIND, attrExplain, comboEffText, floorName } from '../labels.js';
+import { catColor, catGlyph, slotLabel, rarOfCard, ATTR_KIND, attrExplain, comboEffText, floorName } from '../labels.js';
 import { num as format } from '../num.js';
 import { SE } from '../audio/audio.js';
 import { confetti, shards } from '../fx/particles.js';
@@ -83,34 +83,37 @@ export function innScreen(ctx) {
       const up = upgradeInfo(base, H, f.id);
       const row = h('button.facrow', { type: 'button', onclick: () => ctx.go.facility(f.id) }, [
         h('div.fn', {}, [h('b', { text: f.name }), h('span.lv', { text: `Lv${lv}` })]),
-        h('div.fp', { text: f.text ?? '' }),
-        h('div.fe', { text: `いま：${effText(base, H, f.id, lv)}` }),
+        h('div.fe', { text: effText(base, H, f.id, lv) }),
         h(`div.fu${up.ok ? '.ok' : ''}`, { text: up.max ? '―' : up.next?.ready === false ? '―' : up.ok ? '改装できる' : `次 ${costText(base, up.cost)}` }),
       ]);
       return row;
     });
     const room = stashRoom(base, H);
     put(root, 
-      top('宿', H, null, h('button.btn', { type: 'button', onclick: () => rulesSheet(ctx) }, ['遊び方'])),
+      top('宿', H, null),
       ctx.updateReady?.() ? h('button.btn.update', { type: 'button', onclick: () => ctx.applyUpdate() }, ['新しい版があります。更新する']) : null,
       (() => { const ds = decorState(base, H); const ok = base.content.flavor?.okami || []; const day = Math.floor((Date.now() + 9 * 3600e3) / 86400e3); return h('button.innart', { type: 'button', onclick: () => ctx.go.decor() }, [h('div.art', { html: innArt(ds) }), ok.length ? h('div.okamisay', { text: `女将「${ok[day % ok.length]}」` }) : null, h('div.rank', {}, [h('b', { text: ds.rank }), h('span', { text: ds.nextRank ? `格 ${ds.pts}／次「${ds.nextRank.name}」${ds.nextRank.pts}` : `格 ${ds.pts}` }), h('span.go', { text: '内装 ›' })])]); })(),
       h('div.recs', { text: `最深 B${H.records.deepest}・最大論破値 ${format(H.records.maxV)}・脱出 ${H.records.extracts}・未帰還 ${H.records.deaths}` }),
       h('div.facs', {}, rows),
       room.over ? h('p.warn', { text: `蔵があふれている（${roomText(room)}）。売ってから潜る` }) : null,
-      h('div.irow', {}, [
-        h('button.btn', { type: 'button', onclick: () => ctx.go.stash() }, [`蔵・編成 ${room.used}/${room.cap}`]),
-        h('button.btn', { type: 'button', onclick: () => ctx.go.board() }, ['掲示板']),
-        h('button.btn', { type: 'button', onclick: () => ctx.go.zukan() }, ['図鑑']),
-        h('button.btn', { type: 'button', onclick: () => ctx.go.settings() }, ['設定']),
-      ]),
-      h('footer.ops', {}, [
-        h('button.btn', { type: 'button', disabled: H.sudomari <= 0 || room.over, onclick: () => ctx.go.sudomari() }, [`素泊まり ${H.sudomari}`]),
-        h('button.btn.main', { type: 'button', disabled: room.over, onclick: () => ctx.go.prep() }, ['潜る']),
+      h('footer.innbar', {}, [
+        h('nav.innnav', {}, [
+          navBtn('蔵', `${room.used}/${room.cap}`, () => ctx.go.stash(), room.over),
+          navBtn('掲示板', '', () => ctx.go.board()),
+          navBtn('図鑑', '', () => ctx.go.zukan()),
+          navBtn('設定', '遊び方', () => ctx.go.settings()),
+        ]),
+        h('button.btn.main.dive', { type: 'button', disabled: room.over, onclick: () => ctx.go.prep() }, [h('b', { text: '潜る' }), H.sudomari > 0 ? h('small', { text: `素泊まり ${H.sudomari}回` }) : null]),
       ]),
     );
   }
   render();
   return { el: root, render };
+}
+
+/** 宿の下の帯のボタン（名前と小さな添え字） */
+function navBtn(label, sub, onclick, warn = false) {
+  return h(`button.nb${warn ? '.warn' : ''}`, { type: 'button', onclick }, [h('b', { text: label }), sub ? h('small', { text: sub }) : null]);
 }
 
 // ───────────────────────── 施設 ─────────────────────────
@@ -491,6 +494,7 @@ export function prepScreen(ctx) {
   const C = base.content;
   const L = H.loadout;
   const root = h('div.scr.inn.prep');
+  let mode = 'full';   // full＝持ち込み／light＝素泊まり（借り物の札・失う物なし）
   if (!L.guest || !H.unlocked.guests.includes(L.guest)) L.guest = H.unlocked.guests[0];
   async function multi(title, key, list, max) {
     const chosen = new Set(L[key]);
@@ -524,11 +528,30 @@ export function prepScreen(ctx) {
     ]);
   }
   function render() {
+    put(root, 
+      top('潜行準備', H, () => ctx.go.inn()),
+      h('div.seg', {}, [
+        h(`button.segb${mode === 'full' ? '.on' : ''}`, { type: 'button', onclick: () => { mode = 'full'; render(); } }, [h('b', { text: '持ち込み' }), h('small', { text: 'デッキと持ち物で' })]),
+        h(`button.segb${mode === 'light' ? '.on' : ''}`, { type: 'button', disabled: H.sudomari <= 0, onclick: () => { mode = 'light'; render(); } }, [h('b', { text: '素泊まり' }), h('small', { text: `残り ${H.sudomari}回` })]),
+      ]),
+      ...(mode === 'light' ? lightBody() : fullBody()),
+    );
+  }
+  function lightBody() {
+    const P = base.balance;
+    return [
+      h('div.lightinfo', {}, [
+        ['宿泊客', 'おまかせ'], ['札', `借り物 ${P.economy?.inn?.sudomariSize ?? 20}枚`], ['行き先', '本坑'], ['深さ', `B${P.economy?.inn?.sudomariFloors ?? '？'}まで`], ['倒れても', '失う物なし'],
+      ].map(([k, v]) => h('div.li', {}, [h('span', { text: k }), h('b', { text: v })]))),
+      h('div.grow'),
+      h('footer.ops.big', {}, [holdButton('素泊まりで潜る', () => ctx.go.dive(true), 'main')]),
+    ];
+  }
+  function fullBody() {
     const info = prepInfo(base, H);
     const g = C.guests[L.guest];
     const notDeck = H.stash.filter((x) => !H.deck.includes(x.uid));
-    put(root, 
-      top('潜行準備', H, () => ctx.go.inn()),
+    return [
       h('h3', { text: '宿泊客' }),
       h('div.chips.guests', {}, H.unlocked.guests.map((id) => h(`button.chip${id === L.guest ? '.on' : ''}`, { type: 'button', onclick: () => { L.guest = id; ctx.save(); render(); } }, [C.guests[id].name, (H.stamps[id] ?? -1) >= 0 ? h('span.stampmini', { text: `◉${H.stamps[id]}` }) : null]))),
       ...[].concat(g?.choose || []).map((ch) => {
@@ -556,7 +579,19 @@ export function prepScreen(ctx) {
           h('button.chip', { type: 'button', onclick: () => dungeonSheet(ds) }, [`穴 ${open.length}／${ds.length}`]),
         ])]);
       })(),
-      (() => { const cur = dungeonList(base, H).find((d) => d.id === (L.dungeon || 'honko')); const sv = souvenirsOf(base, cur?.id ?? 'honko'); return h('p.q', { text: [cur?.cats?.length ? `よく出る札：${cur.cats.join('・')}` : '', `素材：${sv.map((x) => x.own ? `★${x.name}` : x.name).join('・')}`].filter(Boolean).join('　') }); })(),
+      (() => {
+        const cur = dungeonList(base, H).find((d) => d.id === (L.dungeon || 'honko'));
+        const sv = souvenirsOf(base, cur?.id ?? 'honko');
+        const have = (id) => H.stash.filter((x) => x.type === 'souvenir' && x.id === id).length;
+        return h('div.dginfo', {}, [
+          cur?.cats?.length ? h('div.dgcats', {}, [h('span.lbl', { text: 'よく出る札' }), ...cur.cats.map((c) => h('span.glyph', { style: { background: catColor(c) }, title: c }, [catGlyph(c)]))]) : null,
+          h('div.svchips', {}, [h('span.lbl', { text: '素材' }), ...sv.map((x) => {
+            const el = h(`span.svc${x.own ? '.own' : ''}`, {}, [x.own ? h('b', { text: '★' }) : null, x.name, have(x.id) ? h('i', { text: `×${have(x.id)}` }) : null]);
+            tip(el, () => `<b>${esc(x.name)}</b>${x.own ? '<br><span class="q">この穴でしか出ない</span>' : ''}<br><span class="q">蔵に ${have(x.id)}</span>`);
+            return el;
+          })]),
+        ]);
+      })(),
       warpChoices(base, H).length > 1 ? h('div.prow', {}, [h('span', { text: '入口（ワープ）' }),
         h('div.chips', {}, warpChoices(base, H).map((f) => h(`button.chip${(L.warp || 1) === f ? '.on' : ''}`, { type: 'button', onclick: () => { L.warp = f === 1 ? null : f; ctx.save(); render(); } }, [floorName(base.content, L.dungeon || 'honko', f)])))]) : null,
       L.warp ? h('p.q', { text: `${floorName(base.content, L.dungeon || 'honko', L.warp)}から（上の階の拾い物と宿銭は無し）` }) : null,
@@ -573,7 +608,7 @@ export function prepScreen(ctx) {
       h('p.q', { text: `${g?.name ?? ''}・体力 ${g?.hp ?? ''}${info.premium ? `・掛け金 ${info.premium}` : ''}` }),
       info.errors.length ? h('p.warn', { text: info.errors[0] }) : null,
       h('footer.ops.big', {}, [(() => { const b = holdButton('潜る', () => ctx.go.dive(false), 'main'); b.disabled = !!info.errors.length; return b; })()]),
-    );
+    ];
   }
   render();
   return { el: root, render };

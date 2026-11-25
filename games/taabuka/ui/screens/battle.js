@@ -25,6 +25,8 @@ import { playShow, playStage, playKetagoe, stageOf, rollNumber } from '../fx/sho
 import { playSpell, playCombo } from '../fx/combo.js';
 import { playMood } from '../fx/silly.js';
 import { catBurst, typeFx } from '../fx/catfx.js';
+import { premium } from '../premium.js';
+import { applyTheme } from '../theme.js';
 import { setBgmMood } from '../audio/audio.js';
 import { matchCombos } from '../../engine/combo.js';
 import { SE, buzz } from '../audio/audio.js';
@@ -51,7 +53,8 @@ export function battleScreen(o) {
     refs = { cards: new Map(), foes: new Map(), slots: new Map(), seats: new Map() };
     guardNow = B.guard || 0; hpNow = B.hp; counterNow = B.counterS || 0;
     if (B.enemies[st.target]?.dead || st.target < 0) st.target = B.enemies.findIndex((e) => !e.dead);
-    root.replaceChildren(renderTop(), renderBanzuke(), renderFoes(), renderSeats(), renderInfo(), renderCalc(), renderHand(), renderOps(), h('div.moodfx'));
+    applyTheme(root, content, B.dungeon, B.floor, { boss: B.enemies.some((e) => !e.dead && (e.kind === '層主' || e.kind === '底の主')) });
+    root.replaceChildren(renderTop(), renderBanzuke(), renderFoes(), renderSeats(), renderInfo(), renderCalc(), renderHand(), renderOps(), h('div.moodfx'), h('div.themefx'));
     updateCalc();
     renderSides();
   }
@@ -235,6 +238,7 @@ export function battleScreen(o) {
       refs.cards.set(c.uid, card);
       el.append(card);
     });
+    refs.handEl = el; el.classList.toggle('picking', st.sel.length > 0);
     return el;
   }
 
@@ -255,6 +259,7 @@ export function battleScreen(o) {
     if (c.seal) el.append(h('span.seal', { style: { background: SEAL_COLOR[c.seal] } }));
     if (c.cat.some((x) => B.sealed.cats.includes(x))) { el.classList.add('sealedc'); el.append(h('span.sealmk', { text: '封' })); }
     if (comboReady(c)) el.append(h('span.cmbmk', { text: '◎' }));
+    premium(el, r, c.ins, content);
     return el;
   }
 
@@ -309,6 +314,7 @@ export function battleScreen(o) {
     const { calc, calcHd, calcNums } = refs;
     if (!calc) return;
     for (const [uid, el] of refs.cards) el.classList.toggle('sel', st.sel.includes(B.hand.findIndex((c) => c.uid === uid)));
+    refs.handEl?.classList.toggle('picking', st.sel.length > 0);
     const cards = st.sel.map((i) => B.hand[i]);
     const need = choicesFor(env, cards);
     for (const k of Object.keys(st.choices)) if (!(k in need)) delete st.choices[k];

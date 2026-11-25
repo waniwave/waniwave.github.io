@@ -691,11 +691,22 @@ export function validateContent(content, add) {
   }
   for (const d of Object.values(content.events)) {
     withCtx(d, (ctx) => {
-      unknownKeys(d, ['id', 'title', 'text', 'layer', 'choices', 'flavor'], add);
+      unknownKeys(d, ['id', 'title', 'text', 'layer', 'choices', 'flavor', 'dungeon', 'guest', 'after', 'once', 'needFlag', 'minFloor'], add);
       req(d, add, { title: 'string', text: 'string' });
-      if (!Array.isArray(d.layer) || d.layer.some((x) => !Number.isInteger(x))) add('error', '形', d.id, 'layer は出る層の並び（ファイル名が layerN なら省略できる）');
-      if (!Array.isArray(d.choices) || d.choices.length < 1 || d.choices.length > 3) add('error', '形', d.id, '選択肢（choices）は1〜3つ');
-      else for (const c of d.choices) {
+      const special = d.dungeon || d.guest || d.needFlag;
+      if (!special && (!Array.isArray(d.layer) || d.layer.some((x) => !Number.isInteger(x)))) add('error', '形', d.id, 'layer は出る層の並び（ファイル名が layerN なら省略できる）');
+      for (const g of d.guest || []) if (!content.guests[g]) add('error', '参照', d.id, `宿泊客「${g}」が無い`);
+      for (const g of d.dungeon || []) if (g !== 'honko' && !content.dungeons?.[g]) add('error', '参照', d.id, `穴「${g}」が無い`);
+      if (d.after && !content.events[d.after]) add('error', '参照', d.id, `前の謎「${d.after}」が無い`);
+      if (!Array.isArray(d.choices) || d.choices.length < 1 || d.choices.length > 6) add('error', '形', d.id, '選択肢（choices）は1〜6つ');
+      else if (d.choices.filter((c) => !c.guest && !c.regular && !c.deckCat && !c.needFlag).length < 1) add('error', '形', d.id, '誰でも選べる選択肢が1つは要る');
+      for (const c of d.choices || []) {
+        unknownKeys(c, ['label', 'if', 'do', 'result', 'hide', 'guest', 'regular', 'deckCat', 'needFlag', 'flag'], add);
+        for (const g of c.guest || []) if (!content.guests[g]) add('error', '参照', d.id, `宿泊客「${g}」が無い`);
+        for (const g of c.regular || []) if (!content.regulars?.[g]) add('error', '参照', d.id, `常連客「${g}」が無い`);
+        if (c.deckCat && !content.balance.tiers.categories.includes(c.deckCat)) add('error', '参照', d.id, `カテゴリ「${c.deckCat}」が無い`);
+      }
+      for (const c of d.choices || []) {
         if (typeof c.label !== 'string') add('error', '形', d.id, '選択肢に label がない');
         let e = checkCond(content, c.if, ctx); if (e) add('error', '語彙', d.id, e);
         if (c.do != null) for (const de of checkDo(content, c.do, null, ctx)) add('error', '語彙', d.id, de);

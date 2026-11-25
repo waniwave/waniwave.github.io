@@ -1,0 +1,80 @@
+# 階をまたぐ連作（needFlag：この潜行の前の謎で立てた旗があると出る。minFloor：その階から）。旗は選択肢の flag で立つ
+- id: ev_c_tanuki
+  needFlag: tanuki_god
+  minFloor: 4
+  title: 狸の恩返し
+  text: 前の階で梁にぶら下がっていた狸が、紋付袴で待っていた。「あの時はGodと言ってくれて」。
+  choices:
+    - label: 恩を受け取る
+      do: [ { 番付を移す: { カテゴリ: 一番低い, 先: God } }, { お土産を得る: sv_kaketahari } ]
+      result: 狸が一番弱いカテゴリをGodまで担いでいった。梁もまた一本くれた。
+    - label: 「当然のことをしたまで」
+      do: [ { 体力: 20 }, { 気配: -3 } ]
+      result: 狸は感激して、追っ手を化かしに行ってくれた。
+
+- id: ev_c_aikotoba
+  needFlag: aikotoba
+  minFloor: 4
+  title: 合言葉の続き
+  text: 鍵穴がまたある。「合言葉は？」。今度は二つ目の合言葉らしい。
+  choices:
+    - label: 「異論は認める」
+      do: [ { お品書きを得る: 番付札 } ]
+      result: 「それは前のだ」と言われたが、札は一枚くれた。
+    - label: 「異論は認めない」
+      hide: true
+      do: [ { お土産を得る: sv_furuikagi }, { お土産を得る: sv_furuikagi }, { 番付を上げる: { カテゴリ: ター, 段: 2 } } ]
+      result: 正解だった。鍵が二本出てきた。鍵穴が鍵を持ちすぎている。
+
+- id: ev_c_sasaki
+  needFlag: sasaki_left
+  minFloor: 5
+  title: 右の佐々木の逆襲
+  text: 「あの時、左の佐々木の味方をしましたね」。右の佐々木が、佐々木を三人連れてきた。
+  choices:
+    - label: 全員に味方する
+      do: [ { 宿銭: 30 }, { 気配: 4 } ]
+      result: 佐々木全員からお礼をもらった。うるさい。
+    - label: 左の佐々木を呼ぶ
+      do: [ { 常連客を得る: 乱数 }, { 体力: -8 } ]
+      result: 佐々木同士の議論が始まった。巻き込まれたが、一人が宿の常連になった。
+
+- id: ev_c_obidome
+  needFlag: obidome
+  minFloor: 4
+  title: 帯留めのお返し
+  text: 届けたはずの帯留めが、また落ちていた。「女将さんに会えなかったので、あなたについていきます」。
+  choices:
+    - label: 連れていく
+      do: [ { お土産を得る: sv_obidome }, { 番付を上げる: { カテゴリ: 宿, 段: 3 } } ]
+      result: 帯留めは道中ずっと宿の自慢をしていた。宿の番付が上がった。
+    - label: 女将に電話する
+      do: [ { 体力: 12 } ]
+      result: 「あら、そこにいたの」。女将の声で元気が出た。
+
+- id: ev_c_enkai
+  needFlag: enkai
+  minFloor: 5
+  title: 宴会の二次会
+  text: さっきの宴会の一団が、二次会の会場を探していた。「あなたも来るでしょ？」。
+  choices:
+    - label: 行く
+      do: [ { 体力: -6 }, { 常連客を得る: 乱数 }, { 番付を上げる: { カテゴリ: 乱数, 段: 2 } } ]
+      result: カラオケでTierの歌を歌った。一人が宿までついてくることになった。
+    - label: 幹事を押しつけられる
+      do: [ { 宿銭: 40 }, { 気配: 5 } ]
+      result: 会費を集める役になった。余った分は幹事の手間賃だ。
+
+- id: ev_c_bantou
+  needFlag: bantou_god
+  minFloor: 5
+  title: 番頭の夢の続き
+  text: 番頭がまだ寝ている。寝言で「……ロボはGod……それから……」。夢が進んでいる。
+  choices:
+    - label: 「全部God」とささやく
+      hide: true
+      do: [ { 番付を均す: God }, { 体力: -15 } ]
+      result: 番頭が叫んで飛び起きた。全部のカテゴリがGodになり、番頭の算盤が頭に飛んできた。
+    - label: 起こしてあげる
+      do: [ { お品書きを得る: 品 }, { お品書きを得る: 番付札 }, { 宿銭: 15 } ]
+      result: 「あ、夢でしたか」。番頭は恥ずかしそうに、お駄賃をくれた。

@@ -1,6 +1,6 @@
 // サービスワーカー：オフライン起動。BUILD ごとに先読みし直す（一覧は tools/release.mjs が書く）。
 // 新しい版が入っても勝手に切り替えない。宿の画面の「更新」で切り替える（SKIP_WAITING を受けたら入れ替わる）。
-const BUILD = '1.5.2';
+const BUILD = '1.6.1';
 const FILES = [
   './content/achievements.yaml',
   './content/affixes.yaml',
@@ -41,6 +41,9 @@ const FILES = [
   './content/enemies/layer4.yaml',
   './content/enemies/layer5.yaml',
   './content/epithets.yaml',
+  './content/events/chains.yaml',
+  './content/events/dungeons.yaml',
+  './content/events/guests.yaml',
   './content/events/layer1.yaml',
   './content/events/layer2.yaml',
   './content/events/layer3.yaml',
@@ -302,6 +305,7 @@ const FILES = [
   './ui/lessons.js',
   './ui/main.js',
   './ui/num.js',
+  './ui/premium.js',
   './ui/save.js',
   './ui/screens/battle.js',
   './ui/screens/dive.js',
@@ -311,6 +315,7 @@ const FILES = [
   './ui/screens/title.js',
   './ui/screens/zukan.js',
   './ui/style.css',
+  './ui/theme.js',
   './ui/things.js',
   './vendor/yaml.LICENSE',
   './vendor/yaml.mjs',

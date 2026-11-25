@@ -98,7 +98,7 @@ export function createDive(base, o) {
     zeni: 0, banzuke, handLevels: {}, guestState: { ...(g.state || {}), ...(o.guestState || {}) }, presence: 0, rules: [],
     bosses: {}, map: null, row: 0, floorBanzuke: { ...banzuke },
     phase: 'map', here: null, battle: null, chase: null, reward: null, shop: null, bath: null, event: null, exit: null, landing: null,
-    events: [], flags: { used: {}, godRolled: false }, result: null,
+    events: [], seenEv: [...(o.seenEvents || [])], flags: { used: {}, godRolled: false, ev: {} }, result: null,
     stats: { battles: 0, rooms: 0, kills: 0, maxV: ZERO, deepest: 0, chases: 0, fled: 0, bosses: [], hands: {}, overkill: {} },
     pool: o.pool ?? defaultPool(content, o.guest), log: [], uidSeq: 0, msg: null,
   };
@@ -252,10 +252,26 @@ function bossOf(base, D, L, floor) {
   return Rng.child(D.seed, 'map', L.mix ? floor : L.floors[0], ROOM.boss).pick(list);
 }
 
-function eventsOf(content, no, L) {
-  if (L?.mix || L?.onlyBoss) return Object.values(content.events || {});
-  return Object.values(content.events || {}).filter((e) => (e.layer || []).includes(no));
+// 謎の候補。dungeon（その穴だけ）・guest（その宿泊客だけ）・after（前に見た謎の続き。宿をまたいで覚える）・
+// once（一度見たら出ない）・needFlag（この潜行の前の謎で立てた旗）で絞る。特別な謎は重みを上げる
+function eventsOf(content, no, L, D) {
+  const seen = new Set([...(D?.seenEv || []), ...(D?.events || [])]);
+  const flags = D?.flags?.ev || {};
+  return Object.values(content.events || {}).filter((e) => {
+    if (D?.events?.includes(e.id)) return false;
+    const special = e.dungeon || e.guest || e.needFlag;
+    if (e.dungeon && !e.dungeon.includes(D?.dungeon ?? 'honko')) return false;
+    if (e.guest && !e.guest.includes(D?.guest)) return false;
+    if (e.after && !seen.has(e.after)) return false;
+    if (e.once && (D?.seenEv || []).includes(e.id)) return false;
+    if (e.needFlag && !flags[e.needFlag]) return false;
+    if (e.minFloor && (D?.floor ?? 0) < e.minFloor) return false;
+    if (L?.mix || L?.onlyBoss) return true;
+    if (special && !e.layer?.length) return true;
+    return (e.layer || []).includes(no);
+  });
 }
+function eventWeight(e) { return e.needFlag ? 6 : e.guest ? 4 : e.dungeon ? 3 : 1; }
 
 // ───────────────────────── 拾う物 ─────────────────────────
 
@@ -531,8 +547,9 @@ function openRoom(base, D, door) {
       return D;
     case '謎': {
       const no = layerNo(content, L);
-      const list = eventsOf(content, no, L).filter((e) => !D.events.includes(e.id));
-      const ev = Rng.child(D.seed, 'event', D.floor, door.room).pick(list);
+      const list = eventsOf(content, no, L, D);
+      const pickId = Rng.child(D.seed, 'event', D.floor, door.room).weighted(list.map((e) => [e.id, eventWeight(e)]));
+      const ev = list.find((e) => e.id === pickId);
       if (!ev) { D.msg = '誰もいなかった'; return leaveRoom(base, D); }
       D.events.push(ev.id);
       D.event = { id: ev.id, choice: null, result: null };
@@ -919,10 +936,33 @@ export function eventChoices(base, D) {
   const ev = base.content.events[D.event.id];
   const { B, env } = shell(base, D);
   return ev.choices.map((c, i) => {
+    if (!choiceShown(base, D, c)) return null;
     let ok = true;
     try { ok = !c.if || testCond(makeE({ battle: B, env }, null, 'event', { id: ev.id, name: ev.title }), c.if); } catch { ok = false; }
-    return { i, label: c.label, ok };
-  });
+    return { i, label: c.label, ok, who: whoOf(base, c) };
+  }).filter(Boolean);
+}
+/** 選択肢が出るか：guest（宿泊客）・regular（連れている常連客）・deckCat（デッキで一番多いカテゴリ）・needFlag */
+function choiceShown(base, D, c) {
+  if (c.guest && !c.guest.includes(D.guest)) return false;
+  if (c.regular && !D.seats.some((r) => c.regular.includes(r.id))) return false;
+  if (c.deckCat && !topCats(base, D).includes(c.deckCat)) return false;
+  if (c.needFlag && !D.flags?.ev?.[c.needFlag]) return false;
+  return true;
+}
+/** デッキで一番多いカテゴリ（同数なら全部） */
+function topCats(base, D) {
+  const n = {};
+  for (const c of D.deck) for (const k of (c.mod?.cat ?? base.content.cards[c.id]?.cat ?? [])) n[k] = (n[k] || 0) + 1;
+  const m = Math.max(0, ...Object.values(n));
+  return Object.keys(n).filter((k) => n[k] === m && m > 0);
+}
+/** 誰の選択肢か（画面の札に出す名前） */
+function whoOf(base, c) {
+  if (c.guest) return base.content.guests[c.guest[0]]?.name ?? null;
+  if (c.regular) return base.content.regulars?.[c.regular[0]]?.name ?? null;
+  if (c.deckCat) return `${c.deckCat}のデッキ`;
+  return null;
 }
 
 // 謎の前後で何が変わったか（画面に「起きたこと」として並べる）
@@ -976,12 +1016,19 @@ export function chooseEvent(base, D, i) {
   check(D.phase === 'event' && D.event && D.event.choice == null, 'もう選んだ');
   const ev = base.content.events[D.event.id];
   const c = ev.choices[i];
-  check(!!c && eventChoices(base, D)[i].ok, '選べない');
+  check(!!c && eventChoices(base, D).find((x) => x.i === i)?.ok, '選べない');
   D.event.choice = i;
   D.event.result = c.result ?? '';
   const snap = eventSnap(D);
   const Bx = c.do ? runOutside(base, D, (B, env) => runDo(makeE({ battle: B, env }, null, 'event', { id: ev.id, name: ev.title }), c.do)) : null;
   D.event.effects = eventDiff(base, snap, D);
+  if (c.flag) { (D.flags.ev ||= {})[c.flag] = true; }
+  // 効かなかった分も一言（満タン・もう0・もう揃っている）
+  const dos = [].concat(c.do || []).map((d) => (typeof d === 'string' ? [d, null] : Object.entries(d)[0]));
+  const ef = D.event.effects;
+  if (dos.some(([k, v]) => k === '体力' && v > 0) && D.hp === snap.hp && !ef.some((f) => /^体力/.test(f.text))) ef.push({ text: '体力はもう満タンだった', neutral: true });
+  if (dos.some(([k, v]) => k === '気配' && v < 0) && D.presence === snap.presence && !ef.some((f) => /^気配/.test(f.text))) ef.push({ text: '気配はもう0だった', neutral: true });
+  if (dos.some(([k]) => /^番付を(均す|反転|入れ替える)$/.test(k)) && !ef.some((f) => /^番付/.test(f.text))) ef.push({ text: '番付はもともとその形だった', neutral: true });
   for (const l of Bx?.log || []) if (l.t === 'note' && l.what && !/^次の出し/.test(l.what)) D.event.effects.push({ text: l.what, good: false });
   log(D, { t: 'event', id: ev.id, choice: i });
   if (D.hp <= 0) return endDive(base, D, 'lost', 'event');

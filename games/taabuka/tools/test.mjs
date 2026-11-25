@@ -1204,7 +1204,7 @@ group('段階7：先行版の中身');
   eq(Object.keys(C.regulars).length, 62, '常連客62人（先行版40＋宿泊客6人の専用各3＋限定4）');
   eq(Object.values(C.regulars).filter((d) => d.grow).length, 5, 'うち成長型5人');
   eq(Object.keys(C.relics).length, 36, '置物36（先行版20＋宿泊客6人の最初の置物＋暖簾の外側の縁起物10）');
-  eq(Object.keys(C.events).length, 49, '謎49（第7弾でター宿調に作り直し）');
+  eq(Object.keys(C.events).length, 119, '謎119（層の49＋穴の40＋宿泊客の連作24＋階をまたぐ6）');
   ok(!!C.events.ev_noren, '第二層の「暖簾」を含む');
   eq(Object.keys(C.guests).map((g) => bySet('cards', g).length).join('/'), Object.keys(C.guests).map(() => 25).join('/'), '宿泊客8人の専用札が各25枚');
   eq(bySet('cards', 'ryukogo').length, 30, '流行語30枚');
@@ -1232,7 +1232,12 @@ group('段階7：先行版の中身');
       const D = Dv.createDive(base, { seed: `e-${ev.id}-${i}`, guest: 'tsuchi', deck: fixtureDeck().map((x, k) => ({ ...x, uid: `d${k}` })) });
       D.zeni = 50;
       D.phase = 'event'; D.event = { id: ev.id, choice: null, result: null }; D.here = { room: 0, row: 0 };
-      try { if (Dv.eventChoices(base, D)[i].ok) Dv.chooseEvent(base, D, i); } catch (e) { evBad.push(`${ev.id}#${i + 1}:${e.message}`); }
+      if (ev.dungeon) D.dungeon = ev.dungeon[0];
+      if (ev.guest) D.guest = ev.guest[0];
+      if (c.guest) D.guest = c.guest[0];
+      if (c.regular) D.seats.push({ uid: 'rx', id: c.regular[0], origin: 'orig' });
+      if (c.needFlag) D.flags.ev[c.needFlag] = true;
+      try { const ch = Dv.eventChoices(base, D).find((x) => x.i === i); if (c.deckCat && !ch) { /* デッキ次第 */ } else if (!ch) evBad.push(`${ev.id}#${i + 1}:出ない`); else if (ch.ok) Dv.chooseEvent(base, D, i); } catch (e) { evBad.push(`${ev.id}#${i + 1}:${e.message}`); }
     });
   }
   eq(evBad.join(' / '), '', '謎30の選択肢がどれも動く');

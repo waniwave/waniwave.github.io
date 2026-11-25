@@ -1,6 +1,7 @@
 // 潜行の画面：階（襖の列3つ）・追跡者・報酬・商い・湯・謎・非常口・踊り場・脱出／未帰還（仕様書 第4章・第10章）
 // 状態 D は engine/dive.js が持つ。画面は D を描いて、dive.js の関数を呼ぶだけ。戦闘は battle 画面に任せる。
 
+import { applyTheme } from '../theme.js';
 import { thingEl as sharedThing, pickThing } from '../things.js';
 import { h, tip, toast, pick, sheet, holdButton, esc } from '../dom.js';
 import { GRADE_COLOR, catGlyph, catColor, tierLabel, kwLines, bindText, rarOfCard, floorName } from '../labels.js';
@@ -36,7 +37,8 @@ export function diveScreen(o) {
   function render() {
     const L = layerAt(content, D.floor, D.dungeon);
     root.style.setProperty('--lbg', L?.palette?.bg ?? 'var(--paper)');
-    root.replaceChildren(...[renderTop(), renderPresence(), renderCurses(), h('main.dv', {}, [renderBody()]), renderFoot()].filter(Boolean));
+    applyTheme(root, content, D.dungeon, D.floor);
+    root.replaceChildren(...[renderTop(), renderPresence(), renderCurses(), h('main.dv', {}, [renderBody()]), renderFoot(), h('div.themefx')].filter(Boolean));
     o.onRender?.(D);
     if (D.phase === 'reward' && !revealed.has(D.reward)) reveal();
   }
@@ -312,12 +314,12 @@ export function diveScreen(o) {
     const kids = [h('h2', { text: ev.title }), h('p.ev', { text: ev.text })];
     if (D.event.choice == null) {
       const ch = eventChoices(base, D);
-      kids.push(h('div.col', {}, ch.map((c) => { const hint = doHint(ev.choices[c.i]); return h('button.btn.evc', { type: 'button', disabled: !c.ok, onclick: () => redo(() => chooseEvent(base, D, c.i)) }, [h('span', { text: c.label }), hint ? h('small.evh', { text: hint }) : null]); })));
+      kids.push(h('div.col', {}, ch.map((c) => { const hint = doHint(ev.choices[c.i]); return h(`button.btn.evc${c.who ? '.special' : ''}`, { type: 'button', disabled: !c.ok, onclick: () => redo(() => chooseEvent(base, D, c.i)) }, [c.who ? h('span.evwho', { text: c.who }) : null, h('span', { text: c.label }), hint ? h('small.evh', { text: hint }) : null]); })));
     } else {
       const fx = D.event.effects || [];
       kids.push(
         h('p.ev.res', { text: D.event.result }),
-        h('div.evfx', {}, fx.length ? fx.map((f) => h(`div.evf.${f.good ? 'good' : 'bad'}`, { text: f.text })) : [h('div.evf.none', { text: '何も起きなかった（たぶん）' })]),
+        h('div.evfx', {}, fx.length ? fx.map((f) => h(`div.evf.${f.neutral ? 'none' : f.good ? 'good' : 'bad'}`, { text: f.text })) : [h('div.evf.none', { text: '何も起きなかった（たぶん）' })]),
         h('div.row', {}, [h('button.btn.main', { type: 'button', onclick: () => redo(() => leaveRoom(base, D)) }, ['進む'])]),
       );
     }

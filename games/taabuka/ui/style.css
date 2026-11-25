@@ -719,7 +719,6 @@ button { font: inherit; color: inherit; }
 .foe .nm { line-height: 15px; }
 .hpw .ctr { flex: 0 0 auto; width: 0; overflow: hidden; white-space: nowrap; font-size: 12px; font-weight: 900; color: #fff; background: linear-gradient(#e0603a, #a0301a); border-radius: 6px; height: 22px; line-height: 22px; text-align: center; transition: width .2s, margin .2s; }
 .hpw .ctr.on { width: auto; padding: 0 6px; margin-left: 4px; }
-.btn .gq { display: block; font-size: 10px; line-height: 10px; color: #3a6aa8; font-weight: 900; }
 .btn.evc { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .btn.evc .evh { font-size: 11px; color: var(--quiet, #8a7f6e); font-weight: 400; }
 .evfx { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 8px; }
@@ -730,3 +729,201 @@ button { font: inherit; color: inherit; }
 .evf.none { color: var(--quiet, #8a7f6e); font-weight: 400; }
 @keyframes evfin { from { opacity: 0; transform: translateX(-12px); } }
 .flv { font-size: 13px; color: var(--quiet, #8a7f6e); font-style: italic; margin: 0 0 4px; text-align: center; }
+
+/* ───────── 第7弾 Y1：選択中をはっきり ───────── */
+.card { transition: transform .14s, filter .14s, opacity .14s, box-shadow .14s; }
+.card.sel { transform: translateY(-12px) scale(1.04); z-index: 3; box-shadow: 0 0 0 3px var(--acc), 0 8px 14px -4px #0008, 0 0 16px 2px color-mix(in srgb, var(--acc) 55%, transparent); }
+.card.sel::after { content: '✓'; position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); width: 26px; height: 26px; border-radius: 50%; background: var(--acc); color: #fff; font-weight: 900; font-size: 16px; line-height: 26px; text-align: center; box-shadow: 0 2px 4px #0006; z-index: 4; pointer-events: none; }
+.hand.picking .card:not(.sel) { filter: saturate(.55) brightness(.92); opacity: .78; }
+.thing.took { border-color: var(--acc2); border-width: 2.5px; border-left-width: 6px; background: color-mix(in srgb, var(--acc2) 22%, #fbf7ee); box-shadow: 0 0 0 1px var(--acc2) inset; position: relative; }
+.thing.took::after { content: '✓'; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border-radius: 50%; background: var(--acc2); color: #fff; font-weight: 900; font-size: 13px; line-height: 22px; text-align: center; pointer-events: none; }
+.thing.hasact.took::after { right: auto; left: -6px; top: -6px; transform: none; }
+.thing.focus { outline: 3px solid var(--acc); outline-offset: 1px; box-shadow: 0 0 10px color-mix(in srgb, var(--acc) 40%, transparent); }
+.door.act { border-color: var(--acc); border-width: 3px; animation: dooract 1.6s ease-in-out infinite; }
+@keyframes dooract { 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 35%, transparent), 0 0 14px 2px color-mix(in srgb, var(--acc) 45%, transparent); } }
+.drow.next .door:not(.act) { opacity: .55; }
+.chip.on { box-shadow: 0 0 0 2px var(--acc) inset; font-weight: 700; }
+/* 流すボタンの受けの見込み（縦に割れないように横並び） */
+.ops .btn { white-space: nowrap; }
+.ops .btn { position: relative; }
+.btn .gq { position: absolute; left: 50%; top: -9px; transform: translateX(-50%); font-size: 11px; line-height: 16px; padding: 0 5px; border-radius: 8px; background: #3a6aa8; color: #fff; font-weight: 900; pointer-events: none; }
+/* 押せる所の手触り（押すと沈む）・主ボタンは朱で塗る・使えないボタンははっきり薄く */
+.btn, .chip, .facrow, .thing.tap, .door { -webkit-tap-highlight-color: transparent; }
+.btn { box-shadow: 0 2px 0 #0002, inset 0 1px 0 #fff8; transition: transform .06s, box-shadow .06s, background .12s; }
+.btn:active:not(:disabled), .chip:active, .facrow:active, .thing.tap:active { transform: translateY(1px) scale(.985); box-shadow: 0 0 0 #0000, inset 0 1px 2px #0002; }
+.btn.main { background: linear-gradient(#c8553c, #a8371f); border-color: #8a2a16; color: #fff8ee; text-shadow: 0 1px 0 #0004; box-shadow: 0 2px 0 #6a1e0e, inset 0 1px 0 #ffffff40; }
+.btn.main:disabled { background: var(--paper2); color: var(--quiet); border-color: var(--line); text-shadow: none; box-shadow: none; }
+.btn:disabled { opacity: .45; box-shadow: none; filter: grayscale(.4); }
+.hold.main { color: #fff8ee; }
+/* 潜行準備：よく出る札と素材を小さな札で */
+.dginfo { display: flex; flex-direction: column; gap: 6px; }
+.dginfo .lbl { font-size: 12px; color: var(--quiet); margin-right: 4px; flex: 0 0 auto; }
+.dgcats { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; }
+.dgcats .glyph { width: 20px; height: 20px; font-size: 13px; line-height: 20px; border-radius: 4px; color: #fff; text-align: center; display: inline-block; }
+.svchips { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.svc { font-size: 12px; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--line); background: #fbf7ee; white-space: nowrap; }
+.svc.own { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 10%, #fbf7ee); font-weight: 700; }
+.svc.own b { color: var(--acc); margin-right: 1px; }
+.svc i { font-style: normal; color: var(--acc2); margin-left: 3px; font-weight: 700; }
+/* 宿の施設の一覧：名前とLv・いま・次 */
+.facrow { grid-template-rows: auto auto; align-items: center; min-height: 52px; }
+.facrow .fn { grid-row: span 2; flex-direction: column; white-space: nowrap; }
+.facrow .fe { color: var(--ink); font-size: 14px; }
+.facrow .fu { font-size: 12px; }
+.facrow .fu.ok { color: #fff; background: var(--good); border-radius: 6px; padding: 0 6px; justify-self: start; }
+/* 大事な数は明朝で */
+.top b, .risk b, .shopcell .pr, .thing .pr { font-family: var(--mincho); }
+
+/* ───────── 第7弾 Y2：札の高級感 ───────── */
+.prem { isolation: isolate; }
+.prem .foil, .prem .shine, .prem .spark, .gems { position: absolute; pointer-events: none; }
+.card .foil { inset: 2px; border-radius: 5px; z-index: 1; }
+.thing.prem { position: relative; overflow: hidden; }
+.thing .foil { inset: 0; border-radius: 6px; z-index: 0; }
+.thing.prem > :not(.foil):not(.shine):not(.spark):not(.gems) { position: relative; z-index: 1; }
+/* ★3 レア：細い金の線と名前の下の箔の帯 */
+.card.p3 .foil { box-shadow: inset 0 0 0 1px #d4b04a; }
+.card.p3 .nm, .card.p4 .nm { background: linear-gradient(#fbf7eef0, #fbf7eef0) padding-box, linear-gradient(90deg, #b8902a, #f3dd8a, #b8902a) border-box; border-top: 2px solid transparent; }
+.thing.p3 .foil { box-shadow: inset 0 0 0 1px #d4b04a; }
+/* ★4 レジェンダリー：金箔の枠と、斜めに流れる光沢 */
+.card.p4, .thing.p4 { border-color: #c9a227; }
+.card.p4 { border-width: 3px; background: linear-gradient(#fbf7ee, #fbf7ee) padding-box, linear-gradient(135deg, #8a6a12, #f6e08a 30%, #b8902a 50%, #fff2b8 70%, #8a6a12) border-box; border-color: transparent; }
+.card.p4 .foil, .thing.p4 .foil { box-shadow: inset 0 0 0 1px #f3dd8a, inset 0 0 10px #d4a01740; }
+.thing.p4 { background: linear-gradient(100deg, #fbf7ee 60%, #f6e9c0); }
+.prem .shine { inset: 0; z-index: 2; overflow: hidden; border-radius: inherit; }
+.prem .shine::before { content: ''; position: absolute; top: -20%; bottom: -20%; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, #fff8 45%, #fffc 50%, #fff8 55%, transparent); transform: skewX(-18deg); animation: premshine 3.6s ease-in-out infinite; }
+.p5 .shine::before { animation-duration: 2.8s; background: linear-gradient(100deg, transparent, #ffd9a088 45%, #fff3c8cc 50%, #ffd9a088 55%, transparent); }
+.p6 .shine::before { animation-duration: 2.2s; background: linear-gradient(100deg, transparent, #fff6 40%, #ffffffd0 50%, #fff6 60%, transparent); }
+@keyframes premshine { 0%, 55% { left: -60%; } 100% { left: 130%; } }
+/* ★5 ユニーク：朱漆と金の枠、浮き彫りの地紋（青海波） */
+.card.p5 { border-width: 3px; border-color: transparent; background: linear-gradient(#fbf7ee, #fbf7ee) padding-box, linear-gradient(135deg, #6a1206, #c8341c 35%, #e8b84a 50%, #c8341c 65%, #6a1206) border-box; box-shadow: 0 0 8px #c8341c66; }
+.card.p5 .foil, .thing.p5 .foil { box-shadow: inset 0 0 0 1px #e8b84a; background: radial-gradient(circle at 50% 100%, transparent 9px, #c8341c14 10px, #c8341c14 11px, transparent 12px) 0 0 / 20px 10px, radial-gradient(circle at 50% 100%, transparent 9px, #c8341c14 10px, #c8341c14 11px, transparent 12px) 10px 5px / 20px 10px; }
+.card.p5 .nm { background: linear-gradient(#2a0c06e8, #4a140ae8); color: #f6dc8c; }
+.thing.p5 { border-color: #a8281a; background: linear-gradient(100deg, #fbf7ee 55%, #f7dcc8); }
+/* ★6 ミシック：七色の箔ときらめき */
+.card.p6 { border-width: 3px; border-color: transparent; border-image: none; background: linear-gradient(#fbf7ee, #fbf7ee) padding-box, conic-gradient(from var(--ang, 0deg), #ff4a6a, #ffb84a, #f6f04a, #4ae08a, #4ab8ff, #a86aff, #ff4a6a) border-box; animation: premrot 4s linear infinite; box-shadow: 0 0 10px #b04ad088; }
+@property --ang { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@keyframes premrot { to { --ang: 360deg; } }
+.card.p6 .foil, .thing.p6 .foil { background: linear-gradient(125deg, #ff4a6a18, #ffb84a18, #f6f04a18, #4ae08a18, #4ab8ff18, #a86aff18); mix-blend-mode: multiply; }
+.card.p6 .nm { background: linear-gradient(90deg, #2a1640ee, #16284aee); color: #fff; }
+.thing.p6 { border-color: #a86aff; background: linear-gradient(100deg, #fbf7ee 50%, #efe0ff); }
+.prem .spark { inset: 0; z-index: 3; }
+.prem .spark i { position: absolute; width: 6px; height: 6px; background: #fff; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); animation: premspark 2.4s ease-in-out infinite; opacity: 0; }
+.prem .spark i:nth-child(1) { left: 18%; top: 22%; } .prem .spark i:nth-child(2) { left: 72%; top: 36%; animation-delay: .6s; } .prem .spark i:nth-child(3) { left: 34%; top: 62%; animation-delay: 1.2s; } .prem .spark i:nth-child(4) { left: 80%; top: 12%; animation-delay: 1.8s; }
+@keyframes premspark { 0%, 100% { opacity: 0; transform: scale(.3); } 50% { opacity: 1; transform: scale(1.4); } }
+/* 刻印の宝石（枠の角） */
+.gems { right: 2px; bottom: 2px; z-index: 4; display: flex; gap: 1px; }
+.card .gems { right: auto; left: 3px; bottom: auto; top: 22px; flex-direction: column; }
+.gems i { width: 7px; height: 7px; transform: rotate(45deg); background: linear-gradient(135deg, #bff0ff, #2a8ad0); box-shadow: 0 0 3px #2a8ad0, inset 0 0 0 1px #fff8; }
+.gems i.m { background: linear-gradient(135deg, #ffd0ff, #a03ab0); box-shadow: 0 0 4px #a03ab0; }
+/* 旧い指定の上書き */
+.card.r-ミシック { border-image: none; }
+.card.r-ユニーク, .card.r-レジェンダリー { box-shadow: none; }
+.card.p5 { box-shadow: 0 0 8px #c8341c66; }
+.card.sel.prem { box-shadow: 0 0 0 3px var(--acc), 0 8px 14px -4px #0008, 0 0 16px 2px color-mix(in srgb, var(--acc) 55%, transparent); }
+@media (prefers-reduced-motion: reduce) { .prem .shine::before, .prem .spark i, .card.p6 { animation: none !important; } }
+.card .foil { z-index: 0; }
+.card .tier, .card .nm, .card .cats, .card .rr, .card .enh, .card .mark, .card .seal, .card .sealmk, .card .cmbmk { z-index: 2; }
+.card .shine { z-index: 3; } .card .spark { z-index: 4; } .card .gems { z-index: 5; }
+
+/* ───────── 第7弾 Y3：穴と深さの見た目 ───────── */
+/* 地の色が変わっても、紙の札・一覧・吹き出しは紙のまま（文字は墨） */
+.card, .thing, .landing .lnext, .landing .lwarden, .svc, .stash .detail, .fac .fdetail, .lastwords, .facrow, .ov.bubble, .ov.okami, .innart .okamisay, .talk .tl, .door .k, .door .g, .foe .say {
+  --ink: #2a2520; --quiet: #6e6455; --line: #b9aa8e; --paper: #efe6d2; --paper2: #e4d8bf; color: var(--ink);
+}
+.scr[data-dg] { color: var(--ink); }
+.scr.dive[data-dg]:not([data-dg="honko"]) { background: var(--tbg); }
+.scr.battle[data-dg]:not([data-dg="honko"]) { background: var(--tbg); }
+.themefx { position: absolute; inset: 0; pointer-events: none; z-index: 20; }
+.scr.dive { position: relative; }
+/* 屋台通り：夜の紺と提灯の赤 */
+.scr[data-dg="yatai"] { --paper: #262d4a; --paper2: #303860; --ink: #f2e8d6; --quiet: #a9a6bf; --line: #4c5680; --acc: #e5503c; --acc2: #f0b04a; --bad: #ff6a52;
+  --tbg: radial-gradient(circle at 12% -4%, #ff6a3a55 0, transparent 120px), radial-gradient(circle at 88% -4%, #ff6a3a55 0, transparent 120px), linear-gradient(#1a2036, #141a2c); }
+.scr[data-dg="yatai"] .top { border-bottom: 6px solid transparent; border-image: repeating-linear-gradient(90deg, #b8302a 0 34px, #8a1e1a 34px 36px) 6; }
+/* 旧校舎：黒板の深緑とチョーク */
+.scr[data-dg="kousha"] { --paper: #2b4b3c; --paper2: #345746; --ink: #f2f2ea; --quiet: #b2c2b2; --line: #6a8a76; --acc: #f2e266; --acc2: #ffffff; --bad: #ff8a7a;
+  --tbg: radial-gradient(ellipse at 30% 20%, #ffffff0c 0, transparent 180px), radial-gradient(ellipse at 75% 70%, #ffffff0a 0, transparent 160px), linear-gradient(#1f3a2e, #18302a); }
+.scr[data-dg="kousha"] .top { border-bottom: 2px dashed #ffffffaa; }
+.scr[data-dg="kousha"] .btn, .scr[data-dg="kousha"] .chip { border-style: dashed; }
+/* 湯けむり坑：白くかすむ地と檜 */
+.scr[data-dg="yukemuri"] { --paper: #eef1ee; --paper2: #dde4e0; --ink: #26343a; --quiet: #627476; --line: #aebdbc; --acc: #b5662e; --acc2: #2f7484;
+  --tbg: linear-gradient(#f4f6f4, #dfe7e4); }
+.scr[data-dg="yukemuri"] .themefx::before { content: ''; position: absolute; inset: -20%; background: radial-gradient(ellipse at 20% 80%, #ffffffaa 0, transparent 40%), radial-gradient(ellipse at 70% 60%, #ffffff99 0, transparent 35%), radial-gradient(ellipse at 45% 30%, #ffffff77 0, transparent 30%); animation: steam 9s ease-in-out infinite alternate; opacity: .55; }
+@keyframes steam { to { transform: translate(6%, -8%) scale(1.1); } }
+.scr[data-dg="yukemuri"] .top { border-bottom: 4px solid #c99a62; }
+/* ゲーセン跡：黒とネオン、走査線 */
+.scr[data-dg="gesen"] { --paper: #1c1830; --paper2: #262040; --ink: #ecebff; --quiet: #9a94c8; --line: #5a46a0; --acc: #ff3ad0; --acc2: #3ae4ff; --bad: #ff4a7a;
+  --tbg: radial-gradient(ellipse at 50% 0, #ff3ad022 0, transparent 60%), #0c0a14; }
+.scr[data-dg="gesen"] .themefx::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, #0000 0 2px, #ffffff08 2px 3px); }
+.scr[data-dg="gesen"] .btn, .scr[data-dg="gesen"] .chip { box-shadow: 0 0 6px #3ae4ff55, inset 0 0 6px #3ae4ff22; border-color: #3ae4ff88; }
+.scr[data-dg="gesen"] .btn.main { background: linear-gradient(#ff3ad0, #b0208f); border-color: #ff8ae8; box-shadow: 0 0 12px #ff3ad0aa; }
+.scr[data-dg="gesen"] .top { border-bottom: 2px solid #ff3ad0; box-shadow: 0 2px 10px #ff3ad077; }
+/* 廃工場：鉄の灰と黄黒の警告帯 */
+.scr[data-dg="koujou"] { --paper: #4a4e53; --paper2: #565b61; --ink: #efede6; --quiet: #b6b6ae; --line: #72777d; --acc: #f2c21a; --acc2: #9ad0ff; --bad: #ff7a5a;
+  --tbg: radial-gradient(circle at 8px 8px, #00000040 2px, transparent 3px) 0 0 / 60px 60px, linear-gradient(#3c4044, #303336); }
+.scr[data-dg="koujou"] .top { border-bottom: 8px solid transparent; border-image: repeating-linear-gradient(135deg, #f2c21a 0 12px, #1c1c1c 12px 24px) 8; }
+.scr[data-dg="koujou"] .btn.main { background: linear-gradient(#f2c21a, #c89a0a); color: #1c1c1c; border-color: #1c1c1c; text-shadow: none; box-shadow: 0 2px 0 #1c1c1c; }
+/* 過去ログ倉庫：古い掲示板の灰と等幅 */
+.scr[data-dg="kakolog"] { --paper: #e6e5dc; --paper2: #d4d2c6; --ink: #1e1e1e; --quiet: #5a5a58; --line: #9a9a92; --acc: #1f3cc0; --acc2: #1f8a2a; --mincho: "Osaka-Mono", "MS Gothic", "Noto Sans Mono CJK JP", monospace;
+  --tbg: repeating-linear-gradient(0deg, #0000 0 23px, #0000000a 23px 24px), #efefe6; }
+.scr[data-dg="kakolog"] .top { border-bottom: 1px solid #1e1e1e; font-family: monospace; }
+.scr[data-dg="kakolog"] .btn, .scr[data-dg="kakolog"] .chip { border-radius: 2px; }
+/* 神社の裏山：苔と朱の鳥居、御札 */
+.scr[data-dg="urayama"] { --paper: #46553c; --paper2: #52623f; --ink: #f2eedb; --quiet: #bac3a2; --line: #6e7e5a; --acc: #e2442c; --acc2: #ecd99a; --bad: #ff7a5a;
+  --tbg: radial-gradient(ellipse at 50% 120%, #1a2614 0, transparent 70%), linear-gradient(#3e4c34, #2e3a26); }
+.scr[data-dg="urayama"] .top { border-bottom: 6px solid #c8341c; box-shadow: 0 4px 0 #2a1a10; }
+/* 床上（屋根裏）：煤けた木目と金 */
+.scr[data-dg="yaneura"] { --paper: #3e342c; --paper2: #4a3f35; --ink: #f2e4c8; --quiet: #bca88c; --line: #6e5c48; --acc: #e0b032; --acc2: #f0d27a; --bad: #ff7a52;
+  --tbg: linear-gradient(115deg, #00000040 0 12%, transparent 12% 40%, #00000030 40% 48%, transparent 48%), repeating-linear-gradient(90deg, #2e2620 0 7px, #342b24 7px 9px, #2b231d 9px 17px); }
+.scr[data-dg="yaneura"] .btn.main { background: linear-gradient(#e8c050, #a8801a); color: #2a1e08; border-color: #6a4e0a; text-shadow: none; }
+/* 戦闘の手札の札・計算窓は暗い地でも紙のまま見せる */
+.scr[data-dg]:not([data-dg="honko"]) .calc { background: color-mix(in srgb, var(--acc2) 10%, var(--paper)); }
+
+/* 深さ：暗く、染みとひび、縁に赤み */
+.scr[data-depth="1"] .themefx { box-shadow: inset 0 0 40px #0000002a; }
+.scr[data-depth="2"] .themefx { box-shadow: inset 0 0 60px #00000040; }
+.scr[data-depth="3"] .themefx { box-shadow: inset 0 0 70px #2a000055, inset 0 0 14px #8a1a1033; }
+.scr[data-depth="4"] .themefx { box-shadow: inset 0 0 90px #2a000077, inset 0 0 22px #a01a1055; }
+.scr[data-depth="5"] .themefx { box-shadow: inset 0 0 110px #1a000099, inset 0 0 30px #b0201066; }
+.scr[data-depth="2"] .themefx, .scr[data-depth="3"] .themefx, .scr[data-depth="4"] .themefx, .scr[data-depth="5"] .themefx {
+  background-image: radial-gradient(ellipse 60px 40px at 14% 78%, #5a3a1a1c 0, transparent 70%), radial-gradient(ellipse 80px 50px at 82% 18%, #5a3a1a16 0, transparent 70%); }
+.scr[data-depth="3"] .themefx, .scr[data-depth="4"] .themefx, .scr[data-depth="5"] .themefx {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='375' height='740'%3E%3Cg fill='none' stroke='%23000' stroke-opacity='.22' stroke-width='1.2'%3E%3Cpath d='M0 120 L40 132 L62 118 L96 140 L118 136'/%3E%3Cpath d='M375 520 L330 540 L318 566 L280 572 L262 600'/%3E%3Cpath d='M318 566 L322 610'/%3E%3Cpath d='M60 740 L72 700 L58 680 L80 650'/%3E%3C/g%3E%3C/svg%3E"), radial-gradient(ellipse 60px 40px at 14% 78%, #5a3a1a22 0, transparent 70%), radial-gradient(ellipse 80px 50px at 82% 18%, #5a3a1a1c 0, transparent 70%);
+  background-size: 100% 100%; }
+/* 層主の階：縁が脈打つ */
+.scr[data-boss] .themefx::before { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 0 3px #c8201a, inset 0 0 26px #c8201a88; animation: bosspulse 1.8s ease-in-out infinite; }
+@keyframes bosspulse { 50% { opacity: .35; } }
+/* 底：色が抜ける */
+.scr[data-soko] .themefx { backdrop-filter: saturate(.35) contrast(1.05); -webkit-backdrop-filter: saturate(.35) contrast(1.05); }
+@media (prefers-reduced-motion: reduce) { .scr[data-boss] .themefx::before, .scr[data-dg="yukemuri"] .themefx::before { animation: none; } }
+/* 暗い地では、論客の絵を紙の丸に乗せる */
+.scr:is([data-dg="yatai"], [data-dg="kousha"], [data-dg="gesen"], [data-dg="koujou"], [data-dg="urayama"], [data-dg="yaneura"]) .foe .art svg { background: radial-gradient(circle closest-side, #efe6d2 0 88%, transparent 92%); border-radius: 50%; }
+.scr:is([data-dg="yatai"], [data-dg="kousha"], [data-dg="gesen"], [data-dg="koujou"], [data-dg="urayama"], [data-dg="yaneura"]) .foe.tgt { background: color-mix(in srgb, var(--acc) 14%, transparent); }
+.btn.evc.special { border-color: var(--acc2); border-width: 2px; background: color-mix(in srgb, var(--acc2) 12%, var(--paper)); }
+.btn.evc .evwho { font-size: 11px; font-weight: 700; color: #fff; background: var(--acc2); border-radius: 8px; padding: 0 7px; line-height: 17px; }
+
+/* ───────── 宿の下の帯（蔵・掲示板・図鑑・設定＋潜る） ───────── */
+.innbar { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; padding-top: 6px; }
+.innnav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; border-top: 1.5px solid var(--line); padding-top: 6px; }
+.innnav .nb { min-height: var(--tap); border: none; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; cursor: pointer; border-radius: 8px; color: var(--ink); -webkit-tap-highlight-color: transparent; }
+.innnav .nb:active { background: color-mix(in srgb, var(--acc2) 12%, transparent); }
+.innnav .nb b { font-family: var(--mincho); font-size: 16px; }
+.innnav .nb small { font-size: 11px; color: var(--quiet); }
+.innnav .nb.warn small { color: #fff; background: var(--bad); border-radius: 6px; padding: 0 4px; }
+.btn.main.dive { min-height: 56px; flex-direction: column; gap: 0; border-radius: 12px; }
+.btn.main.dive b { font-family: var(--mincho); font-size: 22px; letter-spacing: .3em; padding-left: .3em; }
+.btn.main.dive small { font-size: 11px; opacity: .85; }
+/* 潜行準備：持ち込み／素泊まり */
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1.5px solid var(--line); border-radius: 12px; overflow: hidden; flex-shrink: 0; }
+.segb { min-height: 52px; border: none; background: var(--paper); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; cursor: pointer; color: var(--quiet); }
+.segb + .segb { border-left: 1.5px solid var(--line); }
+.segb b { font-family: var(--mincho); font-size: 17px; }
+.segb small { font-size: 11px; }
+.segb.on { background: color-mix(in srgb, var(--acc) 14%, var(--paper)); color: var(--ink); box-shadow: inset 0 -3px 0 var(--acc); }
+.segb:disabled { opacity: .45; cursor: default; }
+.lightinfo { display: flex; flex-direction: column; border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; }
+.lightinfo .li { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 14px; background: #fbf7ee; color: #2a2520; }
+.lightinfo .li + .li { border-top: 1px solid var(--line); }
+.lightinfo .li span { font-size: 13px; color: #6e6455; }
+.lightinfo .li b { font-family: var(--mincho); font-size: 17px; }
+.prep .grow { flex: 1 1 auto; }

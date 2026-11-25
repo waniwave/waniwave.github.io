@@ -1,6 +1,7 @@
 // 持ち物（札・常連客・置物・お品書き・お土産）の小さな札と説明。宿の画面で使う
 import { h, tip, esc, sheet, toast } from './dom.js';
 import { souvenirsOf } from '../engine/meta.js';
+import { premium } from './premium.js';
 import { GRADE_COLOR, catGlyph, catColor, kwLines, ORIGIN_MARK, ORIGIN_JA, RAR_VAR, RAR_SHORT, rarOfCard, rarStars, rarHead, fxText, rarNote, affixLines, attrText, comboLines } from './labels.js';
 import { nameOf, sellValue } from '../engine/dive.js';
 
@@ -74,6 +75,7 @@ export function thingEl(base, x, opt = {}) {
     el.classList.add('hasact');
     el.append(b);
   }
+  if (x.type === 'card') premium(el, rarOfCard(base.balance, x, def), x.ins, base.content);
   if (opt.onclick) { el.classList.add('tap'); el.addEventListener('click', opt.onclick); }
   if (opt.tip !== false) tip(el, () => thingTip(base, x));
   return el;

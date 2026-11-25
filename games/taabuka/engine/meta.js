@@ -758,7 +758,7 @@ export function beginDive(base, H, o) {
   const D = createDive(base, {
     seed: o.seed, guest: L.guest, depth: L.depth, deck, seats, items, charm,
     relics: g?.relic ? [{ uid: `g_${g.relic}`, id: g.relic, guest: true }] : [],
-    pool: poolOf(base, H, L.guest), carry: carryOf(base, H, 0), guestState: { ...(L.choose?.[L.guest] || {}) },
+    pool: poolOf(base, H, L.guest), carry: carryOf(base, H, 0), guestState: { ...(L.choose?.[L.guest] || {}) }, seenEvents: H.records.seenEvents || [],
     ...(L.shibari ? { shibari: L.shibari } : {}), ...(L.warp ? { startFloor: L.warp } : {}), dungeon: L.dungeon || 'honko',
   });
   // 宿の内装の便利（暖簾＝始めの宿銭、湯＝体力の上限）
@@ -913,6 +913,8 @@ export function finishDive(base, H, D) {
     relicCash: 0, thanks: 0, betZeni: 0, expired: [], returned: [], notReturned: [], unlocked: [], depthUp: null, starter: false };
   const R = H.records;
   const clean = (x) => { const { brought, insured, ...rest } = x; return rest; };
+  // 見た謎を覚える（宿泊客の連作の続きが出るように）
+  if (D.events?.length) R.seenEvents = [...new Set([...(R.seenEvents || []), ...D.events])];
 
   if (D.result.outcome === 'escaped') {
     // 1. デッキ・席・懐・お守り袋・お品書きを全て蔵へ。宿銭は財布へ（借金を先に引く）

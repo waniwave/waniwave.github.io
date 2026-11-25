@@ -136,6 +136,9 @@ layers:
   - layer4.yaml
   - layer5.yaml
 events:
+  - chains.yaml
+  - dungeons.yaml
+  - guests.yaml
   - layer1.yaml
   - layer2.yaml
   - layer3.yaml

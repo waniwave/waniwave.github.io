@@ -1,0 +1,499 @@
+# テーマの穴だけの謎（dungeon で穴を決める。層は問わない。ふつうの謎より出やすい）
+# ───── 屋台通り ─────
+- id: ev_dg_yatai_kaedama
+  dungeon: [yatai]
+  title: 替え玉の無限ループ
+  text: 「替え玉！」と言うと替え玉が来る。食べ終わる前に、隣の客が「替え玉！」と言う。それも自分の丼に来る。
+  choices:
+    - label: 全部食べる
+      do: [ { 体力: 15 }, { 気配: 3 }, { 番付を上げる: { カテゴリ: 麺 } } ]
+      result: 十七玉目で、丼の底に「完食」の文字が見えた。店主が拍手している。麺の番付も拍手している。
+    - label: 隣の客の丼に流す
+      do: [ { 宿銭: 12 } ]
+      result: 隣の客も隣に流した。屋台通り全体を替え玉が一周し、なぜか宿銭になって戻ってきた。
+
+- id: ev_dg_yatai_chouchin
+  dungeon: [yatai]
+  title: 提灯の番付
+  text: 屋台の提灯に、それぞれTierが書いてある。「麺 T2」「おでん T5」「わたあめ God」。
+  choices:
+    - label: わたあめの提灯を外す
+      do: [ { 番付を移す: { カテゴリ: 食べ物, 先: God } }, { 体力: -6 } ]
+      result: 提灯がふわふわ逃げた。追いかけて転んだが、食べ物はGodになった。
+    - label: 提灯の火で暖まる
+      do: [ { 体力: 8 }, { 気配: -1 } ]
+      result: 赤い灯りの下で、少しだけ眠った。
+
+- id: ev_dg_yatai_kuji
+  dungeon: [yatai]
+  title: 屋台のくじ引き
+  text: 「一回100円。当たりはTier」。紐が束になっていて、一本だけ金色に光っている。
+  choices:
+    - label: 金色の紐を引く
+      if: { 宿銭以上: 10 }
+      do: [ { 宿銭: -10 }, { お品書きを得る: 番付札 }, { お品書きを得る: 品 } ]
+      result: 金色の紐の先には、また金色の紐があった。三本目でやっと景品。
+    - label: 地味な紐を引く
+      hide: true
+      do: [ { お土産を得る: sv_dg_yatai }, { 宿銭: 5 } ]
+      result: 割り箸が一膳ついてきた。「ハズレ」と書いてあるが、上等の割り箸だ。
+
+- id: ev_dg_yatai_noren
+  dungeon: [yatai]
+  title: のれん分け
+  text: 老舗の屋台の主人が「この味、継いでくれんか」と暖簾を差し出してくる。
+  choices:
+    - label: 継ぐ
+      do: [ { お土産を得る: sv_key_yatai }, { 番付を上げる: { カテゴリ: 宿, 段: 2 } }, { 気配: 3 } ]
+      result: 暖簾の切れ端と、秘伝のスープの作り方（全部ひらがな）をもらった。
+    - label: 「まだ修行中なので」
+      do: [ { 体力: 6 } ]
+      result: 主人は満足そうに一杯おごってくれた。
+
+- id: ev_dg_yatai_sara
+  dungeon: [yatai]
+  title: 皿の塔
+  text: 回転しない回転寿司。皿だけが天井まで積み上がっていて、一番上の皿に「God」。
+  choices:
+    - label: 下から一枚抜く
+      do: [ 番付を反転, { 宿銭: 15 } ]
+      result: 皿の塔がゆっくり傾き、番付も一緒に傾いた。上下が全部入れ替わった。
+    - label: 一番上の皿を数に入れる
+      do: [ { 宿銭: -5 }, { 番付を上げる: { カテゴリ: 一番低い, 段: 3 } } ]
+      result: 会計が5増えた。代わりに、一番弱いカテゴリが3段跳ね上がった。
+
+# ───── 旧校舎 ─────
+- id: ev_dg_kousha_kouhou
+  dungeon: [kousha]
+  title: 校内放送の呼び出し
+  text: 「3年T組のター君、至急職員室まで。繰り返します、Tier組の……」。
+  choices:
+    - label: ター君のふりをして職員室へ
+      do: [ { 番付を上げる: { カテゴリ: ター, 段: 2 } }, { 体力: -5 } ]
+      result: 怒られた。理由はわからない。でもターの評価は上がった。
+    - label: 放送室のマイクを奪う
+      do: [ { 気配: 4 }, { お品書きを得る: 議題 } ]
+      result: 「本日の議題は」と言ったら、全校生徒が議題を投げてきた。一枚拾った。
+
+- id: ev_dg_kousha_jinkou
+  dungeon: [kousha]
+  title: 人体模型の健康診断
+  text: 保健室で、人体模型が自分の健康診断をしている。「内臓の番付、見てくれる？」。
+  choices:
+    - label: 見てあげる
+      do: [ { 体力: 10 }, { 番付を上げる: { カテゴリ: 死 } } ]
+      result: 「肝臓がTier1、すい臓がTier8」。模型は納得して湿布をくれた。
+    - label: 自分も診てもらう
+      hide: true
+      do: [ { 体力: -8 }, { 札に付ける: { 対象: 乱数, 判: 乱数 } } ]
+      result: 注射を一本打たれた。デッキの札の一枚に、保健室の判子が押された。
+
+- id: ev_dg_kousha_kokuban
+  dungeon: [kousha]
+  title: 消えない黒板
+  text: 黒板に「Tier表」。消しても消しても浮き出てくる。日直の欄に、こちらの名前。
+  choices:
+    - label: 書き足す
+      do: [ { 番付を上げる: { カテゴリ: 乱数, 段: 2 } }, { 気配: 2 } ]
+      result: チョークが折れた。書いたところだけ、消えずに残った。
+    - label: 日直として黒板消しを叩く
+      do: [ { お土産を得る: sv_hakusen }, { 体力: -3 } ]
+      result: チョークの粉で真っ白になった。窓の外に、校庭の白線が一本落ちていた。
+
+- id: ev_dg_kousha_wasuremono
+  dungeon: [kousha]
+  title: 机の中の置き勉
+  text: 机の中に教科書。「Tier（下）」。上巻はどこにもない。
+  choices:
+    - label: 下巻だけ読む
+      do: [ { お品書きを得る: 番付札 }, { 気配: 1 } ]
+      result: 結末だけわかった。「そしてターはTier1になった」。付録に札がついていた。
+    - label: 上巻を探す
+      do: [ { 体力: -6 }, { お土産を得る: sv_dg_kousha } ]
+      result: 上巻はなかった。代わりに、誰かの上履きが片方出てきた。
+
+- id: ev_dg_kousha_chime
+  dungeon: [kousha]
+  title: 終わらないチャイム
+  text: キーンコーンカーンコーン。キーンコーンカーンコーン。キーンコーン……。授業が永遠に始まらない。
+  choices:
+    - label: 授業を始める
+      do: [ { 番付を均す: "2" }, { 気配: 3 } ]
+      result: 「では、全カテゴリT2から始めます」。黒板にそう書いたら、本当にそうなった。
+    - label: チャイムに合わせて帰る
+      do: [ { 気配: -3 }, { 体力: 5 } ]
+      result: 下校の音楽に紛れて、誰にも見られず廊下を抜けた。
+
+# ───── 湯けむり坑 ─────
+- id: ev_dg_yu_saru
+  dungeon: [yukemuri]
+  title: 猿の番台
+  text: 番台に猿が座っている。入浴料の欄に「バナナ　または　Tier」。
+  choices:
+    - label: Tierで払う
+      do: [ { 番付を下げる: { カテゴリ: 一番高い, 段: 1 } }, { 体力: 18 } ]
+      result: 一番強いカテゴリが一段下がった。湯は最高だった。
+    - label: 猿の毛づくろいをする
+      do: [ { 番付を上げる: { カテゴリ: 動物, 段: 2 } }, { 気配: 2 } ]
+      result: 猿がうっとりして、タダにしてくれた。動物の番付も上がった。
+
+- id: ev_dg_yu_onsentamago
+  dungeon: [yukemuri]
+  title: 温泉卵の殻
+  text: 源泉で温泉卵がゆだっている。札が一枚、一緒に茹でられている。
+  choices:
+    - label: 札も茹でる
+      do: [ { 札に付ける: { 対象: 乱数, 仕込み: 守 } }, { 気配: 2 } ]
+      result: 札がふっくらした。受けに回すとやわらかく攻撃を受け止めるようになった。
+    - label: 卵だけ食べる
+      do: [ { 体力: 12 } ]
+      result: 黄身がTier1の固さだった。
+
+- id: ev_dg_yu_kaburi
+  dungeon: [yukemuri]
+  title: 湯船の論客
+  text: 湯船に論客が三人浸かっている。のぼせながら「ここの湯はTier……Tier……」と言っている。
+  choices:
+    - label: 一緒に浸かって議論する
+      do: [ { 体力: -8 }, { 番付を上げる: { カテゴリ: 湯, 段: 3 } } ]
+      result: 最後までのぼせなかったので、湯の番付を決める権利を得た。
+    - label: 水を差す
+      do: [ { 気配: -2 }, { 宿銭: 10 } ]
+      result: ぬるくなった湯で三人が正気に戻り、お礼に湯銭を割り勘してくれた。
+
+- id: ev_dg_yu_kotsuban
+  dungeon: [yukemuri]
+  title: 下足札の山
+  text: 下駄箱から下足札が溢れている。全部72番。
+  choices:
+    - label: 本物の72番を探す
+      do: [ { 体力: -5 }, { お土産を得る: sv_key_yu } ]
+      result: 一枚だけ、裏に「湯けむり坑」と書かれた札があった。
+    - label: 一枚もらう
+      do: [ { お土産を得る: sv_dg_yu } ]
+      result: 72番の札の下に、源泉の小石が挟まっていた。
+
+- id: ev_dg_yu_sauna
+  dungeon: [yukemuri]
+  title: サウナの砂時計
+  text: サウナの砂時計の砂が、下から上に落ちている。
+  choices:
+    - label: 砂が全部上がるまで耐える
+      do: [ { 体力: -12 }, { お品書きを得る: 番付札 }, { お品書きを得る: 番付札 }, { 気配: 2 } ]
+      result: ととのった。ととのったついでに、番付札が二枚ととのった。
+    - label: 砂時計をひっくり返す
+      hide: true
+      do: [ 番付を反転, { 体力: 6 } ]
+      result: 砂は上から下に落ち始めた。それが普通のはずなのに、番付が全部逆になった。
+
+# ───── ゲーセン跡 ─────
+- id: ev_dg_gesen_ufo
+  dungeon: [gesen]
+  title: UFOキャッチャーのTier
+  text: 景品は全部「Tier」と書かれたぬいぐるみ。アームが「今日は強めです」と言っている。
+  choices:
+    - label: 100円入れる
+      if: { 宿銭以上: 8 }
+      do: [ { 宿銭: -8 }, { 番付を上げる: { カテゴリ: 乱数, 段: 2 } }, { 番付を上げる: { カテゴリ: 乱数 } } ]
+      result: 二個同時に取れた。アームは嘘をつかなかった。
+    - label: 筐体を揺らす
+      do: [ { 気配: 4 }, { お土産を得る: sv_dg_gesen } ]
+      result: 警報が鳴った。メダルが一枚、足元に転がってきた。
+
+- id: ev_dg_gesen_rannyuu
+  dungeon: [gesen]
+  title: 乱入者あらわる
+  text: 対戦台に座った瞬間、向こう側から「HERE COMES A NEW CHALLENGER」。
+  choices:
+    - label: 受けて立つ
+      do: [ { 体力: -10 }, { 番付を上げる: { カテゴリ: 格ゲー, 段: 3 } } ]
+      result: ストレート負けしたが、格ゲーの番付が上がった。向こうの台で拍手が聞こえる。
+    - label: 席を立つ
+      do: [ { 気配: -2 } ]
+      result: 礼儀正しく一礼して立った。向こうも一礼した。
+
+- id: ev_dg_gesen_ranking
+  dungeon: [gesen]
+  title: ハイスコアの名前
+  text: ランキング画面の一位に「TAA」。二位に「TAA」。三位に「AAA」。
+  choices:
+    - label: 自分の名前を刻む
+      do: [ { お品書きを得る: 番付札 }, { 気配: 2 } ]
+      result: 三文字しか入らないので「TAA」にした。四位になった。
+    - label: AAAの正体を探る
+      hide: true
+      do: [ { 常連客を得る: 乱数 }, { 体力: -5 } ]
+      result: AAAは常連客だった。こちらの宿に泊まりに来るらしい。
+
+- id: ev_dg_gesen_ryougae
+  dungeon: [gesen]
+  title: 両替機の気分
+  text: 両替機に「本日の気分：Tier3」。千円札を入れると、気分の分だけ返ってくる。
+  choices:
+    - label: 気分を上げてから入れる
+      do: [ { 宿銭: 18 }, { 気配: 3 } ]
+      result: 褒めちぎったら、両替機がご機嫌になって小銭を余分に出した。
+    - label: 両替機の機嫌を直してあげる
+      do: [ { 札に付ける: { 対象: 乱数, 仕込み: 金箔 } } ]
+      result: 叩いたら直った。お礼に、札の一枚を金色にしてくれた。
+
+- id: ev_dg_gesen_coin
+  dungeon: [gesen]
+  title: 落ちないメダル
+  text: メダル落としの台。崖のふちに、山盛りのメダルが引っかかっている。あと一枚で落ちそう。
+  choices:
+    - label: 最後の一枚を入れる
+      do: [ { 宿銭: 25 }, { 気配: 4 } ]
+      result: ジャラジャラジャラ。止まらない。店じゅうの視線が集まった。
+    - label: 台を見守る
+      do: [ { 体力: 6 } ]
+      result: 見守っているうちに閉店時間が過ぎた。
+
+# ───── 廃工場 ─────
+- id: ev_dg_koujou_kenpin
+  dungeon: [koujou]
+  title: 検品ライン
+  text: ベルトコンベアに札が流れてくる。「合格」「不合格」のハンコが自動で押されていく。
+  choices:
+    - label: デッキの札を一枚流す
+      do: [ { 札に付ける: { 対象: 乱数, 判: 乱数 } }, { 気配: 2 } ]
+      result: 合格の判が押されて戻ってきた。ちょっと誇らしげだ。
+    - label: 自分が流れる
+      hide: true
+      do: [ { 体力: -10 }, { 番付を上げる: { カテゴリ: ロボ, 段: 3 } } ]
+      result: 「規格外」の判を押された。腹いせにロボの番付を上げておいた。
+
+- id: ev_dg_koujou_neji
+  dungeon: [koujou]
+  title: 余ったネジの山
+  text: 組み立て終わった機械の横に、余ったネジが山になっている。機械は普通に動いている。
+  choices:
+    - label: ネジを全部戻す
+      do: [ { 体力: -6 }, { お土産を得る: sv_dg_koujou }, { 宿銭: 8 } ]
+      result: 機械が止まった。一本だけ余ったので、記念に持って帰る。
+    - label: 気にしない
+      do: [ { 気配: -2 } ]
+      result: 気にしないのが一番だ。機械もそう言っている。
+
+- id: ev_dg_koujou_taimu
+  dungeon: [koujou]
+  title: タイムカード
+  text: タイムカードの機械に、こちらの名前のカードが差さっている。出勤時刻は「Tier時」。
+  choices:
+    - label: 退勤を打つ
+      do: [ { 気配: -4 } ]
+      result: ガチャン。今日の残業はなし。誰にも引き止められなかった。
+    - label: 残業する
+      do: [ { 体力: -8 }, { 宿銭: 30 } ]
+      result: 残業代が出た。この工場、もう誰もいないのに。
+
+- id: ev_dg_koujou_nyuukan
+  dungeon: [koujou]
+  title: 守衛室
+  text: 守衛室の窓口に「入館証はこちら」。守衛はロボで、寝ている。
+  choices:
+    - label: 入館証を一枚もらう
+      do: [ { お土産を得る: sv_key_koujou }, { 気配: 2 } ]
+      result: ロボが寝言で「どうぞ」と言った。許可は出た、ということにする。
+    - label: 守衛を起こす
+      do: [ { 番付を上げる: { カテゴリ: ロボ, 段: 2 } } ]
+      result: 起きたロボが番付表を読み上げ、ロボの欄を書き直した。
+
+- id: ev_dg_koujou_robo
+  dungeon: [koujou]
+  title: 組み立て途中のロボ
+  text: 作業台にロボの上半身。「下半身を探してください」。
+  choices:
+    - label: 自分の札で下半身を作る
+      do: [ { デッキから除く: 乱数 }, { 常連客を得る: 乱数 } ]
+      result: 札が一枚、脚になった。完成したロボは宿の常連になると言い出した。
+    - label: 上半身だけで褒める
+      do: [ { 体力: 6 }, { 宿銭: 6 } ]
+      result: 「上半身だけでGodです」。ロボは喜んで、工具箱の小銭をくれた。
+
+# ───── 過去ログ倉庫 ─────
+- id: ev_dg_log_1001
+  dungeon: [kakolog]
+  title: 1001番目のレス
+  text: 「このスレッドは1000を超えました。もう書けないので、新しいスレッドを立ててください」の下に、1001番目のレスがある。
+  choices:
+    - label: 1001を読む
+      hide: true
+      do: [ { 番付を上げる: { カテゴリ: スレ, 段: 3 } }, { 体力: -6 } ]
+      result: 「ターはTier1」。それだけ書いてあった。読んだ瞬間、目がちかちかした。
+    - label: 次スレを立てる
+      do: [ { お品書きを得る: 番付札 }, { 気配: 2 } ]
+      result: 「【Tier】ター総合 Part10000【God】」。即座に「乙」が千件ついた。
+
+- id: ev_dg_log_mojibake
+  dungeon: [kakolog]
+  title: 文字化けの棚
+  text: 「縺薙ｓ縺ｫ縺｡縺ｯ」。ログが全部文字化けしている。一冊だけ読める。
+  choices:
+    - label: 読める一冊を読む
+      do: [ { お土産を得る: sv_dg_kakolog }, { 気配: 1 } ]
+      result: 中身は「乙」だけだった。黄ばんでいて味がある。
+    - label: 文字化けのまま読む
+      do: [ 番付を反転, { お品書きを得る: 議題 } ]
+      result: 意味がわからないまま読み進めたら、番付の上下もわからなくなった。
+
+- id: ev_dg_log_matome
+  dungeon: [kakolog]
+  title: まとめサイトの管理人
+  text: 「このスレ、まとめてもいいですか？　タイトルは【悲報】にします」。
+  choices:
+    - label: 許可する
+      do: [ { 宿銭: 20 }, { 気配: 4 } ]
+      result: アフィリエイト料が入った。代わりに、たくさんの人に知られた。
+    - label: 【朗報】にしてもらう
+      do: [ { 番付を上げる: { カテゴリ: 一番低い, 段: 2 } } ]
+      result: 朗報になった。一番弱いカテゴリが、記事の中で少し強くなった。
+
+- id: ev_dg_log_rom
+  dungeon: [kakolog]
+  title: ROMの気配
+  text: 書き込みはないのに、閲覧数だけが増えていく。誰かが見ている。
+  choices:
+    - label: 「見てるだろ」と書く
+      do: [ { 気配: 3 }, { 常連客を得る: 乱数 } ]
+      result: 「……はい」。ROMが一人、ついてくることになった。
+    - label: こちらもROMる
+      do: [ { 気配: -4 } ]
+      result: 誰も書き込まない時間が続いた。静かだ。
+
+- id: ev_dg_log_hozon
+  dungeon: [kakolog]
+  title: 保守の当番表
+  text: 「保守　月：名無し　火：名無し　水：名無し……」。今日の欄が空いている。
+  choices:
+    - label: 保守する
+      do: [ { 体力: -4 }, { 番付を上げる: { カテゴリ: 老, 段: 2 } }, { 宿銭: 8 } ]
+      result: 「保守」とだけ書いた。古参が一人、うなずいた気がした。
+    - label: 落とす
+      do: [ { 番付を下げる: { カテゴリ: スレ, 段: 2 } }, { 宿銭: 20 } ]
+      result: スレが落ちた。落ちたスレの中に、宿銭が残っていた。
+
+# ───── 神社の裏山 ─────
+- id: ev_dg_ura_omikuji
+  dungeon: [urayama]
+  title: Tierみくじ
+  text: おみくじの箱に「大吉・中吉・吉・Tier3・Tier8・God」。
+  choices:
+    - label: 引く
+      hide: true
+      do: [ { 番付を移す: { カテゴリ: 乱数, 先: God } }, { 番付を移す: { カテゴリ: 乱数, 先: "8" } }, { お土産を得る: sv_dg_urayama } ]
+      result: 「God　ただし8に注意」。おみくじは持って帰ることにした。
+    - label: 結ぶだけ結ぶ
+      do: [ { 気配: -2 }, { 体力: 5 } ]
+      result: 引かずに結んだ。神様が少し笑った気がした。
+
+- id: ev_dg_ura_kitsune
+  dungeon: [urayama]
+  title: 狐の嫁入り
+  text: 晴れているのに雨。狐の行列が、番付表を担いで通り過ぎていく。
+  choices:
+    - label: 行列についていく
+      do: [ { 番付を上げる: { カテゴリ: 動物, 段: 2 } }, { 気配: 3 } ]
+      result: 宴席に混ざってしまった。狐がお酌してくれた。
+    - label: 道を譲る
+      do: [ { 体力: 8 }, { 宿銭: 5 } ]
+      result: 最後尾の狐が、ご祝儀の小銭をくれた。
+
+- id: ev_dg_ura_torii
+  dungeon: [urayama]
+  title: 千本鳥居の999本目
+  text: 鳥居をくぐり続けて999本目。1000本目だけ、なぜか自動ドア。
+  choices:
+    - label: 自動ドアをくぐる
+      do: [ { お土産を得る: sv_key_urayama }, { 気配: 2 } ]
+      result: 「いらっしゃいませ」。中はコンビニだった。鳥居の鍵が売っていた。
+    - label: 999本目で引き返す
+      do: [ { 体力: 10 } ]
+      result: 引き返す鳥居もちょうど999本だった。足が強くなった。
+
+- id: ev_dg_ura_tengu
+  dungeon: [urayama]
+  title: 天狗の番付講座
+  text: 天狗が杉の上から「番付というものはな」と講義を始める。生徒は狸と、こちら。
+  choices:
+    - label: 最前列で聞く
+      do: [ { お品書きを得る: 番付札 }, { お品書きを得る: 番付札 }, { 体力: -4 } ]
+      result: 鼻が当たった。でも講義はためになった。
+    - label: 狸と一緒に寝る
+      do: [ { 体力: 10 }, { 気配: -2 } ]
+      result: 狸の腹は、いい枕だった。
+
+- id: ev_dg_ura_ema
+  dungeon: [urayama]
+  title: 絵馬の願い
+  text: 絵馬掛けにびっしり「ターがTier1になりますように」。一枚だけ「宿が繁盛しますように」。
+  choices:
+    - label: 宿の絵馬に願い事を足す
+      do: [ { 番付を上げる: { カテゴリ: 宿, 段: 2 } }, { 宿銭: 8 } ]
+      result: 願いは聞き届けられた（宿の番付と、賽銭の返金で）。
+    - label: ターの絵馬を全部裏返す
+      do: [ { 番付を下げる: { カテゴリ: ター, 段: 2 } }, { 気配: -3 } ]
+      result: 神様が「ありがとう、正直しんどかった」と言った。
+
+# ───── 床上 ─────
+- id: ev_dg_yane_shachi
+  dungeon: [yaneura]
+  title: 金の鯱の昼寝
+  text: 屋根の上で金の鯱が寝ている。寝返りのたびに鱗が落ちる。
+  choices:
+    - label: 鱗を拾う
+      do: [ { お土産を得る: sv_dg_yane }, { 気配: 3 } ]
+      result: 金色だ。重い。たぶん本物だ。
+    - label: 起こす
+      hide: true
+      do: [ { 体力: -15 }, { 番付を移す: { カテゴリ: 一番低い, 先: God } } ]
+      result: 尾で叩かれた。鯱は「わしより下は許さん」と言って、一番下のカテゴリをGodへ放り投げた。
+
+- id: ev_dg_yane_hari
+  dungeon: [yaneura]
+  title: 梁の上の番付表
+  text: 梁に、宿の創業時の番付表が釘で打ちつけてある。カテゴリが三つしかない。
+  choices:
+    - label: 梁ごと剥がす
+      do: [ { お土産を得る: sv_kaketahari }, { お土産を得る: sv_kaketahari }, { 体力: -6 } ]
+      result: 番付表は粉になった。梁は二本とれた。
+    - label: 当時の番付に合わせる
+      do: [ { 番付を均す: "1" }, { 気配: 4 } ]
+      result: 三つしかなかった頃は、みんなTier1だった。
+
+- id: ev_dg_yane_tsuki
+  dungeon: [yaneura]
+  title: 屋根の上の月見
+  text: 屋根の上で、知らない常連客たちが月見をしている。「月のTierは？」と聞かれる。
+  choices:
+    - label: 「God」
+      do: [ { 常連客を得る: 乱数 }, { 気配: 2 } ]
+      result: 意見が合った一人が、宿に泊まりに来ることになった。
+    - label: 「月にTierはない」
+      do: [ { 体力: 12 } ]
+      result: 全員が黙り、静かに団子を分けてくれた。
+
+- id: ev_dg_yane_kawara
+  dungeon: [yaneura]
+  title: ター印の瓦
+  text: 瓦の一枚一枚に「ター」の印。一枚だけ「ダー」になっている。
+  choices:
+    - label: 「ダー」を外す
+      do: [ { お土産を得る: sv_taajirushi }, { 番付を上げる: { カテゴリ: ター, 段: 2 } } ]
+      result: 雨漏りが一つ増えたが、ターの番付は守られた。
+    - label: 全部「ダー」にする
+      hide: true
+      do: [ 番付を反転, { 宿銭: 25 } ]
+      result: 宿の格が濁った。番付が全部ひっくり返り、なぜか宿銭が入った。
+
+- id: ev_dg_yane_entotsu
+  dungeon: [yaneura]
+  title: 煙突の中の声
+  text: 煙突から「下にいるよー」と声。下は宿の帳場のはず。
+  choices:
+    - label: 煙突に札を落とす
+      do: [ { デッキから除く: 乱数 }, { 宿銭: 30 } ]
+      result: 「ありがとー」と下から声。宿銭が煙と一緒に上がってきた。
+    - label: 声に返事をする
+      do: [ { 気配: -3 }, { 体力: 6 } ]
+      result: 女将の声だった。「ご飯、できてるわよ」。少し元気が出た。
