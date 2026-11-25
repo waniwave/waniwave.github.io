@@ -1,0 +1,23 @@
+id: dg_yukemuri_3
+dungeon: yukemuri
+name: 源泉の底
+floors: [7, 9]
+line: 湯けむり坑・源泉の底
+palette: {bg: '#e3eef0', ink: '#2a2520'}
+doors: {戦い: 45, 精鋭: 14, 宝: 10, 商い: 10, 湯: 9, 謎: 10}
+groups:
+- [en_ronpa]
+- [en_kotehan]
+- [en_hanron]
+- [en_idgae]
+- [en_sokuresu, en_sokuresu]
+- [en_hitosore, en_ronpa]
+- [en_kotehan, en_hanron]
+- [en_idgae, en_sokuresu]
+elites: [en_source, en_ronsou, en_surechigai]
+bosses: [en_dg_bandai]
+warden: en_genkanban
+stalker: en_kidoku
+quirk:
+  name: 議論の淵
+  params: {毎ターン: 1}

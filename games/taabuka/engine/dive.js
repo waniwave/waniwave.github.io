@@ -19,26 +19,28 @@ const BATTLE_DOORS = { 戦い: '通常', 精鋭: '精鋭', 層主: '層主' };
 // ───────────────────────── 層と数値表 ─────────────────────────
 
 /** 層を浅い順に */
-export function layerList(content) {
-  return Object.values(content.layers || {}).filter((L) => Array.isArray(L.floors)).sort((a, b) => a.floors[0] - b.floors[0]);
+export function layerList(content, dg = 'honko') {
+  return Object.values(content.layers || {}).filter((L) => Array.isArray(L.floors) && (L.dungeon ?? 'honko') === (dg || 'honko')).sort((a, b) => a.floors[0] - b.floors[0]);
 }
 /** その階の層（無ければ null） */
-export function layerAt(content, floor) {
-  return layerList(content).find((L) => floor >= L.floors[0] && floor <= L.floors[1]) ?? null;
+export function layerAt(content, floor, dg = 'honko') {
+  return layerList(content, dg).find((L) => floor >= L.floors[0] && floor <= L.floors[1]) ?? null;
 }
 /** ワープできる階（2層め以降の各層の入口。底は除く） */
-export function warpFloors(content) { return layerList(content).slice(1).filter((L) => L.floors[1] > L.floors[0]).map((L) => L.floors[0]); }
+export function warpFloors(content, dg = 'honko') { return layerList(content, dg).slice(1).filter((L) => L.floors[1] > L.floors[0]).map((L) => L.floors[0]); }
+/** 敵の強さに使う階（穴ごとに power 階ぶん強い） */
+export function powerFloor(base, D) { return D.floor + (base.content.dungeons?.[D.dungeon]?.power ?? 0); }
 /** 層の番号（1から） */
-export function layerNo(content, L) { return layerList(content).indexOf(L) + 1; }
+export function layerNo(content, L) { return layerList(content, L?.dungeon).indexOf(L) + 1; }
 /** 層の最後の階か（層主戦がある） */
-export function isBossFloor(content, floor) { const L = layerAt(content, floor); return !!L && bossFloorOf(L, floor); }
+export function isBossFloor(content, floor, dg = 'honko') { const L = layerAt(content, floor, dg); return !!L && bossFloorOf(L, floor); }
 /** その層でその階が層主の階か（さらに深くは bossEvery 階ごと） */
 export function bossFloorOf(L, floor) { return L.bossEvery ? (floor - L.floors[0] + 1) % L.bossEvery === 0 : floor === L.floors[1]; }
 
 /** 層の敵の組・精鋭・層主（mix の層は全ての層から混ぜる） */
 export function layerPools(content, L) {
   if (!L.mix) return { groups: L.groups || [], elites: L.elites || [], bosses: L.bosses || [] };
-  const others = layerList(content).filter((x) => !x.mix && !x.onlyBoss);
+  const others = layerList(content, L?.dungeon).filter((x) => !x.mix && !x.onlyBoss);
   return {
     groups: others.flatMap((x) => x.groups || []),
     elites: others.flatMap((x) => x.elites || []),
@@ -85,7 +87,7 @@ export function createDive(base, o) {
   for (const cat of balance.tiers.categories) banzuke[cat] = balance.tiers.banzukeStart;
   const E = balance.economy;
   const D = {
-    v: 1, seed: String(o.seed), depth: o.depth || 0, guest: o.guest, floor: 0, layer: null,
+    v: 1, seed: String(o.seed), depth: o.depth || 0, guest: o.guest, floor: 0, layer: null, dungeon: o.dungeon || 'honko',
     hp: maxHp, maxHp,
     deck: (o.deck || []).map((x) => ({ ...x })), seats: (o.seats || []).map((x) => ({ ...x })), relics: (o.relics || []).map((x) => ({ ...x })),
     items: (o.items || []).slice(0, balance.hands.play.itemSlots).map((x) => ({ ...x })),
@@ -124,7 +126,10 @@ export function createDive(base, o) {
     }
   }
   // ワープ：到達した層の入口から始める（content の層の最初の階だけ）
-  const start = o.startFloor && warpFloors(content).includes(o.startFloor) ? o.startFloor : 1;
+  // 穴ごとの決まりごと（床上＝番付が最初から逆さ）
+  const dgDef = content.dungeons?.[D.dungeon];
+  if (dgDef?.rules?.length) D.heldRules = [...(D.heldRules || []), ...dgDef.rules.map(parseRule)];
+  const start = o.startFloor && warpFloors(content, D.dungeon).includes(o.startFloor) ? o.startFloor : 1;
   if (start > 1) D.warped = start;
   enterFloor(base, D, start);
   return D;
@@ -150,7 +155,7 @@ export function addCurse(base, D, L, floor, salt = 'curse') {
 
 function enterFloor(base, D, floor) {
   const { content } = base;
-  const L = layerAt(content, floor);
+  const L = layerAt(content, floor, D.dungeon);
   if (!L) throw new Error(`${floor}階の層が無い`);
   if (D.layer !== L.id) {
     D.layer = L.id;
@@ -177,7 +182,7 @@ function enterFloor(base, D, floor) {
  */
 export function genFloor(base, D, floor) {
   const { balance, content } = base;
-  const L = layerAt(content, floor);
+  const L = layerAt(content, floor, D.dungeon);
   if (!L) return null;
   const M = balance.curve.map;
   const dm = dmods(base, D);
@@ -257,7 +262,7 @@ function eventsOf(content, no, L) {
 export function gradeWeights(base, D, floor = D.floor) {
   const { content } = base;
   const E = econ(base);
-  const L = layerAt(content, floor);
+  const L = layerAt(content, floor, D.dungeon);
   const no = L ? layerNo(content, L) : 99;
   const w = { ...(E.gradeWeights[`layer${no}`] || E.gradeWeights.deep) };
   const d = D.depth || 0;
@@ -268,7 +273,7 @@ export function gradeWeights(base, D, floor = D.floor) {
 function cardOk(base, D, def, floor) {
   if (!def || def.origin === 'pawn') return false;
   if (['expiry', 'cursed', 'bet'].includes(def.origin)) {
-    const L = layerAt(base.content, floor);
+    const L = layerAt(base.content, floor, D.dungeon);
     if (!L || layerNo(base.content, L) < 2) return false;
     if (def.origin === 'cursed' && ['極', '神'].includes(def.grade) && !dmods(base, D).cursedHighGrades) return false;
   }
@@ -279,7 +284,7 @@ function cardOk(base, D, def, floor) {
 export function jokeChance(base, D, floor = D.floor) {
   const J = base.balance.economy.joke;
   if (!J) return 0;
-  const L = layerAt(base.content, floor);
+  const L = layerAt(base.content, floor, D.dungeon);
   let p = J.base;
   if (L?.curses?.length) p = J.abyss + J.perCurse * (D.curses?.length || 0);
   if (D.weekly) p += J.weekly;
@@ -300,8 +305,8 @@ function rollCard(base, D, rng, floor, o = {}) {
       return { id, origin: 'orig', rar: floorRarity(balance, def) };
     }
   }
-  const L = layerAt(content, floor);
-  const no = L ? layerNo(content, L) : 99;
+  const L = layerAt(content, floor, D.dungeon);
+  const no = L ? layerNo(content, L) + (content.dungeons?.[D.dungeon]?.rarityAdd ?? 0) : 99;
   const minR = o.minGrade ? balance.rarity.gradeFloor[o.minGrade] : o.minRar;
   let r = o.rar ?? rollRarity(balance, rng, no, D.depth || 0, { min: minR, up: o.gradeUp || 0 });
   if (o.maxRar && rarIndex(balance, r) > rarIndex(balance, o.maxRar)) r = o.maxRar;
@@ -319,7 +324,10 @@ function pickOfRarity(base, D, rng, r, floor) {
   const ri = rarIndex(balance, r);
   const pool = D.pool.cards.map((id) => content.cards[id]).filter((d) => cardOk(base, D, d, floor) && rarIndex(balance, floorRarity(balance, d)) <= ri);
   if (!pool.length) return null;
-  return rng.weighted(pool.map((d) => [d.id, 1 + rarIndex(balance, floorRarity(balance, d))])) ?? pool[0].id;
+  // テーマの穴：その穴のカテゴリの札が出やすい（economy.dungeon.catBias 倍）
+  const cats = content.dungeons?.[D.dungeon]?.cats || [];
+  const bias = (d) => (cats.length && (d.cat || []).some((c) => cats.includes(c)) ? (econ(base).inn?.dungeon?.catBias ?? 1) : 1);
+  return rng.weighted(pool.map((d) => [d.id, (1 + rarIndex(balance, floorRarity(balance, d))) * bias(d)])) ?? pool[0].id;
 }
 
 function rollEdition(base, D, rng) {
@@ -331,9 +339,11 @@ function rollEdition(base, D, rng) {
 
 function rollSouvenir(base, D, rng, floor, quality) {
   const { content } = base;
-  const L = layerAt(content, floor);
-  const no = L ? layerNo(content, L) : 99;
-  let list = Object.values(content.souvenirs || {}).filter((s) => !s.event && no >= (s.layers?.[0] ?? 1) && no <= (s.layers?.[1] ?? 99));
+  const L = layerAt(content, floor, D.dungeon);
+  const no = L ? layerNo(content, L) + (content.dungeons?.[D.dungeon]?.rarityAdd ?? 0) : 99;
+  const dg = D.dungeon || 'honko';
+  // 穴の専用お土産（dungeons）はその穴でだけ。それ以外のお土産は層の番号で
+  let list = Object.values(content.souvenirs || {}).filter((s) => !s.event && (s.dungeons ? s.dungeons.includes(dg) && (!s.layers || (no >= s.layers[0] && no <= s.layers[1])) : no >= (s.layers?.[0] ?? 1) && no <= (s.layers?.[1] ?? 99)));
   if (!list.length) return null;
   if (quality) {
     const rate = econ(base).souvenirQuality[quality] ?? 1;
@@ -343,7 +353,7 @@ function rollSouvenir(base, D, rng, floor, quality) {
 }
 
 function rollItem(base, D, rng) {
-  const L = layerAt(base.content, D.floor);
+  const L = layerAt(base.content, D.floor, D.dungeon);
   const no = L ? layerNo(base.content, L) : 1;
   const inPool = (d) => !D.pool?.items || D.pool.items.includes(d.id);
   const list = Object.values(base.content.items || {}).filter((d) => !d.noDrop && no >= (d.fromLayer ?? 1) && inPool(d));
@@ -484,7 +494,7 @@ export function enterDoor(base, D, room) {
   D.here = door;
   diveSignal(base, D, '部屋に入った時');
   // 追跡者の割り込み（層主の部屋は除く）
-  const L = layerAt(base.content, D.floor);
+  const L = layerAt(base.content, D.floor, D.dungeon);
   if (door.kind !== '層主' && L?.stalker) {
     const p = stalkerChance(base, D);
     if (p > 0 && Rng.child(D.seed, 'chase', D.floor, room).chance(p)) {
@@ -499,7 +509,7 @@ export function enterDoor(base, D, room) {
 
 function openRoom(base, D, door) {
   const { content } = base;
-  const L = layerAt(content, D.floor);
+  const L = layerAt(content, D.floor, D.dungeon);
   switch (door.kind) {
     case '戦い': case '精鋭': case '層主':
       D.phase = 'battle';
@@ -558,7 +568,7 @@ export function fleeCost(base, D) {
 export function chaseInfo(base, D) {
   check(D.phase === 'chase', '追跡者はいない');
   const def = base.content.enemies[D.chase.enemy];
-  const e = makeEnemy(base.balance, def, { floor: D.floor, depth: D.depth, presence: D.presence }, 'c');
+  const e = makeEnemy(base.balance, def, { floor: powerFloor(base, D), depth: D.depth, presence: D.presence }, 'c');
   return { name: e.name, line: e.line, claim: e.claim, atk: e.atk };
 }
 
@@ -592,7 +602,7 @@ export function answerChase(base, D, how) {
 /** 戦闘を作るときの材料（createBattle にそのまま渡す） */
 /** いまの層の癖（{name, params} か null）。quirk は名前だけでも {name, params} でも書ける */
 export function quirkOf(base, D) {
-  const q = layerAt(base.content, D.floor)?.quirk;
+  const q = layerAt(base.content, D.floor, D.dungeon)?.quirk;
   if (!q) return null;
   return typeof q === 'string' ? { name: q, params: {} } : { name: q.name, params: q.params || {} };
 }
@@ -601,7 +611,7 @@ export function battleOptions(base, D) {
   check(D.phase === 'battle' && D.battle, 'いまは戦闘ではない');
   const bt = D.battle;
   return {
-    seed: D.seed, floor: D.floor, room: bt.room, depth: D.depth, presence: D.presence,
+    seed: D.seed, floor: D.floor, powerFloor: powerFloor(base, D), dungeon: D.dungeon, room: bt.room, depth: D.depth, presence: D.presence,
     hp: D.hp, maxHp: D.maxHp, guest: D.guest, guestState: D.guestState,
     deck: D.deck, seats: D.seats, relics: D.relics, items: D.items, rules: D.rules, ...(D.carry?.maxPlay ? { maxPlay: D.carry.maxPlay } : {}),
     banzuke: D.banzuke, handLevels: D.handLevels, banzukeFloorStart: D.floorBanzuke,
@@ -965,7 +975,7 @@ function toLanding(base, D, afterBoss) {
 export function landingInfo(base, D) {
   const { content, balance } = base;
   const next = D.floor + 1;
-  const nextL = layerAt(content, next);
+  const nextL = layerAt(content, next, D.dungeon);
   let preview = null;
   if (nextL) {
     const m = genFloor(base, D, next);
@@ -974,11 +984,11 @@ export function landingInfo(base, D) {
     const count = (k) => ({ seen: doors.filter((d) => d.kind === k && !hide(d)).length, hidden: doors.filter(hide).length > 0 });
     preview = { floor: next, layer: nextL.name, newLayer: nextL.id !== D.layer, elite: count('精鋭'), treasure: count('宝'), side: !!m.side, boss: bossFloorOf(nextL, next) };
   }
-  const L = layerAt(content, D.floor);
+  const L = layerAt(content, D.floor, D.dungeon);
   const wd = L?.warden ? content.enemies[L.warden] : null;
   const w = pouchWeight(base, D);
-  const warden = wd ? makeEnemy(balance, wd, { floor: D.floor, depth: D.depth, presence: D.presence, weight: w }, 'w') : null;
-  const plain = wd ? makeEnemy(balance, wd, { floor: D.floor, depth: D.depth, presence: D.presence, weight: 0 }, 'w0') : null;
+  const warden = wd ? makeEnemy(balance, wd, { floor: powerFloor(base, D), depth: D.depth, presence: D.presence, weight: w }, 'w') : null;
+  const plain = wd ? makeEnemy(balance, wd, { floor: powerFloor(base, D), depth: D.depth, presence: D.presence, weight: 0 }, 'w0') : null;
   return {
     afterBoss: !!D.landing?.afterBoss, canDescend: !!nextL && !(D.maxFloor && next > D.maxFloor), next: preview,
     warden: warden && { name: warden.name, claim: warden.claim, atk: warden.atk, plain: plain.claim, weight: w, perWeight: balance.curve.kinds.番人.claimPerWeight },
@@ -989,7 +999,7 @@ export function landingInfo(base, D) {
 /** 下りる */
 export function descend(base, D) {
   check(D.phase === 'landing', '踊り場にいない');
-  check(!!layerAt(base.content, D.floor + 1), 'この先は、まだ無い');
+  check(!!layerAt(base.content, D.floor + 1, D.dungeon), 'この先は、まだ無い');
   check(!(D.maxFloor && D.floor + 1 > D.maxFloor), `この潜行はB${D.maxFloor}まで`);
   // 賭け札と「下りた階」で育つ常連客
   for (const c of D.deck) if (c.origin === 'bet') c.grow = (c.grow || 0) + 1;
@@ -1006,7 +1016,7 @@ export function descend(base, D) {
 export function goBack(base, D) {
   check(D.phase === 'landing', '踊り場にいない');
   if (D.landing.afterBoss) return endDive(base, D, 'escaped', 'lift');
-  const L = layerAt(base.content, D.floor);
+  const L = layerAt(base.content, D.floor, D.dungeon);
   if (!L?.warden) return endDive(base, D, 'escaped', 'stairs');
   D.here = { room: ROOM.warden, kind: '番人', side: true };
   D.phase = 'battle';
@@ -1019,7 +1029,7 @@ export function goBack(base, D) {
 /** 戦闘の外の「場」（敵のいない戦闘）。お品書き・謎・合図の効果を動かすのに使う */
 function shell(base, D) {
   const o = {
-    seed: D.seed, floor: D.floor, room: ROOM.item, depth: D.depth, presence: D.presence, hp: D.hp, maxHp: D.maxHp,
+    seed: D.seed, floor: D.floor, dungeon: D.dungeon, room: ROOM.item, depth: D.depth, presence: D.presence, hp: D.hp, maxHp: D.maxHp,
     guest: D.guest, guestState: D.guestState, deck: D.deck, seats: D.seats, relics: D.relics, items: D.items, rules: D.rules,
     banzuke: D.banzuke, handLevels: D.handLevels, banzukeFloorStart: D.floorBanzuke, enemies: [],
   };

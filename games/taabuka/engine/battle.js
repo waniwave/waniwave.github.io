@@ -209,7 +209,7 @@ export function createBattle(base, o) {
   const guestDef = o.guest ? content.guests?.[o.guest] : null;
   if (o.guest && !guestDef) throw new Error(`宿泊客の定義がない「${o.guest}」`);
   const B = {
-    v: 1, floor: o.floor ?? 1, room: o.room ?? 0, depth: o.depth ?? 0, presence: o.presence ?? 0,
+    v: 1, floor: o.floor ?? 1, powerFloor: o.powerFloor ?? null, dungeon: o.dungeon ?? 'honko', room: o.room ?? 0, depth: o.depth ?? 0, presence: o.presence ?? 0,
     turn: 0, hp: o.hp ?? guestDef?.hp, maxHp: o.maxHp ?? o.hp ?? guestDef?.hp, guard: 0,
     draw: [], hand: [], discard: [], exhaust: [], destroyed: [], inPlay: [], zones: {},
     playsLeft: 0, discardsLeft: 0, handSize: play.handSize, maxPlay: o.maxPlay ?? play.maxPlayCards, turnPlays: 0,
@@ -238,7 +238,7 @@ export function createBattle(base, o) {
   const hpSum = normals.reduce((s, d) => s + (d.hp ?? 1), 0);
   for (const d of defs) {
     const share = split && (d.kind || '通常') === '通常' ? 1 / hpSum : 1;
-    B.enemies.push(makeEnemy(balance, d, { floor: B.floor, depth: B.depth, presence: B.presence, weight: o.weight, share }, newUid(B, 'e')));
+    B.enemies.push(makeEnemy(balance, d, { floor: B.powerFloor ?? B.floor, depth: B.depth, presence: B.presence, weight: o.weight, share }, newUid(B, 'e')));
   }
   return B;
 }
@@ -465,8 +465,8 @@ export function drawCards(B, env, n) {
 }
 
 /** 階が何層目か（層の並びは floors の始まり順。見つからなければ 1） */
-export function layerNoAt(content, floor) {
-  const list = Object.values(content.layers || {}).filter((L) => Array.isArray(L.floors)).sort((a, b) => a.floors[0] - b.floors[0]);
+export function layerNoAt(content, floor, dg = 'honko') {
+  const list = Object.values(content.layers || {}).filter((L) => Array.isArray(L.floors) && (L.dungeon ?? 'honko') === (dg || 'honko')).sort((a, b) => a.floors[0] - b.floors[0]);
   const i = list.findIndex((L) => floor >= L.floors[0] && floor <= L.floors[1]);
   return i < 0 ? 1 : i + 1;
 }
@@ -475,7 +475,7 @@ export function layerNoAt(content, floor) {
 export function gainItem(B, env, kind, extra) {
   const slots = env.balance.hands.play.itemSlots;
   if (B.items.length >= slots) return null;
-  const no = layerNoAt(env.content, B.floor);
+  const no = layerNoAt(env.content, B.floor, B.dungeon);
   const defs = Object.values(env.content.items || {}).filter((d) => d.kind === kind && no >= (d.fromLayer ?? 1) && (!B.itemPool || B.itemPool.includes(d.id)));
   const id = defs.length ? env.rng.pick(defs).id : null;
   if (!id) return null;
@@ -655,6 +655,7 @@ export function playCards(B, env, cards, ti, opt = {}) {
   }
   B.zeni += score.zeni;
   if (score.V.gt(B.stats.maxV)) B.stats.maxV = score.V;
+  B.stats.totalV = (B.stats.totalV ?? ZERO).add(score.V);
   // 記録は「一番重なったカテゴリの枚数」ごと（解放条件 overlap が読む）
   const top = String(Math.max(1, ...Object.values(overlap)));
   B.stats.hands[top] = (B.stats.hands[top] || 0) + 1;
@@ -858,6 +859,8 @@ export function endTurn(B, env) {
     });
     settle(B, env);
   }
+  // 決まったターン数の勝負（稽古場・ゴースト宿）：時間切れ
+  if (!B.result && B.turnLimit && B.turn >= B.turnLimit) end(B, env, 'timeup');
   if (!B.result) startTurn(B, env);
   settle(B, env);
   sync(B, env);

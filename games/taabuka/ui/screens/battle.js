@@ -104,7 +104,7 @@ export function battleScreen(o) {
 
   function slotsShown() {
     const ring = balance.tiers.ring.slice();
-    const no = layerNoAt(content, B.floor);
+    const no = layerNoAt(content, B.floor, B.dungeon);
     for (const [k, d] of Object.entries(balance.tiers.missing || {})) if (Object.values(B.banzuke).includes(k) || no >= (d.fromLayer ?? 99)) ring.push(k);
     return ring;
   }
@@ -599,7 +599,7 @@ export function battleScreen(o) {
         case 'intent': T.push({ ms: MS.note, run: () => { const f = foe(e.enemy); if (f) queue.pop(`次は${e.act}`, f.el, null, 'note'); } }); break;
         case 'presence': T.push({ ms: MS.note, run: () => queue.pop(`気配+${e.add}`, refs.calc, null, 'note') }); break;
         case 'error': T.push({ ms: MS.note, run: () => { console.warn('[記録]', e.hook, e.message); queue.pop('（特注の不具合）', refs.calc, null, 'note'); } }); break;
-        case 'end': flushStage(); T.push({ ms: MS.banner, run: () => (setBgmMood(null), queue.banner(e.result === 'win' ? '勝ち' : e.result === 'lose' ? '未帰還' : '脱出', e.result === 'win' ? '' : 'big') )}); break;
+        case 'end': flushStage(); T.push({ ms: MS.banner, run: () => (setBgmMood(null), (e.result === 'win' && (() => { const last = B.enemies.find((x) => x.kind !== '通常') ?? B.enemies[B.enemies.length - 1]; const l = last && pickLine(last.id, 'defeat'); if (l) playShow('吹き出し', `${last.name}「${l}」`, X()); })(), queue.banner(e.result === 'win' ? '勝ち' : e.result === 'lose' ? '未帰還' : e.result === 'timeup' ? '時間切れ' : '脱出', e.result === 'win' ? '' : 'big') ))}); break;
         default: break;
       }
     }
@@ -693,6 +693,16 @@ export function battleScreen(o) {
   render();
   root.dataset.mood = B.mood?.id ?? '';
   setTimeout(() => setBgmMood(B.mood && !B.result ? balance.moods?.[B.mood.id]?.bgm : null), 50);
+  // 論客の口上（戦闘の始めだけ。content/flavor.yaml enemy）
+  const pickLine = (id, k) => { const a = content.flavor?.enemy?.[id]?.[k]; return a?.length ? a[Math.floor(Math.random() * a.length)] : null; };
+  function say(uid, text) {
+    const f = refs.foes.get(uid);
+    if (!f || !text) return;
+    const b = h('div.say', { text });
+    f.el.append(b);
+    setTimeout(() => b.remove(), 2600);
+  }
+  if (!B.result && B.turn === 1 && !B.stats.plays) B.enemies.forEach((e, i) => setTimeout(() => say(e.uid, pickLine(e.id, 'intro')), 400 + i * 700));
   if (B.result && o.onDone) setTimeout(showResult, 0);   // 終わったところで閉じて開き直したとき
   return { el: root, onKey, render, state: st, refs: () => refs };
 }

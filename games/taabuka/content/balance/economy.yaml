@@ -70,7 +70,10 @@ inn:
   shikomiCost: { 仕込み: 20, 箔押し: 60, ホロ: 90, 多色: 300, 判: 120, souvenir: sv_banzukekire }   # 仕込み場（＋お土産1）
   copy: { sellMul: 3, souvenir: sv_waretagarasu }   # 複製：売値×3＋割れた硝子
   basics: { price: 28, perCat: 3, grades: [並] }      # 帳場の基礎札：各カテゴリの並の札。売り切れない
+  care: [{ zeni: 300, souvenirs: 2 }, { zeni: 1500, souvenirs: 5 }]   # 客間の世話：常連客の効果の量を1段（アンコモン→レア相当）上げる。お土産は安いものから使う
+  exchange: { give: 3, never: [sv_sokonoishi] }   # 物置の両替：お土産 give 個 → 好きなお土産1つ（never は両替に使えない・もらえない）
   rumors: { max: 8 }
+  dungeon: { catBias: 6 }   # テーマの穴：その穴のカテゴリの札が出る重み（倍）
   weekly: { curses: 2 }   # 週替わりの挑戦：最初から掛かる底の呪いの数   # 噂（まだ分かっていないコンボの札を1枚教える）。帰るたび1つ、最大8
   combos: { fromLevel: 2, priceMul: 1.5 }   # 帳場のコンボ帳（Lv2〜）：知っているコンボの札をひとそろい。帳場で売る段の札だけ
   decks: { fromLevel: 2, size: 15, priceMul: 1.1, grades: [並, 上] }   # 構築済みデッキ（帳場Lv2〜）：1カテゴリ中心。並・上だけ
@@ -91,3 +94,6 @@ joke: { base: 0.0025, abyss: 0.05, perCurse: 0.01, weekly: 0.02, max: 0.15 }
 
 # ゴースト宿（掲示板）：相手のデッキが turns ターンで出せた論破値の合計×claimMul が主張。攻めは自分の体力を turns ターンで削り切る強さ
 ghost: { turns: 5, claimMul: 1.0, firstWinZeni: 300, enemy: en_ghost }
+
+# 稽古場（中身）：打ち込み台＝木人に turns ターン打ち込み論破値の合計を記録。師範＝段位ごとの強敵（主張 claim×growth^(段−1)、turns ターンで体力を削り切る攻め）。勝つと宿銭 zeni×段
+keiko: { dummy: { turns: 3, enemy: en_mokujin }, shihan: { enemy: en_shihan, claim: 400, growth: 4, turns: 5, zeni: 150, max: 20 } }

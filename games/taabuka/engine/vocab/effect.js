@@ -19,8 +19,8 @@ export function makeE(ctx, self, selfKind, me = {}) {
   if (!subject && selfKind === 'card') subject = self;
   const target = ctx.target ?? sc?.target ?? null;
   const name = self?.name ?? me.name ?? self?.id ?? null;
-  // レアリティ：札の効果だけ量を増やす（刻印・常連客などは増えない）
-  const rar = selfKind === 'card' && !me.affix ? self?.rar ?? null : null;
+  // レアリティ：札と、客間で世話をした常連客の効果の量を増やす（刻印などは増えない）
+  const rar = (selfKind === 'card' || selfKind === 'regular') && !me.affix ? self?.rar ?? null : null;
   return {
     B, env, ctx, sc, self, selfKind, subject, target, me, rar,
     choices: ctx.choices ?? sc?.choices ?? {},

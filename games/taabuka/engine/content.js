@@ -231,6 +231,8 @@ export async function loadContent(io) {
     if (f === 'achievements.yaml') content.achievements = list;
     if (f === 'shibari.yaml') content.shibari = list;
     if (f === 'decor.yaml') content.decor = list;
+    if (f === 'flavor.yaml') content.flavor = list;
+    if (f === 'dungeons.yaml') content.dungeons = Object.fromEntries((list || []).map((d) => [d.id, d]));
     if (f === 'combos.yaml') { content.combos = list.combos || []; content.comboShortsRaw = list.shorts || {}; }
     if (f === 'affixes.yaml') for (const d of list) putDef(content, 'affixes', d, `content/${f}`, add);
   }
@@ -238,6 +240,11 @@ export async function loadContent(io) {
   validateContent(content, add);
   compileContent(content, add);
   compileCombos(content, add);
+  // フレーバー（content/flavor.yaml）：参照の確かめ
+  const FL = content.flavor || {};
+  for (const t of FL.talk || []) for (const r of t.with || []) if (!content.regulars[r]) add('error', '参照', t.id, `雑談の常連客「${r}」が無い`);
+  for (const id of Object.keys(FL.enemy || {})) if (!content.enemies[id]) add('error', '参照', 'flavor.enemy', `敵「${id}」が無い`);
+  for (const id of Object.keys(FL.testimony || {})) if (!content.enemies[id] && !content.cards[id]) add('error', '参照', 'flavor.testimony', `「${id}」が無い`);
   // おふざけ札（joke: true のセット）。普通の札の山には入らず「おふざけ枠」で出る
   content.jokeIds = Object.values(content.cards).filter((d) => content.sets[d.set]?.joke).map((d) => d.id).sort();
   return { content, issues };
@@ -641,7 +648,7 @@ export function validateContent(content, add) {
   }
   for (const d of Object.values(content.layers)) {
     withCtx(d, (ctx) => {
-      unknownKeys(d, ['id', 'name', 'floors', 'line', 'palette', 'doors', 'groups', 'elites', 'bosses', 'warden', 'stalker', 'quirk', 'mix', 'onlyBoss', 'bossEvery', 'noName', 'curseEvery', 'curses'], add);
+      unknownKeys(d, ['id', 'name', 'floors', 'line', 'palette', 'doors', 'groups', 'elites', 'bosses', 'warden', 'stalker', 'quirk', 'mix', 'onlyBoss', 'bossEvery', 'noName', 'curseEvery', 'curses', 'dungeon'], add);
       for (const c of d.curses || []) if (!c?.id || !c?.name || !Array.isArray(c.rule)) add('error', '形', d.id, '底の呪い（curses）には id・name・rule（配列）が要る');
       req(d, add, { name: 'string' });
       if (!Array.isArray(d.floors) || d.floors.length !== 2 || !d.floors.every(Number.isInteger) || d.floors[0] > d.floors[1]) add('error', '形', d.id, 'floors は [最初の階, 最後の階]');
@@ -704,7 +711,7 @@ export function validateContent(content, add) {
   }
   for (const d of Object.values(content.souvenirs)) {
     withCtx(d, (ctx) => {
-      unknownKeys(d, ['id', 'name', 'sell', 'weight', 'layers', 'rate', 'event', 'use', 'flavor'], add);
+      unknownKeys(d, ['id', 'name', 'sell', 'weight', 'layers', 'rate', 'event', 'use', 'flavor', 'dungeons'], add);
       req(d, add, { name: 'string', sell: 'number' });
       if (d.weight != null && ![1, 2].includes(d.weight)) add('error', '形', d.id, 'weight（重さ）は 1 か 2');
       if (d.layers != null && (!Array.isArray(d.layers) || !d.layers.length || d.layers.some((x) => !Number.isInteger(x)))) add('error', '形', d.id, 'layers は [出始める層, 最後の層] の整数');

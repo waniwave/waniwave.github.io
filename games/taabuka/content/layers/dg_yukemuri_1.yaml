@@ -1,0 +1,21 @@
+id: dg_yukemuri_1
+dungeon: yukemuri
+name: 脱衣所
+floors: [1, 3]
+line: どこまでも湯気。どこかで猿が湯に浸かっている。
+palette: {bg: '#e3eef0', ink: '#2a2520'}
+doors: {戦い: 45, 精鋭: 12, 宝: 10, 商い: 10, 湯: 10, 謎: 10}
+groups:
+- [en_shinja]
+- [en_anchi]
+- [en_kakolog]
+- [en_gobaku, en_netawaku]
+- [en_kisei, en_niwaka]
+- [en_shinja, en_anchi]
+- [en_netawaku, en_netawaku, en_gobaku]
+- [en_kakolog, en_kisei]
+elites: [en_matsuri, en_matome, en_arashi]
+bosses: [en_fusuma_nushi, en_datochi]
+warden: en_gesoku
+stalker: en_ashioto
+quirk: null

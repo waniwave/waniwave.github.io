@@ -79,7 +79,7 @@ export function zukanScreen(ctx) {
         if (!known(d.id)) return shadow(d);
         const e = makeEnemy(base.balance, d, { floor: Math.min(16, (d.layer?.[0] ?? 1) * 3 - 2) }, `z_${d.id}`);
         const el = h('div.zrow', {}, [h('b', { text: d.name }), h('span.q', { text: `${d.kind ?? '通常'}・${d.layer?.[0] === 6 ? '最深部' : `第${(d.layer || []).join('・')}層`}` }), h('span.zset', { text: d.bind ?? '' })]);
-        tip(el, () => enemyTip(env, e));
+        tip(el, () => { const ts = C.flavor?.testimony?.[e.id] || []; const ls = C.flavor?.enemy?.[e.id]; return enemyTip(env, e) + (ls?.intro?.length ? `<br><span class="fl">「${esc(ls.intro[0])}」</span>` : '') + (ts.length ? `<br><b>証言</b><br>${ts.map((t) => `<span class="q">${esc(t)}</span>`).join('<br>')}` : ''); });
         return el;
       });
     },

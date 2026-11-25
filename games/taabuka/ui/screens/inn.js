@@ -3,17 +3,18 @@
 
 import { encodeGhost, decodeGhost } from '../../engine/ghost.js';
 import { installButton, canOfferInstall } from '../install.js';
+import { shihanInfo } from '../../engine/keiko.js';
 import { innArt } from '../innart.js';
 import { h, tip, toast, pick, sheet, holdButton, esc, confirmSheet } from '../dom.js';
 import { thingEl, pickThing, thingTip } from '../things.js';
-import { slotLabel, rarOfCard, ATTR_KIND, attrExplain, comboEffText } from '../labels.js';
+import { slotLabel, rarOfCard, ATTR_KIND, attrExplain, comboEffText, floorName } from '../labels.js';
 import { num as format } from '../num.js';
 import { SE } from '../audio/audio.js';
 import { confetti, shards } from '../fx/particles.js';
 import { nameOf, sellValue } from '../../engine/dive.js';
 import {
   facility, facilityDef, upgradeInfo, upgrade, stashRoom, toggleDeck, sell, choubaGoods, buyChouba, canTakeStarter, takeStarter, pawnGoods, pawnInfo, borrowPawn, returnPawn, setShibari, shibariList, dailyInfo, readShare,
-  shikomiMenu, applyShikomi, basicGoods, buyBasic, decorState, buyDecor, weeklyInfo, deckGoods, buyDeck, comboGoods, buyCombo, copyInfo, copyCard, fuseInfo, fuseCards, kuyoPrice, kuyo, prepInfo, insurable, charmable, premium, returnRate, carryOf, warpChoices,
+  shikomiMenu, applyShikomi, basicGoods, buyBasic, decorState, buyDecor, weeklyInfo, exchangeSouvenir, careInfo, careRegular, dungeonList, deckGoods, buyDeck, comboGoods, buyCombo, copyInfo, copyCard, fuseInfo, fuseCards, kuyoPrice, kuyo, prepInfo, insurable, charmable, premium, returnRate, carryOf, warpChoices,
 } from '../../engine/meta.js';
 
 const FAC_TEXT = {
@@ -92,7 +93,7 @@ export function innScreen(ctx) {
     put(root, 
       top('宿', H, null, h('button.btn', { type: 'button', onclick: () => rulesSheet(ctx) }, ['遊び方'])),
       ctx.updateReady?.() ? h('button.btn.update', { type: 'button', onclick: () => ctx.applyUpdate() }, ['新しい版があります。更新する']) : null,
-      (() => { const ds = decorState(base, H); return h('button.innart', { type: 'button', onclick: () => ctx.go.decor() }, [h('div.art', { html: innArt(ds) }), h('div.rank', {}, [h('b', { text: ds.rank }), h('span', { text: ds.nextRank ? `格 ${ds.pts}／次「${ds.nextRank.name}」${ds.nextRank.pts}` : `格 ${ds.pts}` }), h('span.go', { text: '内装 ›' })])]); })(),
+      (() => { const ds = decorState(base, H); const ok = base.content.flavor?.okami || []; const day = Math.floor((Date.now() + 9 * 3600e3) / 86400e3); return h('button.innart', { type: 'button', onclick: () => ctx.go.decor() }, [h('div.art', { html: innArt(ds) }), ok.length ? h('div.okamisay', { text: `女将「${ok[day % ok.length]}」` }) : null, h('div.rank', {}, [h('b', { text: ds.rank }), h('span', { text: ds.nextRank ? `格 ${ds.pts}／次「${ds.nextRank.name}」${ds.nextRank.pts}` : `格 ${ds.pts}` }), h('span.go', { text: '内装 ›' })])]); })(),
       h('div.recs', { text: `最深 B${H.records.deepest}・最大論破値 ${format(H.records.maxV)}・脱出 ${H.records.extracts}・未帰還 ${H.records.deaths}` }),
       h('div.facs', {}, rows),
       H.overflow ? h('p.warn', { text: `蔵があふれている（${room.used}/${room.cap}）。売ってから潜る` }) : null,
@@ -159,6 +160,13 @@ export function facilityScreen(ctx, id) {
     ];
   }
 
+  function talkSheet(t) {
+    const s = sheet(app, [
+      h('div.talk', {}, t.lines.map(([who, line]) => h(`div.tl${who === '女将' ? '.okami' : ''}`, {}, [h('b', { text: who }), h('span', { text: line })]))),
+      h('div.row', {}, [h('button.btn.main', { type: 'button', onclick: () => s.close() }, ['閉じる'])]),
+    ]);
+  }
+
   function bodyOf() {
     const f = facility(base, H, id);
     switch (id) {
@@ -211,20 +219,58 @@ export function facilityScreen(ctx, id) {
       }
       case 'monooki': {
         const c = carryOf(base, H, 0);
-        return [h('p', { text: `懐 ${c.pouch}・お守り袋 ${c.charm}` })];
+        const E = base.balance.economy.inn.exchange;
+        ui.give ||= new Set();
+        const sv = H.stash.filter((x) => x.type === 'souvenir' && !E.never.includes(x.id));
+        for (const u of [...ui.give]) if (!sv.some((x) => x.uid === u)) ui.give.delete(u);
+        const targets = Object.values(base.content.souvenirs).filter((d) => !E.never.includes(d.id) && (H.codex.seen.includes(d.id) || H.stash.some((x) => x.id === d.id) || d.layers?.[0] === 1));
+        return [
+          h('p', { text: `懐 ${c.pouch}・お守り袋 ${c.charm}` }),
+          h('h3', { text: `両替：お土産${E.give}つ → 好きなお土産1つ（${ui.give.size}/${E.give}）` }),
+          ui.give.size === E.give ? h('div.chips.wrap', {}, [h('span.q', { text: '何に替える？' }), ...targets.map((d) => h('button.chip', { type: 'button', onclick: () => act(() => { exchangeSouvenir(base, H, [...ui.give], d.id); ui.give.clear(); toast(`${d.name}に替えた`); }) }, [d.name]))]) : null,
+          sv.length ? h('div.things.list', {}, sv.map((x) => thingEl(base, x, { on: ui.give.has(x.uid), onclick: () => { if (ui.give.has(x.uid)) ui.give.delete(x.uid); else if (ui.give.size < E.give) ui.give.add(x.uid); render(); } }))) : h('p.q', { text: 'お土産が無い' }),
+        ];
       }
-      case 'kyakuma':
-        return [h('p', { text: `潜行に連れていける常連客 ${f.seats}人` })];
+      case 'kyakuma': {
+        const regs = H.stash.filter((x) => x.type === 'regular');
+        const own = new Set([...H.codex.owned, ...regs.map((x) => x.id)]);
+        const talks = (base.content.flavor?.talk || []);
+        const open = talks.filter((t) => (t.with || []).some((r) => own.has(r)));
+        const read = new Set(H.talkRead || []);
+        return [
+          h('p', { text: `潜行に連れていける常連客 ${f.seats}人` }),
+          h('h3', { text: `雑談 ${open.length}／${talks.length}` }),
+          open.length ? h('div.mlist', {}, open.map((t) => h('button.talkrow', { type: 'button', onclick: () => { (H.talkRead ||= []).includes(t.id) || H.talkRead.push(t.id); ctx.save(); talkSheet(t); render(); } }, [
+            h('b', { text: [...new Set(t.lines.map((l) => l[0]))].join('・') }), h('span.q', { text: `「${t.lines[0][1]}」` }), read.has(t.id) ? null : h('span.new', { text: '新' }),
+          ]))) : h('p.q', { text: '常連客がいない' }),
+          h('h3', { text: '世話' }),
+          regs.length ? h('div.things.list', {}, regs.map((x) => {
+            const c = careInfo(base, H, x.uid);
+            return thingEl(base, x, { price: x.rar ? `世話 ${x.rar}` : null, action: c.max ? null : { label: `世話 ${c.cost.zeni}`, cls: c.ok ? 'in' : 'off', onclick: () => { if (!c.ok) { toast(`宿銭${c.cost.zeni}とお土産${c.cost.souvenirs}つが要る`); return; } act(() => { careRegular(base, H, x.uid); toast(`${nameOf(base, x)}の世話をした（効果の量が${c.next}相当に）`); }); } } });
+          })) : null,
+        ];
+      }
+      case 'keiko': {
+        const best = H.records.dummyBest;
+        const s = shihanInfo(base, H);
+        return [
+          h('h3', { text: '打ち込み台' }),
+          h('p', { text: best ? `自己ベスト ${format(best)}` : 'まだ打ち込んでいない' }),
+          h('button.btn', { type: 'button', onclick: () => ctx.go.keiko('dummy') }, [`木人に${base.balance.economy.keiko.dummy.turns}ターン打ち込む`]),
+          h('h3', { text: `師範　いま ${H.records.dan ?? 0}段` }),
+          s.max ? h('p.ok', { text: '免許皆伝' }) : h('p', { text: `${s.name}：主張 ${format(s.claim)}・${s.turns}ターン・勝つと宿銭＋${s.reward}` }),
+          s.max ? null : h('button.btn.main', { type: 'button', onclick: () => ctx.go.keiko('shihan') }, [`${s.dan}段に挑む`]),
+        ];
+      }
       case 'kamidana':
         return [
           h('p', { text: `戻り ${Math.round(f.returnRate * 100)}%・掛け金 売値の${Math.round(f.premium * 100)}%` }),
           h('h3', { text: `戻り待ち ${H.insuredPending.length}` }),
-          h('div.mlist', {}, H.insuredPending.map((p) => h('div.itemrow', {}, [h('span', { text: nameOf(base, p.owned) }), h('span.q', { text: `${Math.round(p.rate * 100)}%` })]))),
+          h('div.things.list', {}, H.insuredPending.map((p) => thingEl(base, p.owned, { price: `戻り ${Math.round(p.rate * 100)}%` }))),
           h('h3', { text: `遺失物帳（供養点 ${H.kuyo}）` }),
-          h('div.mlist', {}, H.lostLog.map((x, i) => h('div.itemrow', {}, [
-            h('span', { text: nameOf(base, x) }),
-            h('button.chip', { type: 'button', disabled: H.kuyo < kuyoPrice(base, x), onclick: () => act(() => { kuyo(base, H, i); toast('供養して戻した'); }) }, [`供養 ${kuyoPrice(base, x)}`]),
-          ]))),
+          h('div.things.list', {}, H.lostLog.map((x, i) => thingEl(base, x, {
+            action: { label: `供養 ${kuyoPrice(base, x)}`, cls: H.kuyo < kuyoPrice(base, x) ? 'off' : 'in', onclick: () => { if (H.kuyo < kuyoPrice(base, x)) { toast('供養点が足りない'); return; } act(() => { kuyo(base, H, i); toast('供養して戻した'); }); } },
+          }))),
         ];
       case 'shikomi': {
         const menu = shikomiMenu(base, H);
@@ -282,8 +328,8 @@ export function facilityScreen(ctx, id) {
     const up = upgradeInfo(base, H, id);
     put(root, 
       top(`${def.name} Lv${lv}`, H, () => ctx.go.inn()),
-      h('p.q', { text: def.text ?? '' }),
       h('main.ibody', {}, bodyOf()),
+      h('div.detail.fdetail', { html: '<span class="q">押した物の説明がここに出る</span>' }),
       up.max ? null : h('div.upg', {}, [
         h('div', {}, [`Lv${up.lv}：${effText(base, H, id, up.lv)}`, h('div.q', { text: up.next.ready === false ? 'まだ改装できない' : `${costText(base, up.cost)}${up.ok ? '' : `　${up.reason}`}` })]),
         (() => { const b = holdButton('改装', () => act(() => { upgrade(base, H, id); toast(`${def.name}を改装した`); })); b.disabled = !up.ok; return b; })(),
@@ -444,6 +490,16 @@ export function prepScreen(ctx) {
       draw();
     });
   }
+  function dungeonSheet(ds) {
+    const s2 = sheet(app, [
+      h('h2', { text: '穴' }),
+      h('div.mlist', {}, ds.map((d) => h(`div.dgrow${d.open ? '' : '.locked'}`, {}, [
+        h('b', { text: d.open ? d.name : '？？？' }),
+        h('span.q', { text: d.open ? [d.line, d.cats?.length ? `よく出る：${d.cats.join('・')}` : '', d.id !== 'honko' ? `最深 ${floorName(base.content, d.id, d.deepest)}${d.cleared ? '・層主撃破' : ''}` : ''].filter(Boolean).join('　') : `開け方：${d.how}` }),
+      ]))),
+      h('div.row', {}, [h('button.btn.main', { type: 'button', onclick: () => s2.close() }, ['閉じる'])]),
+    ]);
+  }
   function render() {
     const info = prepInfo(base, H);
     const g = C.guests[L.guest];
@@ -468,9 +524,19 @@ export function prepScreen(ctx) {
           h('button.btn.small', { type: 'button', disabled: L.depth >= H.unlocked.depth, onclick: () => { L.depth = Math.min(H.unlocked.depth, L.depth + 1); ctx.save(); render(); } }, ['＋']),
         ]),
         (() => { const t = h('span.q.dtext', { text: depthText(base, L.depth) }); return t; })()]),
+      (() => {
+        const ds = dungeonList(base, H);
+        const open = ds.filter((d) => d.open);
+        const cur = ds.find((d) => d.id === (L.dungeon || 'honko')) ?? ds[0];
+        return h('div.prow', {}, [h('span', { text: '行き先' }), h('div.chips', {}, [
+          ...open.map((d) => h(`button.chip${cur.id === d.id ? '.on' : ''}`, { type: 'button', onclick: () => { L.dungeon = d.id === 'honko' ? null : d.id; L.warp = null; ctx.save(); render(); } }, [d.name])),
+          h('button.chip', { type: 'button', onclick: () => dungeonSheet(ds) }, [`穴 ${open.length}／${ds.length}`]),
+        ])]);
+      })(),
+      (() => { const cur = dungeonList(base, H).find((d) => d.id === (L.dungeon || 'honko')); return cur?.cats?.length ? h('p.q', { text: `よく出る：${cur.cats.join('・')}` }) : null; })(),
       warpChoices(base, H).length > 1 ? h('div.prow', {}, [h('span', { text: '入口（ワープ）' }),
-        h('div.chips', {}, warpChoices(base, H).map((f) => h(`button.chip${(L.warp || 1) === f ? '.on' : ''}`, { type: 'button', onclick: () => { L.warp = f === 1 ? null : f; ctx.save(); render(); } }, [`B${f}`])))]) : null,
-      L.warp ? h('p.q', { text: `B${L.warp}から（上の階の拾い物と宿銭は無し）` }) : null,
+        h('div.chips', {}, warpChoices(base, H).map((f) => h(`button.chip${(L.warp || 1) === f ? '.on' : ''}`, { type: 'button', onclick: () => { L.warp = f === 1 ? null : f; ctx.save(); render(); } }, [floorName(base.content, L.dungeon || 'honko', f)])))]) : null,
+      L.warp ? h('p.q', { text: `${floorName(base.content, L.dungeon || 'honko', L.warp)}から（上の階の拾い物と宿銭は無し）` }) : null,
       h('div.pgrid', {}, [
         h('button.btn', { type: 'button', onclick: () => ctx.go.stash() }, [`デッキ ${info.deck.length}枚`]),
         h('button.btn', { type: 'button', onclick: () => multi('連れていく常連客', 'seats', notDeck.filter((x) => x.type === 'regular'), info.carry.seats) }, [`常連客 ${info.seats.length}/${info.carry.seats}`]),
@@ -519,6 +585,7 @@ export function resultScreen(ctx, rep) {
       ...list('実績', rep.unlocked.filter((u) => u.type === 'achievement').map((u) => `「${u.name}」${u.zeni ? `（宿銭＋${u.zeni}）` : ''}`)),
       rep.depthUp ? h('p.ok', { text: `深度${rep.depthUp}が開いた` }) : null,
       rep.weekly ? h('p.ok', { text: `週替わり ${rep.weekly.key}：B${rep.weekly.deepest}${rep.weeklyBest ? '（今週の最高を更新）' : `（今週の最高 B${rep.weekly.best}）`}` }) : null,
+      ...(rep.dgUnlocked || []).map((n) => h('p.ok', { text: `鍵が合った。「${n}」へ行けるようになった` })),
       rep.stones ? h('p.ok', { text: `底の石を${rep.stones}つ持ち帰った（内装の最高の段に使う）` }) : null,
       rep.rumor ? h('p.ok', { text: `噂を聞いた：「${base.content.cards[rep.rumor.card]?.name ?? '？'}」には相方がいるらしい（掲示板の「噂」）` }) : null,
       rep.shibariReward ? h('p.ok', { text: `縛り「${rep.shibariReward.name}」初の脱出：${rep.shibariReward.what}` }) : null,
@@ -713,6 +780,10 @@ export function boardScreen(ctx) {
         ]) : null,
       ];
     }
+    if (tab === 'スレ') {
+      const ts = H.thread || [];
+      return [ts.length ? h('div.thread', {}, ts.map((t) => h('div.post', {}, [h('div.ph', { text: `${t.no}：${t.who}` }), h('div.pb', { text: t.text })]))) : h('p.q', { text: 'まだ誰も書き込んでいない' })];
+    }
     if (tab === '噂') {
       const rs = H.rumors || [];
       return [
@@ -735,7 +806,7 @@ export function boardScreen(ctx) {
   function render() {
     put(root,
       top('掲示板', H, () => ctx.go.inn()),
-      h('div.chips.btabs', {}, ['日替わり', '週替わり', 'ゴースト宿', '共有コード', '縛り潜行', '噂'].map((k) => h(`button.chip${k === tab ? '.on' : ''}`, { type: 'button', onclick: () => { tab = k; render(); } }, [k]))),
+      h('div.chips.btabs', {}, ['スレ', '日替わり', '週替わり', 'ゴースト宿', '共有コード', '縛り潜行', '噂'].map((k) => h(`button.chip${k === tab ? '.on' : ''}`, { type: 'button', onclick: () => { tab = k; render(); } }, [k]))),
       h('main.ibody', {}, body()),
     );
   }

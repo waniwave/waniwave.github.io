@@ -1,0 +1,76 @@
+# テーマの穴（ダンジョン）。tools/gen/dungeons.py で作る（手で直さない）
+# cats：その札がよく出るカテゴリ／unlock：key（そのお土産を持ち帰る）・rank（宿の格の段）・clearAll（全ての穴の層主を倒す）
+# power：敵の強さを何階ぶん上げるか／rarityAdd：レアリティの表を何層ぶん上げるか／prefix：階の呼び方（床上は F）
+- id: yatai
+  name: 屋台通り
+  cats: [麺, 食べ物, 宿]
+  unlock: {key: sv_key_yatai}
+  power: 1
+  rarityAdd: 0
+  prefix: B
+  line: 提灯の下を、どこまでも屋台が続いている。
+  color: '#2a1d14'
+- id: kousha
+  name: 旧校舎
+  cats: [校庭, 老, 死]
+  unlock: {rank: 1}
+  power: 2
+  rarityAdd: 0
+  prefix: B
+  line: 誰もいない廊下に、チャイムだけが鳴る。
+  color: '#20242a'
+- id: yukemuri
+  name: 湯けむり坑
+  cats: [湯, 動物]
+  unlock: {key: sv_key_yu}
+  power: 3
+  rarityAdd: 1
+  prefix: B
+  line: どこまでも湯気。どこかで猿が湯に浸かっている。
+  color: '#1d2a2c'
+- id: gesen
+  name: ゲーセン跡
+  cats: [格ゲー, 速さ]
+  unlock: {rank: 2}
+  power: 4
+  rarityAdd: 1
+  prefix: B
+  line: 電源の入っていない筐体から、BGMが聞こえる。
+  color: '#16121f'
+- id: koujou
+  name: 廃工場
+  cats: [ロボ, ター]
+  unlock: {key: sv_key_koujou}
+  power: 5
+  rarityAdd: 1
+  prefix: B
+  line: 止まったはずのベルトコンベアに、札が流れてくる。
+  color: '#1c1e20'
+- id: kakolog
+  name: 過去ログ倉庫
+  cats: [スレ, 死, 老]
+  unlock: {rank: 3}
+  power: 6
+  rarityAdd: 2
+  prefix: B
+  line: 棚という棚に、落ちたスレが積まれている。
+  color: '#1a1915'
+- id: urayama
+  name: 神社の裏山
+  cats: [ター, 動物, 宿]
+  unlock: {key: sv_key_urayama}
+  power: 7
+  rarityAdd: 2
+  prefix: B
+  line: 鳥居をくぐるたびに、少しだけ番付が動く。
+  color: '#1a2316'
+- id: yaneura
+  name: 床上
+  cats: []
+  unlock: {clearAll: true}
+  power: 18
+  rarityAdd: 4
+  prefix: F
+  line: 屋根裏へ、上っていく。番付は最初から逆さだ。
+  color: '#2a1a10'
+  rules: [番付を反転]

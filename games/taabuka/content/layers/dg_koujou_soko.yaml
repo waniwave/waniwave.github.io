@@ -1,0 +1,52 @@
+id: dg_koujou_soko
+dungeon: koujou
+name: 廃工場の底
+floors: [10, 9999]
+line: 名前のない階が、続いている。
+palette: {bg: '#0d0c10', ink: '#d8d2c8'}
+mix: true
+noName: true
+bossEvery: 3
+doors: {戦い: 42, 精鋭: 18, 宝: 11, 商い: 9, 湯: 9, 謎: 11}
+warden: en_kaerimichi
+stalker: en_shisen
+quirk: null
+curseEvery: 3
+curses:
+- id: cu_hand
+  name: 手札が細る
+  text: 手札の上限−1
+  rule:
+  - {名前: 回数を変える, 手札上限: -1}
+  stack: true
+- id: cu_nagashi
+  name: 流しが減る
+  text: 流しが1回減る
+  rule:
+  - {名前: 回数を変える, 流し: -1}
+- id: cu_dashi
+  name: 出しが減る
+  text: 出しが1回減る
+  rule:
+  - {名前: 回数を変える, 出し: -1}
+- id: cu_ran
+  name: 読めない論客
+  text: 敵の行動が予告どおりでなくなる
+  rule: [敵の行動を乱数に]
+- id: cu_uke
+  name: 受けが効かない
+  text: 受けが無効
+  rule: [受けを無効]
+- id: cu_kotei
+  name: 動かない番付
+  text: 番付が動かない
+  rule: [番付を固定]
+- id: cu_hanten
+  name: 逆さ番付
+  text: 番付が逆さ・採点の順も逆
+  rule: [番付を反転, 採点順を逆に]
+- id: cu_tier8
+  name: 何もかもTier8
+  text: 全ての札がTier8扱い（強さが3〜60でばらつく）
+  rule:
+  - {名前: 全札を同Tier扱い, Tier: '8'}

@@ -1,0 +1,23 @@
+id: dg_kakolog_1
+dungeon: kakolog
+name: dat落ちの棚
+floors: [1, 3]
+line: 棚という棚に、落ちたスレが積まれている。
+palette: {bg: '#efe9d6', ink: '#2a2520'}
+doors: {戦い: 44, 精鋭: 14, 宝: 11, 商い: 10, 湯: 9, 謎: 10}
+groups:
+- [en_aboon]
+- [en_kieta]
+- [en_rokunana]
+- [en_shiyou]
+- [en_kakusan, en_aboon]
+- [en_hikoukai, en_kieta]
+- [en_rokunana, en_shiyou]
+- [en_hikoukai, en_hikoukai]
+elites: [en_unei, en_kiyaku, en_etsuran]
+bosses: [en_ketsuban, en_yakkan8]
+warden: en_genkanban
+stalker: en_kidoku
+quirk:
+  name: 欠番区画
+  params: {先: 欠6}

@@ -1,0 +1,23 @@
+id: dg_gesen_2
+dungeon: gesen
+name: 対戦台の列
+floors: [4, 6]
+line: ゲーセン跡・対戦台の列
+palette: {bg: '#ece6f4', ink: '#2a2520'}
+doors: {戦い: 45, 精鋭: 14, 宝: 10, 商い: 10, 湯: 9, 謎: 10}
+groups:
+- [en_ronpa]
+- [en_kotehan]
+- [en_hanron]
+- [en_idgae]
+- [en_sokuresu, en_sokuresu]
+- [en_hitosore, en_ronpa]
+- [en_kotehan, en_hanron]
+- [en_idgae, en_sokuresu]
+elites: [en_source, en_ronsou, en_surechigai]
+bosses: [en_kakuzukeshi, en_sakasayado]
+warden: en_genkanban
+stalker: en_kidoku
+quirk:
+  name: 議論の淵
+  params: {毎ターン: 1}

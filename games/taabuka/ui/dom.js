@@ -29,7 +29,7 @@ function infoPanel() { return infoEl ||= document.getElementById('tip'); }
 /** 説明を出す。screen 内に .infobox があればそこに、無ければ説明の窓に */
 export function showInfo(html, from = null) {
   const scope = from?.closest?.('.sheet, .scr');
-  const box = scope ? scope.querySelector('.infobox') : document.querySelector('#app > .scr .infobox');
+  const box = scope ? scope.querySelector('.infobox, .detail') : document.querySelector('#app > .scr .infobox, #app > .scr .detail');
   if (box) {
     box.innerHTML = html;
     box.classList.add('on');

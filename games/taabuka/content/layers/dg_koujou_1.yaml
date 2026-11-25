@@ -1,0 +1,23 @@
+id: dg_koujou_1
+dungeon: koujou
+name: 搬入口
+floors: [1, 3]
+line: 止まったはずのベルトコンベアに、札が流れてくる。
+palette: {bg: '#e6e8ea', ink: '#2a2520'}
+doors: {戦い: 45, 精鋭: 14, 宝: 10, 商い: 10, 湯: 9, 謎: 10}
+groups:
+- [en_ronpa]
+- [en_kotehan]
+- [en_hanron]
+- [en_idgae]
+- [en_sokuresu, en_sokuresu]
+- [en_hitosore, en_ronpa]
+- [en_kotehan, en_hanron]
+- [en_idgae, en_sokuresu]
+elites: [en_source, en_ronsou, en_surechigai]
+bosses: [en_kakuzukeshi, en_sakasayado]
+warden: en_genkanban
+stalker: en_kidoku
+quirk:
+  name: 議論の淵
+  params: {毎ターン: 1}

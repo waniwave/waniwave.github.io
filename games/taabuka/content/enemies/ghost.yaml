@@ -7,3 +7,21 @@
   atk: 1
   acts: [攻め]
   line: うちの宿のデッキ、論破できるものならしてみな
+
+# 稽古場の相手（主張と攻めは engine/keiko.js が決める）
+- id: en_mokujin
+  name: 木人
+  layer: []
+  kind: 通常
+  hp: 1
+  atk: 0
+  acts: [攻め]
+  line: ……（木なので何も言わない）
+- id: en_shihan
+  name: 師範
+  layer: []
+  kind: 通常
+  hp: 1
+  atk: 1
+  acts: [攻め]
+  line: 型を見せてみよ

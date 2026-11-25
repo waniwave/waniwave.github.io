@@ -213,3 +213,6 @@ export function comboLines(content, cardId) {
     return `<span class="cmb">◎コンボ「${esc(c.name)}」：＋${others.map(esc).join('＋')}　${esc(comboEffText(content, id))}</span>`;
   }));
 }
+
+/** 階の呼び方（本坑・テーマの穴＝B、床上＝F） */
+export function floorName(content, dg, floor) { return `${content.dungeons?.[dg]?.prefix ?? 'B'}${floor}`; }

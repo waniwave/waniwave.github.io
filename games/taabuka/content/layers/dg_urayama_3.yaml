@@ -1,0 +1,23 @@
+id: dg_urayama_3
+dungeon: urayama
+name: 御神木の根
+floors: [7, 9]
+line: 神社の裏山・御神木の根
+palette: {bg: '#e7efdf', ink: '#2a2520'}
+doors: {戦い: 44, 精鋭: 15, 宝: 11, 商い: 10, 湯: 9, 謎: 10}
+groups:
+- [en_zako]
+- [en_kaso]
+- [en_hachi]
+- [en_kanzen]
+- [en_shoshin, en_hachi]
+- [en_owakon, en_zako]
+- [en_kaso, en_shoshin]
+- [en_owakon, en_kanzen]
+elites: [en_kamige, en_kusoge, en_saikyo]
+bosses: [en_dg_kannushi]
+warden: en_kaerimichi
+stalker: en_shisen
+quirk:
+  name: Tier8の罠
+  params: {確率: 0.25}

@@ -3,7 +3,7 @@
 
 import { thingEl as sharedThing, pickThing } from '../things.js';
 import { h, tip, toast, pick, sheet, holdButton, esc } from '../dom.js';
-import { GRADE_COLOR, catGlyph, catColor, tierLabel, kwLines, bindText, rarOfCard } from '../labels.js';
+import { GRADE_COLOR, catGlyph, catColor, tierLabel, kwLines, bindText, rarOfCard, floorName } from '../labels.js';
 import { askItem, ownedName } from '../items.js';
 import {
   openDoors, isHidden, enterDoor, answerChase, fleeCost, chaseInfo, takeReward, rewardDests, closeReward, leaveRoom, buy,
@@ -34,7 +34,7 @@ export function diveScreen(o) {
   const root = h('div.scr.dive');
 
   function render() {
-    const L = layerAt(content, D.floor);
+    const L = layerAt(content, D.floor, D.dungeon);
     root.style.setProperty('--lbg', L?.palette?.bg ?? 'var(--paper)');
     root.replaceChildren(renderTop(), renderPresence(), renderCurses(), h('main.dv', {}, [renderBody()]), renderFoot());
     o.onRender?.(D);
@@ -77,14 +77,14 @@ export function diveScreen(o) {
 
   // ───────── 上帯・気配・下帯 ─────────
   function renderTop() {
-    const L = layerAt(content, D.floor);
+    const L = layerAt(content, D.floor, D.dungeon);
     const hp = h('span.hp', {}, ['体力 ', h('b', { text: D.hp }), `/${D.maxHp}`]);
     const zn = h('span.zn', {}, ['宿銭 ', h('b', { text: D.zeni })]);
-    const fl = h('span.fl', { text: `B${D.floor}` });
+    const fl = h('span.fl', { text: floorName(content, D.dungeon, D.floor) });
     const bossHere = D.map?.rows?.flat().find((d) => d.kind === '層主')?.enemies?.[0];
     const bossId = L?.mix ? bossHere : D.bosses[L?.id];
     const nm = L?.noName ? '' : (L?.name ?? '');
-    tip(fl, () => `<b>${esc(nm || `B${D.floor}`)}</b><br>${esc(L?.line ?? '')}${bossId ? `<br><span class="q">${content.enemies[bossId]?.kind === '底の主' ? '底の主' : '層主'}：${esc(content.enemies[bossId]?.name)}</span><br><span class="q">縛り：${esc(bindText({ content }, bossId))}</span>` : ''}${L?.mix ? `<br><span class="q">${L.bossEvery}階ごとに、どこかの層主が待つ</span>` : ''}`);
+    tip(fl, () => `<b>${esc(nm || floorName(content, D.dungeon, D.floor))}</b><br>${esc(L?.line ?? '')}${bossId ? `<br><span class="q">${content.enemies[bossId]?.kind === '底の主' ? '底の主' : '層主'}：${esc(content.enemies[bossId]?.name)}</span><br><span class="q">縛り：${esc(bindText({ content }, bossId))}</span>` : ''}${L?.mix ? `<br><span class="q">${L.bossEvery}階ごとに、どこかの層主が待つ</span>` : ''}`);
     return h('header.top', {}, [h('div.st', {}, [fl, h('span.ln', { text: nm }), hp, zn])]);
   }
 
@@ -140,7 +140,7 @@ export function diveScreen(o) {
     const el = h(`button.door${d.side ? '.side' : ''}${active ? '.act' : ''}${visited ? '.vis' : ''}${d.kind === '層主' ? '.boss' : ''}`, {
       type: 'button', disabled: !active, dataset: { room: d.room, kind: hidden ? '？' : d.kind },
       style: d.glow ? { '--glow': GRADE_COLOR[d.glow] } : {},
-      onclick: () => { SE.fusuma(); const n = presenceStage(D.presence + 1); if (n) setTimeout(() => footsteps(n), 300); redo(() => enterDoor(base, D, d.room)); },
+      onclick: () => { SE.fusuma(); const n = presenceStage(D.presence + 1); if (n) setTimeout(() => footsteps(n), 300); const ls = content.flavor?.doors?.[d.kind]; if (ls?.length) toast(ls[Math.floor(Math.random() * ls.length)]); redo(() => enterDoor(base, D, d.room)); },
     }, [h('span.g', { text: g }), h('span.k', { text: hidden ? '？' : d.kind })]);
     if (d.glow) el.classList.add('glow');
     tip(el, () => `<b>${hidden ? '？' : esc(d.kind)}</b><br>${esc(d.kind === '層主' && !hidden ? `${content.enemies[d.enemies?.[0]]?.name ?? ''}` : t)}${d.kind === '層主' && !hidden && bindText({ content }, d.enemies?.[0]) ? `<br><span class="q">縛り：${esc(bindText({ content }, d.enemies[0]))}</span>` : ''}${d.glow ? '<br><span class="q">うっすら光っている</span>' : ''}`);
@@ -158,7 +158,7 @@ export function diveScreen(o) {
         h('div.dx', {}, side.map((d) => doorEl(d, { active: doors.includes(d.room), visited: D.map.visited.includes(d.room) }))),
       ]);
     });
-    const L = layerAt(content, D.floor);
+    const L = layerAt(content, D.floor, D.dungeon);
     const boss = D.bosses[L.id] ? content.enemies[D.bosses[L.id]] : null;
     return h('div.map', {}, [
       h('p.hint', { text: boss ? `この層の主：${boss.name}` : '' }),
@@ -295,7 +295,7 @@ export function diveScreen(o) {
     const n = info.next;
     const cnt = (c) => `${c.seen}${c.hidden ? '？' : ''}`;
     const next = n ? h('div.lnext', {}, [
-      h('div', { text: `次：B${n.floor}${n.newLayer ? `「${n.layer}」` : ''}${n.boss ? '（層主の階）' : ''}` }),
+      h('div', { text: `次：${floorName(content, D.dungeon, n.floor)}${n.newLayer ? `「${n.layer}」` : ''}${n.boss ? '（層主の階）' : ''}` }),
       h('div', {}, [`精鋭 ${cnt(n.elite)}　宝 ${cnt(n.treasure)}`, n.side ? '　寄り道あり' : '']),
     ]) : h('div.lnext', { text: 'この先は、まだ無い。' });
     const wd = info.warden;
@@ -307,7 +307,7 @@ export function diveScreen(o) {
     const down = holdButton('下りる', () => redo(() => descend(base, D)), 'down');
     down.disabled = !info.canDescend;
     return h('div.panel.landing', {}, [
-      h('h2', { text: `B${D.floor} 踊り場` }),
+      h('h2', { text: `${floorName(content, D.dungeon, D.floor)} 踊り場` }),
       h('div.lstat', {}, [
         h('div', {}, ['体力 ', h('b', { text: info.hp }), `/${info.maxHp}`]),
         h('div', {}, ['気配 ', h('b', { text: info.presence })]),
@@ -324,7 +324,7 @@ export function diveScreen(o) {
     const via = { warden: '番人を退けて', lift: '昇降機で', exit: '非常口から', item: '縄梯子で', stairs: '階段で', battle: '', event: '' }[r.via] ?? '';
     return h('div.panel.end', {}, [
       h('h2.big', { text: ok ? '脱出' : '未帰還' }),
-      h('p', { text: ok ? `${via}帰った。B${r.floor}まで。` : `B${r.floor}で倒れた。` }),
+      h('p', { text: ok ? `${via}帰った。${floorName(content, D.dungeon, r.floor)}まで。` : `${floorName(content, D.dungeon, r.floor)}で倒れた。` }),
       h('p.q', { text: `部屋 ${r.rooms}・戦闘 ${r.battles}・最大論破値 ${format(r.maxV)}` }),
       ok ? h('p', { text: `宿銭 ${r.zeni}${r.relicCash ? `＋置物の換金 ${r.relicCash}` : ''}` }) : h('p', { text: `失ったもの：総額 ${r.lostValue}` }),
       h('div.keptlist', {}, [h('h3', { text: ok ? '持ち帰ったもの' : 'お守り袋に残ったもの' }),

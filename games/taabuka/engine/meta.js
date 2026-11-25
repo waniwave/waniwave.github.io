@@ -8,7 +8,7 @@ import { Rng } from './rng.js';
 import { rarOf, rarIndex, rollAffixes } from './rarity.js';
 import { Big, ZERO } from './big.js';
 import { depthMods } from './battle.js';
-import { createDive, sellValue, nameOf, defaultPool, warpFloors, addCurse } from './dive.js';
+import { createDive, sellValue, nameOf, defaultPool, warpFloors, addCurse, layerList } from './dive.js';
 import { encodeShare, decodeShare, dailySeed, shareableSeed } from './share.js';
 
 export const SAVE_VERSION = 1;
@@ -323,6 +323,75 @@ export function buyDeck(base, H, cat, asDeck = true) {
   return got;
 }
 
+// ───────── 掲示板のスレ：潜行のあと、住民が勝手に書き込む（content/flavor.yaml thread） ─────────
+const POSTERS = ['名無しさん', '名無しさん', '名無しさん', 'ROM専', '実況民', 'まとめ民', '古参', '新参', '煽り屋', 'ター信者'];
+export function postThread(base, H, D, rep) {
+  const T = base.content.flavor?.thread;
+  if (!T) return [];
+  const rng = Rng.child(String(H.seed), 'thread', H.records.dives);
+  const C = base.content;
+  const kinds = [];
+  if (H.records.dives <= 1) kinds.push('first');
+  kinds.push(D.result?.outcome === 'escaped' ? 'escaped' : 'died');
+  if ((D.stats?.deepest ?? 0) >= 17) kinds.push('deep');
+  const cards = (D.deck || []).concat(D.pouch || []).filter((x) => C.cards[x.id]);
+  if (cards.some((x) => C.sets[C.cards[x.id]?.set]?.joke)) kinds.push('joke');
+  kinds.push('any');
+  const fill = (t) => t
+    .replace('{floor}', D.result?.floor ?? D.floor).replace('{guest}', C.guests[D.guest]?.name ?? '宿')
+    .replace('{card}', cards.length ? C.cards[rng.pick(cards).id].name : 'ハーム').replace('{zeni}', rep.zeni ?? 0)
+    .replace('{enemy}', C.enemies[D.result?.by]?.name ?? '何か').replace('{n}', D.curses?.length ?? 0);
+  const posts = [];
+  for (const k of kinds) {
+    const list = T[k] || [];
+    if (!list.length) continue;
+    const n = k === 'any' ? 1 : (k === kinds[0] || k === 'joke') ? 2 : 1;
+    for (let i = 0; i < n; i++) posts.push(fill(rng.pick(list)));
+  }
+  H.thread ||= [];
+  for (const p of [...new Set(posts)]) { H.threadNo = (H.threadNo || 0) + 1; H.thread.unshift({ no: H.threadNo, who: rng.pick(POSTERS), text: p }); }
+  H.thread = H.thread.slice(0, 40);
+  return posts;
+}
+
+// ───────── 客間の世話：お土産と宿銭で常連客の効果の量を1段上げる（レアリティの表の量を使う） ─────────
+export function careInfo(base, H, uidX) {
+  const x = H.stash.find((y) => y.uid === uidX && y.type === 'regular');
+  if (!x) return null;
+  const order = base.balance.rarity.order;
+  const lv = Math.max(0, order.indexOf(x.rar ?? order[0]));
+  const cost = inn(base).care[lv] ?? null;
+  const sv = H.stash.filter((y) => y.type === 'souvenir' && !inn(base).exchange.never.includes(y.id));
+  return { x, lv, max: !cost, cost, ok: !!cost && H.zeni >= cost.zeni && sv.length >= cost.souvenirs, next: order[lv + 1] };
+}
+export function careRegular(base, H, uidX) {
+  const c = careInfo(base, H, uidX);
+  check(c && !c.max, 'これ以上は世話できない');
+  check(H.zeni >= c.cost.zeni, '宿銭が足りない');
+  const sv = H.stash.filter((y) => y.type === 'souvenir' && !inn(base).exchange.never.includes(y.id))
+    .sort((a, b) => sellValue(base, a) - sellValue(base, b));
+  check(sv.length >= c.cost.souvenirs, `お土産が${c.cost.souvenirs}つ要る`);
+  const use = new Set(sv.slice(0, c.cost.souvenirs));
+  H.stash = H.stash.filter((y) => !use.has(y));
+  H.zeni -= c.cost.zeni;
+  c.x.rar = c.next;
+  return c.x;
+}
+
+// ───────── 物置の両替：お土産を give 個 → 好きなお土産1つ ─────────
+export function exchangeSouvenir(base, H, uids, toId) {
+  const E = inn(base).exchange;
+  const C = base.content;
+  check(uids.length === E.give, `お土産を${E.give}つ選ぶ`);
+  check(C.souvenirs[toId] && !E.never.includes(toId), 'それには替えられない');
+  const xs = uids.map((u) => H.stash.find((x) => x.uid === u));
+  check(xs.every((x) => x && x.type === 'souvenir' && !E.never.includes(x.id)), '両替に使えないものがある');
+  check(!xs.every((x) => x.id === toId), '同じものには替えられない');
+  H.stash = H.stash.filter((x) => !xs.includes(x));
+  H.stash.push({ uid: uid(H, 's'), type: 'souvenir', id: toId });
+  return H;
+}
+
 // ───────── 宿の内装と格（宿銭の使い道。強さにはほぼ関わらない） ─────────
 /** 内装の今の状態：場所ごとの段・格の点・格の名前・便利（perk） */
 export function decorState(base, H) {
@@ -576,8 +645,30 @@ export function returnRate(base, H, depth) {
   return Math.max(0, facility(base, H, 'kamidana').returnRate + (depthMods(base.balance, depth).insuranceReturn || 0));
 }
 
-/** ワープで選べる入口の階（最深到達でひらく。1階はいつでも） */
-export function warpChoices(base, H) { return [1, ...warpFloors(base.content).filter((f) => (H.records.deepest ?? 0) >= f)]; }
+/** ワープで選べる入口の階（その穴の最深到達でひらく。1階はいつでも） */
+export function warpChoices(base, H, dg = H.loadout?.dungeon || 'honko') {
+  const deep = dg === 'honko' ? (H.records.deepest ?? 0) : (H.records.deepestDg?.[dg] ?? 0);
+  return [1, ...warpFloors(base.content, dg).filter((f) => deep >= f)];
+}
+
+// ───────── テーマの穴（content/dungeons.yaml） ─────────
+/** 穴の一覧と開いているか。本坑はいつでも */
+export function dungeonList(base, H) {
+  const C = base.content;
+  const ds = decorState(base, H);
+  const all = Object.values(C.dungeons || {});
+  const clearAll = all.filter((d) => !d.unlock?.clearAll).every((d) => H.records.dgClear?.[d.id]);
+  const out = [{ id: 'honko', name: '本坑', open: true, line: '宿の床下に、ター深がある。', cats: [], prefix: 'B' }];
+  for (const d of all) {
+    const u = d.unlock || {};
+    let open = false; let how = '';
+    if (u.key) { open = (H.dungeons || []).includes(d.id); how = `鍵「${C.souvenirs[u.key]?.name ?? u.key}」を本坑で拾って持ち帰る`; }
+    else if (u.rank != null) { open = ds.rankIx >= u.rank; how = `宿の格「${C.decor?.ranks?.[u.rank]?.name ?? u.rank}」になる`; }
+    else if (u.clearAll) { open = clearAll; how = 'ほかの全ての穴の層主（3層め）を倒す'; }
+    out.push({ ...d, open, how, cleared: !!H.records.dgClear?.[d.id], deepest: H.records.deepestDg?.[d.id] ?? 0 });
+  }
+  return out;
+}
 
 /** 持ち込みの見積もり：{deck, seats, charm, items, insured, premium, risk, errors} */
 export function prepInfo(base, H, L = H.loadout) {
@@ -594,6 +685,7 @@ export function prepInfo(base, H, L = H.loadout) {
   if (items.length > P.itemSlots) errors.push(`お品書きは${P.itemSlots}つまで`);
   if (L.depth > H.unlocked.depth) errors.push('その深度はまだ');
   if (L.warp && !warpChoices(base, H).includes(L.warp)) errors.push('その入口にはまだ行けない');
+  if (L.dungeon && L.dungeon !== 'honko' && !dungeonList(base, H).find((d) => d.id === L.dungeon)?.open) errors.push('その穴はまだ開いていない');
   if (deck.some((x) => L.charm.includes(x.uid))) errors.push('デッキの札はお守り袋に入れられない');
   const prem = insured.reduce((s, x) => s + premium(base, H, x), 0);
   if (prem > H.zeni) errors.push(`掛け金が足りない（${prem}）`);
@@ -632,7 +724,7 @@ export function beginDive(base, H, o) {
     seed: o.seed, guest: L.guest, depth: L.depth, deck, seats, items, charm,
     relics: g?.relic ? [{ uid: `g_${g.relic}`, id: g.relic, guest: true }] : [],
     pool: poolOf(base, H, L.guest), carry: carryOf(base, H, 0), guestState: { ...(L.choose?.[L.guest] || {}) },
-    ...(L.shibari ? { shibari: L.shibari } : {}), ...(L.warp ? { startFloor: L.warp } : {}),
+    ...(L.shibari ? { shibari: L.shibari } : {}), ...(L.warp ? { startFloor: L.warp } : {}), dungeon: L.dungeon || 'honko',
   });
   // 宿の内装の便利（暖簾＝始めの宿銭、湯＝体力の上限）
   const pk = decorState(base, H).perks;
@@ -931,14 +1023,29 @@ export function finishDive(base, H, D) {
   if (rep.record) R.bestHaul = rep.gotValue;
   H.diving = false;
   H.lastResult = rep;
+  // 穴の記録・層主（3層め）を倒したか・鍵で開く
+  const dg = D.dungeon || 'honko';
+  if (dg !== 'honko') {
+    H.records.deepestDg ||= {};
+    H.records.deepestDg[dg] = Math.max(H.records.deepestDg[dg] ?? 0, D.stats.deepest);
+    if (D.stats.deepest >= 10) (H.records.dgClear ||= {})[dg] = true;
+  }
+  rep.dgUnlocked = [];
+  for (const d of Object.values(C.dungeons || {})) {
+    const k = d.unlock?.key;
+    if (!k || (H.dungeons || []).includes(d.id)) continue;
+    const i = H.stash.findIndex((x) => x.type === 'souvenir' && x.id === k);
+    if (i >= 0) { H.stash.splice(i, 1); (H.dungeons ||= []).push(d.id); rep.dgUnlocked.push(d.name); }
+  }
   // 底（さらに深く）から生きて帰ると底の石
-  const bL = (C.layers || {}).beyond ?? Object.values(C.layers || {}).find((l) => l.curses);
+  const bL = layerList(C, dg).find((l) => l.curses);
   if (D.result.outcome === 'escaped' && bL && D.stats.deepest >= bL.floors[0]) {
     const n = 1 + Math.floor((D.stats.deepest - bL.floors[0]) / (bL.curseEvery || 3));
     for (let i = 0; i < n; i++) H.stash.push({ uid: uid(H, 's'), type: 'souvenir', id: 'sv_sokonoishi' });
     rep.stones = n;
   }
   rep.rumor = addRumor(base, H);
+  rep.posts = postThread(base, H, D, rep);
   for (let i = 0; i < decorState(base, H).perks.rumor; i++) addRumor(base, H);
   return rep;
 }

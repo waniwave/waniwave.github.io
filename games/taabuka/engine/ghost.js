@@ -134,6 +134,7 @@ export function ghostBattle(base, ghost, deck, guest, power) {
   e.claim = e.maxClaim = Big.max(power.total, 1);
   e.atk = Math.ceil(B.maxHp / G.turns);
   B.ghost = { key: ghost.key, name: ghost.name, turns: G.turns };
+  B.turnLimit = G.turns;
   return B;
 }
 

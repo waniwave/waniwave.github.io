@@ -12,6 +12,7 @@ import { zukanScreen } from './screens/zukan.js';
 import { fxLabScreen } from './screens/fxlab.js';
 import { diveBattle, finishBattle, keepBattle, saveDive, loadDive } from '../engine/dive.js';
 import { newInn, saveInn, loadInn, beginDive, beginDaily, beginShared, finishDive, starterIds, ownedSet, decorState, beginWeekly } from '../engine/meta.js';
+import { dummyBattle, finishDummy, shihanBattle, finishShihan, shihanInfo } from '../engine/keiko.js';
 import { encodeGhost, decodeGhost, ghostPower, ghostBattle, finishGhost } from '../engine/ghost.js';
 import { knownComboIds } from '../engine/combo.js';
 import { comboView } from './labels.js';
@@ -20,7 +21,7 @@ import { readAll, write, exportText, importText } from './save.js';
 import { setFlashOptions } from './fx/flash.js';
 import { initParticles, setParticleScale } from './fx/particles.js';
 import { setShowOptions } from './fx/shows.js';
-import { setNumMode } from './num.js';
+import { setNumMode, num as format } from './num.js';
 import { unlockAudio, setAudioOptions, playBgm, stopBgm, startHeart, stopHeart, setBgmMood } from './audio/audio.js';
 import { layerAt, layerNo } from '../engine/dive.js';
 import { loadContent, fetchIO } from '../engine/content.js';
@@ -57,7 +58,7 @@ function ambience(where, D = null) {
   const app2 = document.getElementById('app');
   const pst = D ? (D.presence >= 12 ? 3 : D.presence >= 8 ? 2 : D.presence >= 4 ? 1 : 0) : 0;
   vignette.className = pst ? `p${pst}` : '';
-  const L = D ? layerAt(base.content, D.floor) : null;
+  const L = D ? layerAt(base.content, D.floor, D.dungeon) : null;
   const no = L ? layerNo(base.content, L) : 0;
   app2.classList.toggle('deep1', no === 2);
   app2.classList.toggle('deep2', no >= 3);
@@ -176,6 +177,35 @@ function startGhost(code) {
   }, 60);
 }
 
+// ───────── 稽古場：打ち込み台・師範（失う物なし） ─────────
+function runSide(B, onDone) {
+  const env = openBattle(base, B);
+  startBattle(B, env);
+  const scr = battleScreen({
+    app, queue, settings, saveSettings, base, B, env,
+    onExit: () => innCtx.go.facility('keiko'),
+    unitSeen: (u) => H.records.unitsSeen.includes(u),
+    markUnit: (u) => { H.records.unitsSeen.push(u); persist('inn'); },
+    onDone: (b) => { onDone(b); persist('inn'); innCtx.go.facility('keiko'); },
+  });
+  scr.sides = true;
+  scr.where = 'ghost';
+  window.__taabuka.battle = { B, env, scr };
+  show(scr);
+}
+function myDeck() {
+  const deck = H.deck.map((u) => H.stash.find((x) => x.uid === u)).filter(Boolean);
+  if (deck.length < base.balance.hands.play.deckMin) { toast(`デッキが${base.balance.hands.play.deckMin}枚に足りない（蔵で組む）`); return null; }
+  return deck;
+}
+function startKeiko(kind) {
+  const deck = myDeck();
+  if (!deck) return;
+  const guest = H.loadout.guest || Object.keys(base.content.guests)[0];
+  if (kind === 'dummy') runSide(dummyBattle(base, H, deck, guest), (b) => { const r = finishDummy(base, H, b); toast(`打ち込み ${format(r.total)}${r.up ? '（自己ベスト）' : ''}`); });
+  else runSide(shihanBattle(base, H, deck, guest), (b) => { const r = finishShihan(base, H, b); toast(r.won ? `${r.dan}段を許された（宿銭＋${r.reward}）` : '師範「まだまだ」'); });
+}
+
 // ───────── セーブ ─────────
 let H = null;   // 宿
 let D = null;   // 潜行中
@@ -290,7 +320,7 @@ const innCtx = {
     inn: () => goInn(), stash: () => show(stashScreen(innCtx)), facility: (id) => show(facilityScreen(innCtx, id)),
     prep: () => show(prepScreen(innCtx)), settings: () => show(settingsScreen(innCtx)),
     zukan: () => show(zukanScreen({ ...ctx, back: goInn })), dive: (s) => startDive(s), sudomari: () => startDive(true),
-    board: () => show(boardScreen(innCtx)), decor: () => show(decorScreen(innCtx)), daily: (date) => startDive(false, { daily: date }), shared: (code) => startDive(false, { code }), weekly: (week) => startDive(false, { weekly: week }), ghost: (code) => startGhost(code),
+    board: () => show(boardScreen(innCtx)), decor: () => show(decorScreen(innCtx)), daily: (date) => startDive(false, { daily: date }), shared: (code) => startDive(false, { code }), weekly: (week) => startDive(false, { weekly: week }), ghost: (code) => startGhost(code), keiko: (kind) => startKeiko(kind),
   },
 };
 function goInn() { if (!H) return home(); if (H.diving && D) return showDive(); const s2 = innScreen(innCtx); s2.where = 'inn'; show(s2); }
