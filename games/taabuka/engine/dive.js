@@ -856,6 +856,17 @@ export function moveThing(base, D, from, uid, to) {
   return D;
 }
 
+/** 懐・お守り袋の品を捨てる（戦闘の外ならいつでも。捨てた品は戻らない） */
+export function dropThing(base, D, from, uid) {
+  check(D.phase !== 'battle' && D.phase !== 'end', 'いまは捨てられない');
+  check(from === 'pouch' || from === 'charm', '懐かお守り袋の品だけ捨てられる');
+  const i = D[from].findIndex((x) => x.uid === uid);
+  check(i >= 0, 'その品はない');
+  const [x] = D[from].splice(i, 1);
+  D.log?.push?.({ t: 'drop', id: x.id, type: x.type, floor: D.floor });
+  return D;
+}
+
 // ───────────────────────── 商い・湯・謎・非常口 ─────────────────────────
 
 function genShop(base, D, room) {

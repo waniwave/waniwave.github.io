@@ -1,15 +1,16 @@
 // 潜行の画面：階（襖の列3つ）・追跡者・報酬・商い・湯・謎・非常口・踊り場・脱出／未帰還（仕様書 第4章・第10章）
 // 状態 D は engine/dive.js が持つ。画面は D を描いて、dive.js の関数を呼ぶだけ。戦闘は battle 画面に任せる。
 
+import { grows, growShort } from '../labels.js';
 import { applyTheme } from '../theme.js';
-import { thingEl as sharedThing, pickThing } from '../things.js';
+import { thingEl as sharedThing, pickThing, defOf } from '../things.js';
 import { h, tip, toast, pick, sheet, holdButton, esc } from '../dom.js';
 import { GRADE_COLOR, catGlyph, catColor, tierLabel, kwLines, bindText, rarOfCard, floorName } from '../labels.js';
 import { askItem, ownedName } from '../items.js';
 import {
   openDoors, isHidden, enterDoor, answerChase, fleeCost, chaseInfo, takeReward, rewardDests, closeReward, leaveRoom, buy,
   bathOptions, useBath, eventChoices, chooseEvent, exitCosts, useExit, landingInfo, descend, goBack,
-  moveThing, useDiveItem, canUseOutside, pouchWeight, pouchValue, nameOf, sellValue, layerAt,
+  moveThing, dropThing, useDiveItem, canUseOutside, pouchWeight, pouchValue, nameOf, sellValue, layerAt,
 } from '../../engine/dive.js';
 import { num as format } from '../num.js';
 import { SE, footsteps } from '../audio/audio.js';
@@ -392,8 +393,18 @@ export function diveScreen(o) {
         o.onChange?.(D); draw(); render();
       } }, [label]);
       const line = (from, x, moves) => h('div.itemrow', {}, [h('div', {}, [h('b', { text: nameOf(base, { ...x, type: x.type ?? { deck: 'card', seats: 'regular', relics: 'relic', items: 'item' }[from] }) }),
-        h('span.q', { text: `　売値 ${sellValue(base, { ...x, type: x.type ?? { deck: 'card', seats: 'regular', relics: 'relic', items: 'item' }[from] })}` })]), h('div.chips', {}, moves)]);
-      const kids = [h('h2', { text: '持ち物' }), h('p.q', { text: inBath ? '湯では、デッキと懐を入れ替えられる。' : '懐とお守り袋は、戦闘の外ならいつでも入れ替えられる。' })];
+        h('span.q', { text: `　売値 ${sellValue(base, { ...x, type: x.type ?? { deck: 'card', seats: 'regular', relics: 'relic', items: 'item' }[from] })}` }),
+        (() => { const d = defOf(content, { ...x, type: x.type ?? { deck: 'card', seats: 'regular', relics: 'relic', items: 'item' }[from] }); return grows(d) ? h('span.growb', { text: growShort(d, x) }) : null; })()]), h('div.chips', {}, moves)]);
+      // 捨てる：1回目の押下で「本当に？」に変わり、2回目で捨てる
+      const dropBtn = (from, x) => {
+        const b = h('button.chip.drop', { type: 'button', onclick: () => {
+          if (!b.classList.contains('arm')) { b.classList.add('arm'); b.textContent = '本当に捨てる'; setTimeout(() => { if (b.isConnected) { b.classList.remove('arm'); b.textContent = '捨てる'; } }, 2500); return; }
+          try { dropThing(base, D, from, x.uid); } catch (e) { if (e.userError) { toast(e.message); return; } throw e; }
+          toast(`${nameOf(base, x)}を捨てた`); o.onChange?.(D); draw(); render();
+        } }, ['捨てる']);
+        return b;
+      };
+      const kids = [h('h2', { text: '持ち物' })];
       kids.push(h('h3', { text: `懐　重さ ${pouchWeight(base, D)}/${D.carry.pouch}・総額 ${pouchValue(base, D)}` }));
       if (!D.pouch.length) kids.push(h('p.q', { text: '空' }));
       for (const x of D.pouch) {
@@ -402,10 +413,11 @@ export function diveScreen(o) {
         if (inBath && x.type === 'card') moves.push(mv('pouch', x, 'deck', 'デッキへ'));
         if (inBath && x.type === 'regular') moves.push(mv('pouch', x, 'seats', '席へ'));
         if (inBath && x.type === 'relic') moves.push(mv('pouch', x, 'relics', '置く'));
+        moves.push(dropBtn('pouch', x));
         kids.push(line('pouch', x, moves));
       }
       kids.push(h('h3', { text: `お守り袋　${D.charm.length}/${D.carry.charm}（未帰還でも残る）` }));
-      for (const x of D.charm) kids.push(line('charm', x, [mv('charm', x, 'pouch', '懐へ')]));
+      for (const x of D.charm) kids.push(line('charm', x, [mv('charm', x, 'pouch', '懐へ'), dropBtn('charm', x)]));
       if (inBath || bath) {
         kids.push(h('h3', { text: `デッキ ${D.deck.length}枚` }));
         for (const x of D.deck) kids.push(line('deck', x, inBath ? [mv('deck', x, 'pouch', '懐へ')] : []));

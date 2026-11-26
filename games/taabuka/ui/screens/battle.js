@@ -26,6 +26,7 @@ import { playSpell, playCombo } from '../fx/combo.js';
 import { playMood } from '../fx/silly.js';
 import { catBurst, typeFx } from '../fx/catfx.js';
 import { premium } from '../premium.js';
+import { grows, growShort, growLine } from '../labels.js';
 import { applyTheme } from '../theme.js';
 import { setBgmMood } from '../audio/audio.js';
 import { matchCombos } from '../../engine/combo.js';
@@ -190,9 +191,9 @@ export function battleScreen(o) {
       const r = B.seats[i];
       if (!r) { el.append(h('div.seat', {}, [])); continue; }
       const def = content.regulars[r.id] || {};
-      const s = h(`div.seat.on${r.disabled ? '.off' : ''}`, { style: { '--g': GRADE_COLOR[def.grade] }, dataset: { uid: r.uid } }, [h('span', { text: r.name })]);
+      const s = h(`div.seat.on${r.disabled ? '.off' : ''}`, { style: { '--g': GRADE_COLOR[def.grade] }, dataset: { uid: r.uid } }, [h('span', { text: r.name }), grows(def) ? h('i.growb', { text: growShort(def, r).replace('育ち ', '') }) : null]);
       s.insertAdjacentHTML('afterbegin', smallArt(r.id));
-      tip(s, () => `<b>${esc(r.name)}</b>${r.disabled ? '　<span class="q">（席を奪われている）</span>' : ''}<br>${kwLines(def).join('<br>')}${def.flavor ? `<br><span class="fl">${esc(def.flavor)}</span>` : ''}`);
+      tip(s, () => `<b>${esc(r.name)}</b>${r.disabled ? '　<span class="q">（席を奪われている）</span>' : ''}<br>${kwLines(def).join('<br>')}${grows(def) ? `<br>${growLine(def, r)}` : ''}${def.flavor ? `<br><span class="fl">${esc(def.flavor)}</span>` : ''}`);
       refs.seats.set(r.uid, s);
       el.append(s);
     }

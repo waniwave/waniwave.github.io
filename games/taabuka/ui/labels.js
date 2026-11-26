@@ -142,6 +142,7 @@ export function cardTip(env, c, B = null) {
   lines.push(...comboLines(env.content, c.id));
   for (const a of affixLines(env.content, c.ins)) lines.push(`<span class="ins${a.mythic ? ' m' : ''}">◆${esc(a.name)}：${esc(a.text)}</span>`);
   for (const a of attrText(env.balance, c)) lines.push(esc(a));
+  if (grows(def) && !fake) lines.push(growLine(def, c));
   if (def.flavor) lines.push(`<span class="fl">${esc(def.flavor)}</span>`);
   return lines.join('<br>');
 }
@@ -223,3 +224,18 @@ export function comboLines(content, cardId) {
 
 /** 階の呼び方（本坑・テーマの穴＝B、床上＝F） */
 export function floorName(content, dg, floor) { return `${content.dungeons?.[dg]?.prefix ?? 'B'}${floor}`; }
+
+// ───────── 育ち（永続で育つ札・常連客の、いまの育ち具合） ─────────
+const fmtG = (v) => String(Math.round((Number(v) || 0) * 100) / 100);
+/** 育つ物か */
+export const grows = (def) => !!def?.grow;
+/** 短い札（一覧の行・席）：「育ち 0.3」 */
+export function growShort(def, x) { return grows(def) ? `育ち ${fmtG(x?.grow)}` : ''; }
+/** 説明窓の一行：いまの育ちと、育ちを入れた効果の文 */
+export function growLine(def, x) {
+  if (!grows(def)) return '';
+  const g = def.grow; const v = fmtG(x?.grow);
+  const how = `${g.増える ?? '？'}ごとに＋${g.量 ?? '？'}${g.永続 ? '・永続' : '・この潜行だけ'}`;
+  const now = String(def.text ?? '').replace(/[。（(][^。]*ごとに[^。]*$/, '').replace(/育ち/g, `〔${v}〕`);
+  return `<span class="growl">育ち <b>${v}</b>（${esc(how)}）<br>いま：${esc(now)}</span>`;
+}

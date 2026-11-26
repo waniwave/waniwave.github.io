@@ -2,6 +2,7 @@
 import { h, tip, esc, sheet, toast } from './dom.js';
 import { souvenirsOf } from '../engine/meta.js';
 import { premium } from './premium.js';
+import { grows, growShort, growLine } from './labels.js';
 import { GRADE_COLOR, catGlyph, catColor, kwLines, ORIGIN_MARK, ORIGIN_JA, RAR_VAR, RAR_SHORT, rarOfCard, rarStars, rarHead, fxText, rarNote, affixLines, attrText, comboLines } from './labels.js';
 import { nameOf, sellValue } from '../engine/dive.js';
 
@@ -30,7 +31,8 @@ export function thingTip(base, x) {
     lines.push(...comboLines(base.content, x.id));
     for (const a of affixLines(base.content, x.ins)) lines.push(`<span class="ins${a.mythic ? ' m' : ''}">◆${esc(a.name)}：${esc(a.text)}</span>`);
   } else lines.push(...(def?.kwList?.length ? kwLines(def) : [esc(def?.text ?? (def?.use ? `使い道：${def.use}` : ''))]).filter(Boolean));
-  const attrs = [...attrText(base.balance, x), x.grow && `育ち ${x.grow}`].filter(Boolean);
+  if (grows(def)) lines.push(growLine(def, x));
+  const attrs = [...attrText(base.balance, x)].filter(Boolean);
   for (const a of attrs) lines.push(`<span class="attr">${esc(a)}</span>`);
   lines.push(`<span class="q">売値 ${sellValue(base, x)}${x.type === 'souvenir' ? `・重さ ${def?.weight ?? 1}` : ''}</span>`);
   if (def?.flavor) lines.push(`<span class="fl">${esc(def.flavor)}</span>`);
@@ -64,6 +66,7 @@ export function thingEl(base, x, opt = {}) {
       ...(x.ins?.length ? [h('span.ed', { text: ` ◆${x.ins.length}` })] : []),
       ...[x.enh, x.ed, x.seal].filter(Boolean).map((t) => h('span.ed', { text: ` ${t}` }))]));
   } else kids.push(h('span.sub', { text: { regular: '常連客', relic: '置物', item: 'お品書き', souvenir: `お土産・重さ${def?.weight ?? 1}` }[x.type] ?? '' }));
+  if (grows(def)) kids[kids.length - 1].append(h('span.growb', { text: growShort(def, x) }));
   if (opt.fx !== false) { const t = thingFx(base, x); if (t) kids.push(h('span.fx', { text: t })); }
   if (opt.price != null) kids.push(h('span.pr', { text: opt.price }));
   if (ORIGIN_MARK[x.origin]) kids.push(h('span.mark', { text: ORIGIN_MARK[x.origin] }));

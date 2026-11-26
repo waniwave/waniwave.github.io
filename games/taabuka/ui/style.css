@@ -943,3 +943,10 @@ button { font: inherit; color: inherit; }
 #updpill { position: fixed; z-index: 60; right: 8px; top: calc(48px + env(safe-area-inset-top)); padding: 6px 12px; border-radius: 16px; border: 1.5px solid #8a2a16; background: linear-gradient(#c8553c, #a8371f); color: #fff8ee; font-size: 13px; font-weight: 700; box-shadow: 0 3px 10px #0006; cursor: pointer; }
 /* 潜行準備は縦に長いので、潜るボタンを下に貼り付ける（小さい画面でも押せる） */
 .prep footer.ops.big { position: sticky; bottom: 0; z-index: 5; margin-top: auto; padding: 8px 0 calc(6px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, var(--paper) 30%); }
+/* 育ち（永続で育つ札・常連客） */
+.growb { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700; color: #fff; background: #3f8a3a; border-radius: 6px; padding: 0 5px; line-height: 16px; font-style: normal; }
+.seat .growb { position: absolute; right: 2px; top: 2px; margin: 0; font-size: 10px; line-height: 14px; padding: 0 3px; }
+.growl { color: #2e6a2a; }
+.growl b { font-family: var(--mincho); font-size: 1.15em; }
+.chip.drop { color: var(--bad); border-color: var(--bad); }
+.chip.drop.arm { background: var(--bad); color: #fff; font-weight: 700; }
