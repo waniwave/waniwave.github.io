@@ -15,7 +15,7 @@ groups:
 - [en_f_koujou_1a, en_f_koujou_1c]
 - [en_f_koujou_1b, en_f_koujou_1d, en_f_koujou_1a]
 elites: [en_f_koujou_1e, en_source]
-bosses: [en_kakuzukeshi, en_sakasayado]
+bosses: [en_b_koujou_foreman]
 warden: en_genkanban
 stalker: en_kidoku
 quirk:

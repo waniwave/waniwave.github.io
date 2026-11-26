@@ -26,7 +26,7 @@ import { playSpell, playCombo } from '../fx/combo.js';
 import { playMood } from '../fx/silly.js';
 import { catBurst, typeFx } from '../fx/catfx.js';
 import { premium } from '../premium.js';
-import { grows, growShort, growLine } from '../labels.js';
+import { grows, growShort, growLine, bindText } from '../labels.js';
 import { applyTheme } from '../theme.js';
 import { setBgmMood } from '../audio/audio.js';
 import { matchCombos } from '../../engine/combo.js';
@@ -202,10 +202,13 @@ export function battleScreen(o) {
 
   // 説明欄：押した札・敵・席・番付の説明がここに出る。何も押していないときは宿泊客の仕組み
   function guestInfo() {
-    const sealed = B.sealed.cats.length ? `<span class="warnt">封じ中：${B.sealed.cats.map((c) => `〈${esc(c)}〉あと${B.sealed.catTurns?.[c] ?? '?'}ターン`).join('・')}（その札は採点されず受けになる）</span><br>` : '';
+    let sealed = B.sealed.cats.length ? `<span class="warnt">封じ中：${B.sealed.cats.map((c) => `〈${esc(c)}〉あと${B.sealed.catTurns?.[c] ?? '?'}ターン`).join('・')}（その札は採点されず受けになる）</span><br>` : '';
     const gh = B.ghost ? `<span class="warnt">ゴースト宿「${esc(B.ghost.name)}」との勝負：${B.ghost.turns}ターンのうちに論破（いま${B.turn}ターン目）</span><br>` : '';
     const md = B.mood ? balance.moods?.[B.mood.id] : null;
     const mood = md ? `<span class="moodt" style="color:${md.color}">場の状態「${esc(B.mood.id)}」あと${B.mood.turns}ターン：${esc(md.text ?? '')}</span><br>` : '';
+    const boss = B.enemies.filter((e) => !e.dead && (e.kind === '層主' || e.kind === '底の主')).map((e) => [e.name, bindText(env, e.id)]).filter(([, t]) => t);
+    const bt = boss.map(([n, t]) => `<span class="warnt">${esc(n)}の仕掛け：${esc(t)}</span><br>`).join('');
+    sealed = bt + sealed;
     if (!B.guest) return gh + mood + sealed + '<span class="q">札・敵・席・番付を押すと、ここに説明が出ます</span>';
     const g = content.guests[B.guestSwap || B.guest];
     const m = g?.mechanic ? content.vocab.get('mechanic', g.mechanic) : null;

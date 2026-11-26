@@ -50,3 +50,4 @@ curses:
   text: 全ての札がTier8扱い（強さが3〜60でばらつく）
   rule:
   - {名前: 全札を同Tier扱い, Tier: '8'}
+bosses: [en_b_koujou_ro, en_b_koujou_line]

@@ -15,7 +15,7 @@ groups:
 - [en_f_yukemuri_1a, en_f_yukemuri_1c]
 - [en_f_yukemuri_1b, en_f_yukemuri_1d, en_f_yukemuri_1a]
 elites: [en_f_yukemuri_1e, en_matsuri]
-bosses: [en_fusuma_nushi, en_datochi]
+bosses: [en_b_yukemuri_yuban]
 warden: en_gesoku
 stalker: en_ashioto
 quirk: null

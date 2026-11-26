@@ -15,7 +15,7 @@ groups:
 - [en_f_gesen_1a, en_f_gesen_1c]
 - [en_f_gesen_1b, en_f_gesen_1d, en_f_gesen_1a]
 elites: [en_f_gesen_1e, en_source]
-bosses: [en_kakuzukeshi, en_sakasayado]
+bosses: [en_b_gesen_ryogae]
 warden: en_genkanban
 stalker: en_kidoku
 quirk:

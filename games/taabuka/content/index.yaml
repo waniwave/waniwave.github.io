@@ -69,11 +69,13 @@ guests:
 keywords:
   - base.yaml
 enemies:
+  - bosses.yaml
   - core.yaml
   - custom/anka.js
   - custom/byousoku.js
   - custom/datochi.js
   - custom/fusuma_nushi.js
+  - custom/gimmick.js
   - custom/idgae.js
   - custom/kakuzukeshi.js
   - custom/ketsuban.js

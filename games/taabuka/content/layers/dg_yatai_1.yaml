@@ -15,7 +15,7 @@ groups:
 - [en_f_yatai_1a, en_f_yatai_1c]
 - [en_f_yatai_1b, en_f_yatai_1d, en_f_yatai_1a]
 elites: [en_f_yatai_1e, en_chobun]
-bosses: [en_suretate, en_tsuchi_nashi]
+bosses: [en_b_yatai_rojiura]
 warden: en_gesoku
 stalker: en_ashioto
 quirk: null

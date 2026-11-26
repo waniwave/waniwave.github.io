@@ -1,6 +1,6 @@
 // サービスワーカー：オフライン起動。BUILD ごとに先読みし直す（一覧は tools/release.mjs が書く）。
 // 新しい版が入っても勝手に切り替えない。宿の画面の「更新」で切り替える（SKIP_WAITING を受けたら入れ替わる）。
-const BUILD = '1.6.4';
+const BUILD = '1.7.0';
 const FILES = [
   './content/achievements.yaml',
   './content/affixes.yaml',
@@ -14,11 +14,13 @@ const FILES = [
   './content/combos.yaml',
   './content/decor.yaml',
   './content/dungeons.yaml',
+  './content/enemies/bosses.yaml',
   './content/enemies/core.yaml',
   './content/enemies/custom/anka.js',
   './content/enemies/custom/byousoku.js',
   './content/enemies/custom/datochi.js',
   './content/enemies/custom/fusuma_nushi.js',
+  './content/enemies/custom/gimmick.js',
   './content/enemies/custom/idgae.js',
   './content/enemies/custom/kakuzukeshi.js',
   './content/enemies/custom/ketsuban.js',

@@ -15,7 +15,7 @@ groups:
 - [en_f_kousha_1a, en_f_kousha_1c]
 - [en_f_kousha_1b, en_f_kousha_1d, en_f_kousha_1a]
 elites: [en_f_kousha_1e, en_matsuri]
-bosses: [en_fusuma_nushi, en_datochi]
+bosses: [en_b_kousha_kyoto]
 warden: en_gesoku
 stalker: en_ashioto
 quirk: null

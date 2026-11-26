@@ -15,7 +15,7 @@ groups:
 - [en_f_yukemuri_2a, en_f_yukemuri_2c]
 - [en_f_yukemuri_2b, en_f_yukemuri_2d, en_f_yukemuri_2a]
 elites: [en_f_yukemuri_2e, en_source]
-bosses: [en_kakuzukeshi, en_sakasayado]
+bosses: [en_b_yukemuri_nobose]
 warden: en_genkanban
 stalker: en_kidoku
 quirk:

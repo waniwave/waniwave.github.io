@@ -45,7 +45,8 @@ export function layerPools(content, L) {
   return {
     groups: others.flatMap((x) => x.groups || []),
     elites: others.flatMap((x) => x.elites || []),
-    bosses: others.flatMap((x) => x.bosses || []),
+    // 底などの mix の層で bosses を書いてあれば、その主を多めに混ぜる
+    bosses: [...(L.bosses || []), ...(L.bosses || []), ...others.flatMap((x) => x.bosses || [])],
   };
 }
 

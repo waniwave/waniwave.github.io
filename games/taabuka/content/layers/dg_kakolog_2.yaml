@@ -15,7 +15,7 @@ groups:
 - [en_f_kakolog_2a, en_f_kakolog_2c]
 - [en_f_kakolog_2b, en_f_kakolog_2d, en_f_kakolog_2a]
 elites: [en_f_kakolog_2e, en_unei]
-bosses: [en_ketsuban, en_yakkan8]
+bosses: [en_b_kakolog_kopipe]
 warden: en_genkanban
 stalker: en_kidoku
 quirk:

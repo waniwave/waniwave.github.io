@@ -15,7 +15,7 @@ groups:
 - [en_f_yaneura_1a, en_f_yaneura_1c]
 - [en_f_yaneura_1b, en_f_yaneura_1d, en_f_yaneura_1a]
 elites: [en_f_yaneura_1e, en_kamige]
-bosses: [en_tier8, en_byousoku]
+bosses: [en_b_yaneura_nezumi]
 warden: en_kaerimichi
 stalker: en_shisen
 quirk:

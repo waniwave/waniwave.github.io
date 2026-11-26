@@ -15,7 +15,7 @@ groups:
 - [en_f_urayama_2a, en_f_urayama_2c]
 - [en_f_urayama_2b, en_f_urayama_2d, en_f_urayama_2a]
 elites: [en_f_urayama_2e, en_kamige]
-bosses: [en_tier8, en_byousoku]
+bosses: [en_b_urayama_tengu]
 warden: en_kaerimichi
 stalker: en_shisen
 quirk:
