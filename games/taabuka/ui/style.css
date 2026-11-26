@@ -997,7 +997,7 @@ button { font: inherit; color: inherit; }
 .tile .tcount, .tile .tprice, .tile .tgrow { position: absolute; right: 2px; bottom: 1px; font-size: 10px; font-weight: 700; z-index: 3; border-radius: 4px; padding: 0 3px; line-height: 13px; }
 .tile .tcount { background: var(--acc2); color: #fff; }
 .tile .tprice { background: #2a2520cc; color: #ffe6a0; }
-.tile .tgrow { right: auto; left: 2px; bottom: 12px; background: #3f8a3a; color: #fff; }
+.tile .tgrow { right: auto; left: 50%; transform: translateX(-50%); bottom: 1px; background: #3f8a3a; color: #fff; }
 .tile .tjoke { position: absolute; right: 2px; top: 2px; font-size: 9px; background: #e8508a; color: #fff; border-radius: 3px; padding: 0 2px; z-index: 3; }
 .tile:active { transform: scale(.96); }
 .tile.focus { outline: 3px solid var(--acc); outline-offset: 0; box-shadow: 0 0 10px color-mix(in srgb, var(--acc) 50%, transparent); z-index: 2; }
@@ -1021,3 +1021,21 @@ button { font: inherit; color: inherit; }
   .tile .tname { font-size: clamp(9.5px, 2.7vw, 12px); -webkit-line-clamp: 2; }
   .stash footer.ops .btn { min-height: 42px; }
 }
+/* 四角い札の格子（施設・報酬・商いでも同じ） */
+.tgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; align-content: start; --th: clamp(58px, 15.5vw, 84px); }
+.fac .tdetail, .stash .tdetail { flex: 0 0 auto; height: clamp(92px, 19vh, 150px); max-height: none; display: flex; gap: 8px; align-items: flex-start; }
+.fac .tdetail .dtx { flex: 1 1 auto; height: 100%; overflow-y: auto; }
+.fac .tdetail .dact { flex: 0 0 auto; align-self: center; max-width: 7.5em; white-space: normal; line-height: 1.25; font-size: 13px; }
+.tile.sold { opacity: .4; filter: grayscale(.8); }
+.tile.cant .tprice { background: var(--bad); color: #fff; }
+.scr.fac { overflow: hidden; }
+.fac main.ibody { flex: 1 1 auto; min-height: 80px; overflow-y: auto; }
+@media (max-height: 720px) {
+  .tgrid { --th: clamp(50px, 13.5vw, 64px); }
+  .fac .tdetail { height: clamp(76px, 15vh, 110px); font-size: 13px; }
+}
+.stash .deckg { max-height: calc(var(--th) * var(--drows, 2) + 5px * (var(--drows, 2) - 1) + 5px); }
+/* 報酬・商いの格子 */
+.rgrid, .shopg { margin: 4px 0 8px; }
+.tile.t-remove { --g: var(--bad); }
+.sheet .cdetail { max-height: 46vh; overflow: auto; margin: 6px 0 10px; }

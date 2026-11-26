@@ -122,8 +122,23 @@ export function facilityScreen(ctx, id) {
   const H = ctx.H();
   const def = facilityDef(base, id);
   const root = h('div.scr.inn.fac');
-  const act = (fn) => { if (guard(fn)) { ctx.save(); render(); } };
+  const act = (fn) => { if (guard(fn)) { ui.sel = null; ctx.save(); render(); } };
   const ui = {};
+  /**
+   * 四角い札（蔵と同じ）。押すと下の説明欄に出て、同じ札をもう一度押すか説明欄のボタンで決める
+   * o: { badge（右下の小さな字）, label（決めるボタン）, run, ok（決められるか）, reason, sold, on }
+   */
+  function tileFor(key, x, o = {}) {
+    if (ui.sel?.key === key) ui.sel = { key, x, ...o };   // 説明欄を今の値で
+    const t = tileEl(base, x, { price: o.badge ?? null, on: o.on, focus: ui.sel?.key === key, onclick: () => {
+      if (ui.sel?.key === key && o.run) { if (o.ok === false) { toast(o.reason ?? 'いまは選べない'); return; } o.run(); return; }
+      ui.sel = { key, x, ...o }; render();
+    } });
+    if (o.sold) t.classList.add('sold');
+    else if (o.ok === false) t.classList.add('cant');
+    return t;
+  }
+  const grid = (tiles, empty = '無い') => (tiles.length ? h('div.tgrid.fgrid', {}, tiles) : h('p.q', { text: empty }));
 
   // 質屋（帳場Lv3）：質札を2枚まで借りる。脱出で返して謝礼（売値の半分）、未帰還で売値が借金
   function pawnPart() {
@@ -134,14 +149,10 @@ export function facilityScreen(ctx, id) {
     return [
       h('h3', { text: `質屋　質札 ${info.held}/${info.max}${info.debt ? `・借金 ${info.debt}` : ''}` }),
       info.reason && !held.length ? h('p.warn', { text: info.reason }) : null,
-      h('div.shopgrid', {}, goods.map((g) => {
-        const el = thingEl(base, { type: 'card', id: g.id, origin: 'pawn', uid: `p${g.i}` }, { onclick: () => act(() => { borrowPawn(base, H, g.i); toast('質札を借りた（デッキに入れた）'); }) });
-        el.classList.add('shopcell');
-        if (g.taken) el.classList.add('sold');
-        else if (info.reason) el.classList.add('cant');
-        el.append(h('span.price', { text: g.taken ? '借りた' : `質 ${g.sell}` }));
-        return el;
-      })),
+      grid(goods.map((g) => tileFor(`p${g.i}`, { type: 'card', id: g.id, origin: 'pawn', uid: `p${g.i}` }, {
+        badge: g.taken ? '借りた' : `質${g.sell}`, sold: g.taken, label: '質札を借りる', ok: !g.taken && !info.reason, reason: g.taken ? 'もう借りた' : info.reason,
+        run: () => act(() => { borrowPawn(base, H, g.i); toast('質札を借りた（デッキに入れた）'); }),
+      }))),
       held.length ? h('button.btn', { type: 'button', onclick: async () => {
         const u = await pickThing(base, app, '返す質札', held, { yes: '返す' });
         if (u) act(() => returnPawn(base, H, u));
@@ -182,19 +193,16 @@ export function facilityScreen(ctx, id) {
         const D = base.balance.economy.inn.decks;
         return [
           h('h3', { text: '今日の品（潜るたびに替わる）' }),
-          h('div.things.list', {}, goods.map((g) => {
-            const el = thingEl(base, { type: 'card', id: g.id, origin: 'orig', uid: `g${g.i}` }, { price: g.sold ? '売れた' : `宿銭 ${g.price}`, onclick: () => { if (!g.sold) act(() => { buyChouba(base, H, g.i); toast('買った（蔵に入れた）'); }); } });
-            if (g.sold) el.classList.add('sold');
-            if (!g.sold && H.zeni < g.price) el.classList.add('cant');
-            return el;
-          })),
+          grid(goods.map((g) => tileFor(`g${g.i}`, { type: 'card', id: g.id, origin: 'orig', uid: `g${g.i}` }, {
+            badge: g.sold ? '売れた' : String(g.price), sold: g.sold, label: `買う（宿銭${g.price}）`, ok: !g.sold && H.zeni >= g.price, reason: g.sold ? 'もう売れた' : '宿銭が足りない',
+            run: () => act(() => { buyChouba(base, H, g.i); toast('買った（蔵に入れた）'); }),
+          }))),
           h('h3', { text: '基礎札と構築済みデッキ（いつでも買える）' }),
           h('div.chips.cats', {}, cats.map((c) => h(`button.chip${c === ui.cat ? '.on' : ''}`, { type: 'button', onclick: () => { ui.cat = c; render(); } }, [c]))),
-          h('div.things.list', {}, basics.map((g) => {
-            const el = thingEl(base, { type: 'card', id: g.id, origin: 'orig', uid: `b${g.id}` }, { price: `宿銭 ${g.price}`, onclick: () => act(() => { buyBasic(base, H, ui.cat, g.id); toast('買った（蔵に入れた）'); }) });
-            if (H.zeni < g.price) el.classList.add('cant');
-            return el;
-          })),
+          grid(basics.map((g) => tileFor(`b${g.id}`, { type: 'card', id: g.id, origin: 'orig', uid: `b${g.id}` }, {
+            badge: String(g.price), label: `買う（宿銭${g.price}）`, ok: H.zeni >= g.price, reason: '宿銭が足りない',
+            run: () => act(() => { buyBasic(base, H, ui.cat, g.id); toast('買った（蔵に入れた）'); }),
+          }))),
           dk ? h('div.deckgood', {}, [
             h('div', {}, [h('b', { text: `〈${ui.cat}〉の構築済みデッキ ${dk.ids.length}枚` }), h('div.q', { text: [...new Set(dk.ids)].map((id) => base.content.cards[id].name).join('、') })]),
             h('button.btn.main', { type: 'button', disabled: H.zeni < dk.price, onclick: async () => {
@@ -231,7 +239,7 @@ export function facilityScreen(ctx, id) {
           h('p', { text: `懐 ${c.pouch}・お守り袋 ${c.charm}` }),
           h('h3', { text: `両替：お土産${E.give}つ → 好きなお土産1つ（${ui.give.size}/${E.give}）` }),
           ui.give.size === E.give ? h('div.chips.wrap', {}, [h('span.q', { text: '何に替える？' }), ...targets.map((d) => h('button.chip', { type: 'button', onclick: () => act(() => { exchangeSouvenir(base, H, [...ui.give], d.id); ui.give.clear(); toast(`${d.name}に替えた`); }) }, [d.name]))]) : null,
-          sv.length ? h('div.things.list', {}, sv.map((x) => thingEl(base, x, { on: ui.give.has(x.uid), onclick: () => { if (ui.give.has(x.uid)) ui.give.delete(x.uid); else if (ui.give.size < E.give) ui.give.add(x.uid); render(); } }))) : h('p.q', { text: 'お土産が無い' }),
+          grid(sv.map((x) => tileEl(base, x, { on: ui.give.has(x.uid), focus: ui.sel?.key === x.uid, onclick: () => { ui.sel = { key: x.uid, x }; if (ui.give.has(x.uid)) ui.give.delete(x.uid); else if (ui.give.size < E.give) ui.give.add(x.uid); render(); } })), 'お土産が無い'),
         ];
       }
       case 'kyakuma': {
@@ -247,9 +255,12 @@ export function facilityScreen(ctx, id) {
             h('b', { text: [...new Set(t.lines.map((l) => l[0]))].join('・') }), h('span.q', { text: `「${t.lines[0][1]}」` }), read.has(t.id) ? null : h('span.new', { text: '新' }),
           ]))) : h('p.q', { text: '常連客がいない' }),
           h('h3', { text: '世話' }),
-          regs.length ? h('div.things.list', {}, regs.map((x) => {
+          regs.length ? grid(regs.map((x) => {
             const c = careInfo(base, H, x.uid);
-            return thingEl(base, x, { price: x.rar ? `世話 ${x.rar}` : null, action: c.max ? null : { label: `世話 ${c.cost.zeni}`, cls: c.ok ? 'in' : 'off', onclick: () => { if (!c.ok) { toast(`宿銭${c.cost.zeni}とお土産${c.cost.souvenirs}つが要る`); return; } act(() => { careRegular(base, H, x.uid); toast(`${nameOf(base, x)}の世話をした（効果の量が${c.next}相当に）`); }); } } });
+            return tileFor(`r${x.uid}`, x, {
+              badge: x.rar ? `世話${x.rar}` : null, label: c.max ? null : `世話する（宿銭${c.cost.zeni}・お土産${c.cost.souvenirs}）`, ok: c.ok, reason: `宿銭${c.cost?.zeni}とお土産${c.cost?.souvenirs}つが要る`,
+              run: c.max ? null : () => act(() => { careRegular(base, H, x.uid); toast(`${nameOf(base, x)}の世話をした（効果の量が${c.next}相当に）`); }),
+            });
           })) : null,
         ];
       }
@@ -269,11 +280,12 @@ export function facilityScreen(ctx, id) {
         return [
           h('p', { text: `戻り ${Math.round(f.returnRate * 100)}%・掛け金 売値の${Math.round(f.premium * 100)}%` }),
           h('h3', { text: `戻り待ち ${H.insuredPending.length}` }),
-          h('div.things.list', {}, H.insuredPending.map((p) => thingEl(base, p.owned, { price: `戻り ${Math.round(p.rate * 100)}%` }))),
+          grid(H.insuredPending.map((p, i) => tileFor(`i${i}`, p.owned, { badge: `戻り${Math.round(p.rate * 100)}%` })), '無い'),
           h('h3', { text: `遺失物帳（供養点 ${H.kuyo}）` }),
-          h('div.things.list', {}, H.lostLog.map((x, i) => thingEl(base, x, {
-            action: { label: `供養 ${kuyoPrice(base, x)}`, cls: H.kuyo < kuyoPrice(base, x) ? 'off' : 'in', onclick: () => { if (H.kuyo < kuyoPrice(base, x)) { toast('供養点が足りない'); return; } act(() => { kuyo(base, H, i); toast('供養して戻した'); }); } },
-          }))),
+          grid(H.lostLog.map((x, i) => tileFor(`l${i}`, x, {
+            badge: `供養${kuyoPrice(base, x)}`, label: `供養して戻す（供養点${kuyoPrice(base, x)}）`, ok: H.kuyo >= kuyoPrice(base, x), reason: '供養点が足りない',
+            run: () => act(() => { kuyo(base, H, i); toast('供養して戻した'); }),
+          })), '無い'),
         ];
       case 'shikomi': {
         const menu = shikomiMenu(base, H);
@@ -329,10 +341,15 @@ export function facilityScreen(ctx, id) {
   function render() {
     const lv = H.facilities[id] ?? 1;
     const up = upgradeInfo(base, H, id);
+    const body = h('main.ibody', {}, bodyOf());
+    const hasTiles = ['chouba', 'monooki', 'kyakuma', 'kamidana'].includes(id) || !!body.querySelector('.tile');
     put(root, 
       top(`${def.name} Lv${lv}`, H, () => ctx.go.inn()),
-      h('main.ibody', {}, bodyOf()),
-      h('div.detail.fdetail', { html: '<span class="q">押した物の説明がここに出る</span>' }),
+      body,
+      !hasTiles ? null : h('div.detail.fdetail.tdetail', {}, ui.sel ? [
+        h('div.dtx', { html: thingTip(base, ui.sel.x) }),
+        ui.sel.run && ui.sel.label ? h(`button.btn.dact${ui.sel.ok === false ? '' : '.main'}`, { type: 'button', disabled: ui.sel.ok === false || ui.sel.sold, onclick: () => ui.sel.run() }, [ui.sel.label]) : null,
+      ] : [h('div.dtx', { html: '<span class="q">押した物の説明がここに出る</span>' })]),
       up.max ? null : h('div.upg', {}, [
         h('div', {}, [`Lv${up.lv}：${effText(base, H, id, up.lv)}`, h('div.q', { text: up.next.ready === false ? 'まだ改装できない' : `${costText(base, up.cost)}${up.ok ? '' : `　${up.reason}`}` })]),
         (() => { const b = holdButton('改装', () => act(() => { upgrade(base, H, id); toast(`${def.name}を改装した`); })); b.disabled = !up.ok; return b; })(),
@@ -455,7 +472,10 @@ export function stashScreen(ctx) {
     const souv = H.stash.filter((x) => x.type === 'souvenir');
     const fx = focus ? H.stash.find((x) => x.uid === focus) : null;
     const inDeck = fx && H.deck.includes(fx.uid);
-    deckEl = U.tab === 'card' ? h('div.tgrid.deckg', {}, [...sorted(deck).map((x) => tile(x, true)), ...Array.from({ length: Math.max(0, 10 - deck.length) }, () => h('span.tile.empty'))]) : null;
+    // デッキの囲みの段数は画面の高さで：低い画面2段（10枚）・ふつう3段（15枚＝最小のデッキ）・高い画面4段（20枚）。入りきらない分は囲みの中でスクロール
+    const vh = window.innerHeight || 700;
+    const rows = vh < 700 ? 2 : vh < 860 ? 3 : 4;
+    deckEl = U.tab === 'card' ? h('div.tgrid.deckg', { style: { '--drows': rows } }, [...sorted(deck).map((x) => tile(x, true)), ...Array.from({ length: Math.max(0, rows * 5 - deck.length) }, () => h('span.tile.empty'))]) : null;
     gridEl = h('div.tgrid.restg', {}, rest.length ? (U.tab === 'souvenir' ? groupSv(rest) : rest.map((x) => tile(x, false))) : [h('p.q', { text: '無い' })]);
     const detailKids = fx ? [
       h('div.dtx', { html: thingTip(base, fx) }),

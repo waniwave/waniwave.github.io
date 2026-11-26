@@ -3,8 +3,8 @@
 
 import { grows, growShort } from '../labels.js';
 import { applyTheme } from '../theme.js';
-import { thingEl as sharedThing, pickThing, defOf } from '../things.js';
-import { h, tip, toast, pick, sheet, holdButton, esc } from '../dom.js';
+import { thingEl as sharedThing, pickThing, defOf, tileEl, thingTip } from '../things.js';
+import { h, tip, toast, pick, sheet, holdButton, esc, showInfo } from '../dom.js';
 import { GRADE_COLOR, catGlyph, catColor, tierLabel, kwLines, bindText, rarOfCard, floorName } from '../labels.js';
 import { askItem, ownedName } from '../items.js';
 import {
@@ -203,13 +203,9 @@ export function diveScreen(o) {
       const label = { card: '札を1枚', regular: '常連客を1人', relic: '置物を1つ', souvenir: 'お土産', item: 'お品書き' }[g.type];
       return h(`section.grp${done ? '.done' : ''}`, {}, [
         h('h3', { text: done ? `${label}（${g.taken[0] ? '受け取った' : '見送った'}）` : label }),
-        h('div.things', {}, g.options.map((x, oi) => {
-          const el = thingEl(x);
-          if (g.taken.includes(x.uid)) el.classList.add('took');
-          if (!done) {
-            el.classList.add('tap');
-            el.addEventListener('click', () => chooseDest(x, (to) => redo(() => takeReward(base, D, gi, oi, to))));
-          }
+        h('div.tgrid.rgrid', {}, g.options.map((x, oi) => {
+          const el = tileEl(base, x, { on: g.taken.includes(x.uid), onclick: () => { if (!done) chooseDest(x, (to) => redo(() => takeReward(base, D, gi, oi, to))); else showInfo(thingTip(base, x), el); } });
+          if (done && !g.taken.includes(x.uid)) el.classList.add('sold');
           return el;
         })),
         done ? null : h('button.btn.skip', { type: 'button', onclick: () => redo(() => takeReward(base, D, gi, 0, 'skip')) }, ['見送る']),
@@ -230,7 +226,7 @@ export function diveScreen(o) {
     const s = sheet(app, [
       h('h2', { text: nameOf(base, x) }),
       note ? h('p.q', { text: note }) : null,
-      thingEl(x),
+      h('div.detail.cdetail', { html: thingTip(base, x) }),
       h('div.row', {}, opts.map((d) => h(`button.btn${d.to === 'deck' ? '.main' : ''}`, { type: 'button', disabled: !d.ok, onclick: () => { s.close(); done(d.to); } }, [d.label]))),
     ]);
   }
@@ -238,12 +234,7 @@ export function diveScreen(o) {
   function renderShop() {
     const cells = D.shop.goods.map((g, i) => {
       const can = !g.sold && D.zeni >= g.price;
-      const el = g.type === 'remove' ? h('div.thing', {}, [h('b', { text: '札の除去' }), h('span.sub', { text: 'デッキから1枚除く' })]) : thingEl(g);
-      el.classList.add('shopcell');
-      if (g.sold) el.classList.add('sold');
-      el.append(h('span.price', { text: g.sold ? '売れた' : `${g.price}` }));
-      if (!can) el.classList.add('cant');
-      el.addEventListener('click', async () => {
+      const onclick = async () => {
         if (!can) { toast(g.sold ? 'もう売れた' : '宿銭が足りない'); return; }
         if (g.type === 'remove') {
           const uid = await pickThing(base, app, '除く札を選ぶ', D.deck.map((c) => ({ ...c, type: 'card' })), { yes: '除く' });
@@ -251,14 +242,19 @@ export function diveScreen(o) {
           return;
         }
         chooseDest(g, (to) => { if (to !== 'skip') redo(() => buy(base, D, i, { to })); }, `${g.price}で買う`);
-      });
+      };
+      const el = g.type === 'remove'
+        ? h('button.tile.t-remove', { type: 'button', onclick }, [h('span.ttype', { text: '除' }), h('b.tname', { text: '札の除去' }), h('span.tprice', { text: g.sold ? '売れた' : `${g.price}` })])
+        : tileEl(base, g, { price: g.sold ? '売れた' : `${g.price}`, onclick });
+      if (g.sold) el.classList.add('sold');
+      else if (!can) el.classList.add('cant');
       return el;
     });
     return h('div.panel.shop', {}, [
       h('h2', { text: '商い' }),
       flLine('shop'),
       h('p.q', { text: `宿銭 ${D.zeni}` }),
-      h('div.shopgrid', {}, cells),
+      h('div.tgrid.shopg', {}, cells),
       h('div.row', {}, [h('button.btn.main', { type: 'button', onclick: () => redo(() => leaveRoom(base, D)) }, ['出る'])]),
     ]);
   }
