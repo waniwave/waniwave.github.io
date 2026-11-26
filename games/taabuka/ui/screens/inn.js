@@ -6,7 +6,7 @@ import { installButton, canOfferInstall } from '../install.js';
 import { shihanInfo } from '../../engine/keiko.js';
 import { innArt } from '../innart.js';
 import { h, tip, toast, pick, sheet, holdButton, esc, confirmSheet } from '../dom.js';
-import { thingEl, pickThing, thingTip } from '../things.js';
+import { thingEl, pickThing, thingTip, tileEl } from '../things.js';
 import { catColor, catGlyph, slotLabel, rarOfCard, ATTR_KIND, attrExplain, comboEffText, floorName } from '../labels.js';
 import { num as format } from '../num.js';
 import { SE } from '../audio/audio.js';
@@ -419,30 +419,33 @@ export function stashScreen(ctx) {
     if (guard(() => toggleDeck(base, H, x.uid))) ctx.save();
     render();
   }
-  const el = (x, inDeck) => {
-    const e = thingEl(base, x, {
-      on: selling ? chosen.has(x.uid) : false, tip: false, price: selling ? `売値 ${sellValue(base, x)}` : null, onclick: () => tap(x),
-      action: !selling && x.type === 'card' ? { label: inDeck ? '外す' : '入れる', cls: inDeck ? 'out' : 'in', onclick: () => toggle(x) } : null,
-    });
-    if (focus === x.uid) e.classList.add('focus');
-    return e;
-  };
-  // お土産は種類ごとに1つにまとめて「×数」（売るときは押した種類を全部選ぶ／外す）
+  // 四角い札：押すと説明欄に出る。もう一度押すと（札なら）デッキに入れる／外す。売るときは選ぶ
+  const tile = (x, inDeck, count = 1, group = null) => tileEl(base, x, {
+    on: selling ? (group ? group.every((y) => chosen.has(y.uid)) : chosen.has(x.uid)) : false,
+    focus: focus === x.uid || (group && group.some((y) => y.uid === focus)),
+    count, price: selling ? (group ? group.reduce((a, y) => a + sellValue(base, y), 0) : sellValue(base, x)) : null,
+    onclick: () => {
+      if (selling) {
+        focus = x.uid;
+        const xs = group ?? [x];
+        if (xs.some((y) => !canSell(y))) { toast('質札は売れない（質屋で返す）'); render(); return; }
+        const all = xs.every((y) => chosen.has(y.uid));
+        for (const y of xs) { if (all) chosen.delete(y.uid); else chosen.add(y.uid); }
+        render(); return;
+      }
+      if (focus === x.uid && x.type === 'card') { toggle(x); return; }
+      focus = x.uid; render();
+    },
+  });
+  // お土産は種類ごとに1つにまとめて「×数」
   function groupSv(list) {
     const g = new Map();
     for (const x of list) { if (!g.has(x.id)) g.set(x.id, []); g.get(x.id).push(x); }
-    return [...g.values()].map((xs) => {
-      const x = xs[0];
-      const all = xs.every((y) => chosen.has(y.uid));
-      const e = thingEl(base, x, { on: selling && all, tip: false, price: selling ? `×${xs.length}・売値 ${xs.reduce((a, y) => a + sellValue(base, y), 0)}` : `×${xs.length}`,
-        onclick: () => { focus = x.uid; if (selling) { for (const y of xs) { if (all) chosen.delete(y.uid); else chosen.add(y.uid); } } render(); } });
-      if (focus && xs.some((y) => y.uid === focus)) e.classList.add('focus');
-      return e;
-    });
+    return [...g.values()].map((xs) => tile(xs[0], false, xs.length, xs));
   }
-  let bodyEl = null;
+  let gridEl = null, deckEl = null;
   function render() {
-    const keep = bodyEl?.scrollTop ?? 0;
+    const keep = gridEl?.scrollTop ?? 0, keepD = deckEl?.scrollTop ?? 0;
     const P = base.balance.hands.play;
     const T = STASH_TABS.find((t) => t.id === U.tab);
     const room = stashRoom(base, H);
@@ -451,26 +454,29 @@ export function stashScreen(ctx) {
     const sum = [...chosen].reduce((a, u) => a + sellValue(base, H.stash.find((x) => x.uid === u) ?? {}), 0);
     const souv = H.stash.filter((x) => x.type === 'souvenir');
     const fx = focus ? H.stash.find((x) => x.uid === focus) : null;
-    bodyEl = h('main.stbody', {}, [
-      U.tab === 'card' ? h('h3', { text: `デッキ ${deck.length}枚（${P.deckMin}〜${P.deckMax}）` }) : null,
-      U.tab === 'card' ? h('div.things.deck', {}, sorted(deck).map((x) => el(x, true))) : null,
-      h('div.filters', {}, [
-        (() => { const x = h('select', { onchange: () => { U.sort = x.value; render(); } }, SORTS.map(([v, t]) => h('option', { value: v }, [`並び：${t}`]))); x.value = U.sort; return x; })(),
-        ...(U.tab === 'card' ? [
-          sel('cat', 'カテゴリ：全部', base.balance.tiers.categories.map((c) => [c, c])),
-          sel('rar', 'レアリティ：全部', base.balance.rarity.order.map((r, i) => [r, `${'★'.repeat(i + 1)} ${r}`])),
-          sel('origin', '由来：全部', [['orig', '原本'], ['copy', '写し'], ['expiry', '期限'], ['cursed', '曰く付き'], ['bet', '賭け'], ['pawn', '質']]),
-        ] : []),
-      ]),
-      h('h3', { text: `${U.tab === 'card' ? '蔵の札' : T.label} ${rest.length}` }),
-      h('div.things.list2', {}, rest.length ? (U.tab === 'souvenir' ? groupSv(rest) : rest.map((x) => el(x, false))) : [h('p.q', { text: '無い' })]),
-    ]);
+    const inDeck = fx && H.deck.includes(fx.uid);
+    deckEl = U.tab === 'card' ? h('div.tgrid.deckg', {}, [...sorted(deck).map((x) => tile(x, true)), ...Array.from({ length: Math.max(0, 10 - deck.length) }, () => h('span.tile.empty'))]) : null;
+    gridEl = h('div.tgrid.restg', {}, rest.length ? (U.tab === 'souvenir' ? groupSv(rest) : rest.map((x) => tile(x, false))) : [h('p.q', { text: '無い' })]);
+    const detailKids = fx ? [
+      h('div.dtx', { html: thingTip(base, fx) }),
+      !selling && fx.type === 'card' ? h('button.btn.dact', { type: 'button', onclick: () => toggle(fx) }, [inDeck ? 'デッキから外す' : 'デッキに入れる']) : null,
+    ] : [h('div.dtx', { html: `<span class="q">${roomText(room)}</span>` })];
     put(root,
       top('蔵', H, () => (overflowNow(base, H) ? toast('先に売って蔵に収める') : ctx.go.inn())),
       room.over ? h('p.warn', { text: `蔵があふれている（${roomText(room)}）` }) : null,
       h('div.tabs', {}, STASH_TABS.map((t) => h(`button.tab${t.id === U.tab ? '.on' : ''}`, { type: 'button', onclick: () => { U.tab = t.id; chosen.clear(); focus = null; render(); } }, [t.label, h('small', { text: ` ${H.stash.filter(t.has).length}` })]))),
-      bodyEl,
-      h('div.detail', { html: fx ? thingTip(base, fx) : `<span class="q">${roomText(room)}</span>` }),
+      U.tab === 'card' ? h('div.deckp', {}, [h('div.dhd', {}, [h('b', { text: 'デッキ' }), h(`span${deck.length < P.deckMin || deck.length > P.deckMax ? '.bad' : ''}`, { text: `${deck.length}枚（${P.deckMin}〜${P.deckMax}）` })]), deckEl]) : null,
+      h('div.filters', {}, [
+        (() => { const x = h('select', { onchange: () => { U.sort = x.value; render(); } }, SORTS.map(([v, t]) => h('option', { value: v }, [`並び：${t}`]))); x.value = U.sort; return x; })(),
+        ...(U.tab === 'card' ? [
+          sel('cat', 'カテゴリ', base.balance.tiers.categories.map((c) => [c, c])),
+          sel('rar', 'レア度', base.balance.rarity.order.map((r, i) => [r, `${'★'.repeat(i + 1)} ${r}`])),
+          sel('origin', '由来', [['orig', '原本'], ['copy', '写し'], ['expiry', '期限'], ['cursed', '曰く付き'], ['bet', '賭け'], ['pawn', '質']]),
+        ] : []),
+        h('span.fcount', { text: `${rest.length}` }),
+      ]),
+      gridEl,
+      h('div.detail.tdetail', {}, detailKids),
       h('footer.ops', {}, selling ? [
         h('button.btn', { type: 'button', onclick: () => { selling = false; chosen.clear(); render(); } }, ['やめる']),
         h('button.btn', { type: 'button', onclick: () => { rest.filter(canSell).forEach((x) => chosen.add(x.uid)); render(); } }, ['全部選ぶ']),
@@ -481,7 +487,7 @@ export function stashScreen(ctx) {
         h('button.btn.main', { type: 'button', onclick: () => (overflowNow(base, H) ? toast('先に売って蔵に収める') : ctx.go.inn()) }, ['宿へ']),
       ]),
     );
-    bodyEl.scrollTop = keep;
+    gridEl.scrollTop = keep; if (deckEl) deckEl.scrollTop = keepD;
   }
   render();
   return { el: root, render };

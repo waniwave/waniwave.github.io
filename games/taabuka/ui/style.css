@@ -969,3 +969,55 @@ button { font: inherit; color: inherit; }
   .itop .wallet { font-size: 12px; gap: 4px; }
   .scr.title h1, .scr.title .logo { font-size: clamp(56px, 22vw, 96px); }
 }
+
+/* ───────── 蔵：四角い札を5列で並べる（デッキは上に固定・蔵の札だけスクロール・説明は常に下） ───────── */
+.scr.stash { overflow: hidden; }
+.stash .tgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; align-content: start; }
+.stash .deckp { flex: 0 0 auto; display: flex; flex-direction: column; gap: 3px; }
+.stash .deckp .dhd { display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+.stash .deckp .dhd b { font-family: var(--mincho); font-size: 15px; }
+.stash .deckp .dhd .bad { color: var(--bad); font-weight: 700; }
+.stash .deckg { --th: clamp(58px, 15.5vw, 84px); max-height: calc(var(--th) * 2 + 5px); overflow-y: auto; padding: 2px; border-radius: 8px; background: color-mix(in srgb, var(--acc2) 8%, transparent); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--acc2) 35%, transparent); }
+.stash .restg { --th: clamp(58px, 15.5vw, 84px); flex: 1 1 auto; min-height: calc(var(--th) + 10px); overflow-y: auto; padding: 2px 2px 8px; }
+.stash .filters { flex: 0 0 auto; display: flex; gap: 4px; align-items: center; }
+.stash .filters select { flex: 1 1 0; min-width: 0; font-size: 12px; min-height: 34px; padding: 0 2px; }
+.stash .filters .fcount { flex: 0 0 auto; font-size: 12px; color: var(--quiet); min-width: 2em; text-align: right; }
+.stash .tdetail { flex: 0 0 auto; height: clamp(92px, 19vh, 150px); max-height: none; display: flex; gap: 8px; align-items: flex-start; }
+.stash .tdetail .dtx { flex: 1 1 auto; height: 100%; overflow-y: auto; }
+.stash .tdetail .dact { flex: 0 0 auto; align-self: center; min-width: 5.5em; white-space: normal; line-height: 1.2; font-size: 13px; }
+/* 四角い札 */
+.tile { position: relative; height: var(--th, 70px); min-width: 0; padding: 3px 3px 2px; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 1px;
+  border: 2px solid var(--g, var(--line)); border-radius: 7px; background: #fbf7ee; color: #2a2520; text-align: left; cursor: pointer; overflow: hidden; font: inherit; -webkit-tap-highlight-color: transparent; }
+.tile.empty { border-style: dashed; border-color: color-mix(in srgb, var(--acc2) 30%, transparent); background: none; cursor: default; }
+.tile .tcats { display: flex; gap: 1px; min-height: 13px; }
+.tile .tcats i { font-style: normal; font-size: 9.5px; line-height: 13px; width: 13px; text-align: center; border-radius: 2px; color: #fff; }
+.tile .ttype { font-size: 10px; color: #6e6455; line-height: 13px; }
+.tile .tname { font-family: var(--mincho); font-size: clamp(10px, 2.9vw, 13px); line-height: 1.18; font-weight: 700; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; word-break: break-all; position: relative; z-index: 2; }
+.tile .tstar { position: absolute; left: 3px; bottom: 1px; font-size: 7.5px; letter-spacing: -1px; text-shadow: 0 0 2px #fff; z-index: 2; }
+.tile .tcount, .tile .tprice, .tile .tgrow { position: absolute; right: 2px; bottom: 1px; font-size: 10px; font-weight: 700; z-index: 3; border-radius: 4px; padding: 0 3px; line-height: 13px; }
+.tile .tcount { background: var(--acc2); color: #fff; }
+.tile .tprice { background: #2a2520cc; color: #ffe6a0; }
+.tile .tgrow { right: auto; left: 2px; bottom: 12px; background: #3f8a3a; color: #fff; }
+.tile .tjoke { position: absolute; right: 2px; top: 2px; font-size: 9px; background: #e8508a; color: #fff; border-radius: 3px; padding: 0 2px; z-index: 3; }
+.tile:active { transform: scale(.96); }
+.tile.focus { outline: 3px solid var(--acc); outline-offset: 0; box-shadow: 0 0 10px color-mix(in srgb, var(--acc) 50%, transparent); z-index: 2; }
+.tile.took { box-shadow: 0 0 0 3px var(--acc2) inset; background: color-mix(in srgb, var(--acc2) 22%, #fbf7ee); }
+.tile.took::after { content: '✓'; position: absolute; right: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--acc2); color: #fff; font-size: 11px; font-weight: 900; line-height: 16px; text-align: center; z-index: 4; }
+.tile.prem { isolation: isolate; }
+.tile .foil { position: absolute; inset: 0; border-radius: 5px; z-index: -1; }
+.tile .shine, .tile .spark { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.tile .gems { right: auto; left: auto; bottom: auto; top: 2px; right: 2px; flex-direction: row; z-index: 3; }
+.tile.p4 { border-color: #c9a227; background: linear-gradient(160deg, #fbf7ee 55%, #f6e9c0); }
+.tile.p5 { border-color: #a8281a; background: linear-gradient(160deg, #fbf7ee 50%, #f7dcc8); box-shadow: 0 0 5px #c8341c55; }
+.tile.p6 { border-color: #a86aff; background: linear-gradient(160deg, #fbf7ee 45%, #efe0ff); box-shadow: 0 0 6px #a86aff66; }
+.tile.p3 { border-color: color-mix(in srgb, #3b73c4 60%, var(--g)); }
+.stash .tabs .tab { min-height: 38px; padding: 0 2px; white-space: nowrap; font-size: 14px; }
+.stash .tabs .tab small { font-size: 11px; }
+.scr.stash { gap: 5px; }
+@media (max-height: 720px) {
+  .stash .deckg, .stash .restg { --th: clamp(50px, 13.5vw, 64px); }
+  .stash .tdetail { height: clamp(76px, 15vh, 110px); font-size: 13px; }
+  .stash .tdetail b { font-size: 14px; }
+  .tile .tname { font-size: clamp(9.5px, 2.7vw, 12px); -webkit-line-clamp: 2; }
+  .stash footer.ops .btn { min-height: 42px; }
+}

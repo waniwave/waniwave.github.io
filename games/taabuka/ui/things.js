@@ -55,6 +55,26 @@ export function thingFx(base, x) {
   return def.text ?? (def.use ? `使い道：${def.use}` : '');
 }
 
+/** 格子に並べる四角い札（蔵など。説明は別の欄に出す）。opt: on（選んだ）・focus・count（×数）・price・onclick */
+export function tileEl(base, x, opt = {}) {
+  const def = defOf(base.content, x);
+  const isCard = x.type === 'card';
+  const r = isCard ? rarOfCard(base.balance, x, def) : null;
+  const cats = isCard ? (x.mod?.cat ?? def?.cat ?? []) : [];
+  const kids = [
+    cats.length ? h('span.tcats', {}, cats.slice(0, 3).map((c) => h('i', { style: { background: catColor(c) } }, [catGlyph(c)]))) : h('span.ttype', { text: { regular: '客', relic: '置', item: '品', souvenir: '土' }[x.type] ?? '' }),
+    h('b.tname', { text: nameOf(base, x) }),
+    isCard ? h('span.tstar', { text: rarStars(r), style: { color: RAR_VAR[r] } }) : null,
+    opt.count > 1 ? h('span.tcount', { text: `×${opt.count}` }) : null,
+    grows(def) ? h('span.tgrow', { text: String(Math.round((x.grow || 0) * 100) / 100) }) : null,
+    opt.price != null ? h('span.tprice', { text: String(opt.price) }) : null,
+    def?.joke || base.content.sets?.[def?.set]?.joke ? h('span.tjoke', { text: '笑' }) : null,
+  ];
+  const el = h(`button.tile.t-${x.type}${opt.on ? '.took' : ''}${opt.focus ? '.focus' : ''}`, { type: 'button', style: { '--g': GRADE_COLOR[def?.grade] ?? 'var(--line)' }, onclick: opt.onclick }, kids);
+  if (isCard) { el.classList.add(`r-${r}`); premium(el, r, x.ins, base.content); }
+  return el;
+}
+
 /** 小さな札 */
 export function thingEl(base, x, opt = {}) {
   const def = defOf(base.content, x);
