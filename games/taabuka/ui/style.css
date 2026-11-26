@@ -39,7 +39,11 @@ button { font: inherit; color: inherit; }
 .side .q { color: #8f846f; }
 
 /* 画面共通 */
-.scr { position: absolute; inset: 0; display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+/* 画面の切り欠き・ステータスバー（ホーム画面に追加したとき）の分は、画面の枠（border）で空ける。
+   padding だと画面ごとの padding 指定で上書きされて消えるため。背景は枠の下まで塗られる。--sat は確かめ用に上書きできる */
+:root { --sat: env(safe-area-inset-top, 0px); --sal: env(safe-area-inset-left, 0px); --sar: env(safe-area-inset-right, 0px); }
+.scr { position: absolute; inset: 0; display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  border-top: var(--sat) solid transparent; border-left: var(--sal) solid transparent; border-right: var(--sar) solid transparent; }
 /* 低い画面（iPhone SE など）では画面ごと縦にスクロールできる。中身は縮みすぎない */
 .scr > * { flex-shrink: 0; }
 .scr > .zbody, .scr > .facs, .scr > .ibody, .scr > main.dv, .scr > .things.half, .scr > .stbody { flex-shrink: 1; }
@@ -51,7 +55,7 @@ button { font: inherit; color: inherit; }
 
 /* 長押しの説明 */
 /* 説明の窓：画面の上の方に出す。下の決定ボタンを塞がず、窓を素通しで押せる（押すと閉じる） */
-#tip { position: fixed; z-index: 50; left: 50%; transform: translateX(-50%); top: calc(52px + env(safe-area-inset-top)); pointer-events: none; width: min(420px, calc(100vw - 16px)); max-height: 45vh; overflow: auto; padding: 12px 40px 12px 14px; border-radius: 12px; background: #2a2520f5; color: #f3ead6; font-size: 16px; line-height: 1.6; box-shadow: 0 6px 20px #0006; display: none; }
+#tip { position: fixed; z-index: 50; left: 50%; transform: translateX(-50%); top: calc(52px + var(--sat)); pointer-events: none; width: min(420px, calc(100vw - 16px)); max-height: 45vh; overflow: auto; padding: 12px 40px 12px 14px; border-radius: 12px; background: #2a2520f5; color: #f3ead6; font-size: 16px; line-height: 1.6; box-shadow: 0 6px 20px #0006; display: none; }
 #tip .tipx { pointer-events: auto; position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border: 0; border-radius: 16px; background: #fff2; color: #fff; font-size: 16px; }
 #tip b { font-family: var(--mincho); font-size: 17px; }
 #tip .q { color: #b9ad94; }
@@ -63,7 +67,7 @@ button { font: inherit; color: inherit; }
 .hold .lbl { position: relative; }
 
 /* 上に重ねる窓（中断・選ぶ・結果） */
-.sheet-back { position: absolute; inset: 0; z-index: 30; background: #0007; display: flex; align-items: flex-end; justify-content: center; }
+.sheet-back { position: absolute; inset: 0; z-index: 30; background: #0007; display: flex; align-items: flex-end; justify-content: center; padding-top: calc(var(--sat) + 8px); }
 .sheet { width: 100%; max-height: 92%; overflow: auto; background: var(--paper); border-radius: 16px 16px 0 0; padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; }
 .sheet h2 { margin: 0; font-family: var(--mincho); font-size: 20px; }
 .sheet .row { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -81,7 +85,7 @@ button { font: inherit; color: inherit; }
 
 /* ───────── 戦闘 ───────── */
 .battle { padding: 0 8px calc(6px + env(safe-area-inset-bottom)); gap: 5px; }
-.top { flex: 0 0 44px; display: flex; align-items: center; gap: 10px; font-size: 14px; padding-top: env(safe-area-inset-top); }
+.top { flex: 0 0 44px; display: flex; align-items: center; gap: 10px; font-size: 14px; }
 .top .st { flex: 1; display: flex; gap: 10px; align-items: baseline; white-space: nowrap; overflow: hidden; }
 .top .fl { font-family: var(--mincho); font-weight: 700; font-size: 16px; }
 .top .hp b, .top .gd b, .top .zn b { font-family: var(--mincho); font-size: 16px; }
@@ -453,7 +457,7 @@ button { font: inherit; color: inherit; }
 @keyframes cpulse { 50% { border-color: #fff3c2; outline: 4px solid #f0c75e66; } }
 #coach .cbub { position: absolute; left: 8px; right: 8px; pointer-events: auto; background: #2a2520f2; color: #f3ead6; border-radius: 14px; padding: 10px 12px; box-shadow: 0 8px 24px #0008; display: flex; flex-direction: column; gap: 6px; max-height: 44%; overflow: auto; }
 #coach .cbub.low { bottom: calc(10px + env(safe-area-inset-bottom)); top: auto; }
-#coach .cbub.high { top: calc(10px + env(safe-area-inset-top)); bottom: auto; }
+#coach .cbub.high { top: calc(10px + var(--sat)); bottom: auto; }
 #coach .cbub.mid { bottom: auto; top: 50%; transform: translateY(-50%); }
 #coach .cbub:not(.mid) { transform: none; }
 #coach .chead { display: flex; justify-content: space-between; align-items: baseline; }
@@ -940,7 +944,7 @@ button { font: inherit; color: inherit; }
 .themes .chip { min-height: 36px; font-size: 13px; display: inline-flex; align-items: center; gap: 3px; }
 .themes .glyph { width: 16px; height: 16px; font-size: 11px; line-height: 16px; border-radius: 3px; color: #fff; text-align: center; display: inline-block; }
 .sudohint { margin: 0; font-size: 13px; color: var(--acc2); text-align: center; }
-#updpill { position: fixed; z-index: 60; right: 8px; top: calc(48px + env(safe-area-inset-top)); padding: 6px 12px; border-radius: 16px; border: 1.5px solid #8a2a16; background: linear-gradient(#c8553c, #a8371f); color: #fff8ee; font-size: 13px; font-weight: 700; box-shadow: 0 3px 10px #0006; cursor: pointer; }
+#updpill { position: fixed; z-index: 60; right: 8px; top: calc(52px + var(--sat)); padding: 6px 12px; border-radius: 16px; border: 1.5px solid #8a2a16; background: linear-gradient(#c8553c, #a8371f); color: #fff8ee; font-size: 13px; font-weight: 700; box-shadow: 0 3px 10px #0006; cursor: pointer; }
 /* 潜行準備は縦に長いので、潜るボタンを下に貼り付ける（小さい画面でも押せる） */
 .prep footer.ops.big { position: sticky; bottom: 0; z-index: 5; margin-top: auto; padding: 8px 0 calc(6px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, var(--paper) 30%); }
 /* 育ち（永続で育つ札・常連客） */
@@ -950,3 +954,18 @@ button { font: inherit; color: inherit; }
 .growl b { font-family: var(--mincho); font-size: 1.15em; }
 .chip.drop { color: var(--bad); border-color: var(--bad); }
 .chip.drop.arm { background: var(--bad); color: #fff; font-weight: 700; }
+/* 背の低い画面（ステータスバー込みで 640px 未満など）：宿の絵を小さくして一覧を見やすく */
+@media (max-height: 640px) {
+  .innart .art svg { max-height: 84px; }
+  .innart.big .art svg { max-height: 140px; }
+  .innart .okamisay { font-size: 12px; }
+  .innbar { gap: 4px; padding-top: 2px; }
+  .btn.main.dive { min-height: 48px; }
+  .innnav .nb { min-height: 40px; }
+}
+/* とても細い画面（幅 340px 未満） */
+@media (max-width: 340px) {
+  .itop h2 { font-size: 17px; }
+  .itop .wallet { font-size: 12px; gap: 4px; }
+  .scr.title h1, .scr.title .logo { font-size: clamp(56px, 22vw, 96px); }
+}
